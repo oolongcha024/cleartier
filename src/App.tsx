@@ -83,17 +83,17 @@ function Shell() {
       </div>
     </aside>
     <main className="main-content" id="main-content" tabIndex={-1}>
-      <header className="page-header"><h1>{t(`nav.${currentPage}`)}</h1>
+      <header className="page-header"><h1 key={currentPage} className="page-title">{t(`nav.${currentPage}`)}</h1>
         <div className="header-actions"><Chip dot>{t('app.demo')}</Chip>
           <IconButton icon={dark ? 'light_mode' : 'dark_mode'} label={t('app.theme')} onClick={() => setPreference(dark ? 'light' : 'dark')} />
         </div>
       </header>
-      <Suspense fallback={<div className="page-loading" role="status">{t('app.loading')}</div>}><Routes>
+      <Suspense fallback={<div className="page-loading" role="status">{t('app.loading')}</div>}><div key={pathname} className="page-view"><Routes>
         <Route path="/" element={<Dashboard />} />
         {navigation.slice(1).map((item) => <Route key={item.id} path={item.path} element={<PlannedPage icon={item.icon} />} />)}
         <Route path="/settings" element={<Appearance />} />
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes></Suspense>
+      </Routes></div></Suspense>
       <footer className="page-footer"><Icon name="science" /><span>{t('app.demoDescription')}</span></footer>
     </main>
   </div>;

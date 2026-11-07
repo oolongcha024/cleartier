@@ -1,0 +1,16 @@
+/* MD3 curve-based standard motion for a utility-focused desktop client.
+   Reference: material-components-android/docs/theming/Motion.md */
+:root {
+  --md-sys-motion-duration-short-2: 100ms;
+  --md-sys-motion-duration-short-3: 150ms;
+  --md-sys-motion-duration-short-4: 200ms;
+  --md-sys-motion-duration-medium-2: 250ms;
+  --md-sys-motion-easing-standard: cubic-bezier(.2, 0, 0, 1);
+  --md-sys-motion-easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+  --md-sys-motion-easing-standard-accelerate: cubic-bezier(.3, 0, 1, 1);
+  --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(.05, .7, .1, 1);
+  --motion-short: var(--md-sys-motion-duration-short-3) var(--md-sys-motion-easing-standard);
+  --motion-medium: var(--md-sys-motion-duration-medium-2) var(--md-sys-motion-easing-standard);
+  --motion-enter: var(--md-sys-motion-duration-short-4) var(--md-sys-motion-easing-standard-decelerate);
+  --motion-exit: var(--md-sys-motion-duration-short-3) var(--md-sys-motion-easing-standard-accelerate);
+}

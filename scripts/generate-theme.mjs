@@ -51,8 +51,6 @@ const shared = `:root {
   --shape-medium: 12px;
   --shape-large: 24px;
   --shape-extra-large: 28px;
-  --motion-short: 160ms cubic-bezier(.2, 0, 0, 1);
-  --motion-medium: 260ms cubic-bezier(.2, 0, 0, 1);
   --state-hover: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
   --connection-surface: color-mix(in srgb, var(--md-sys-color-primary-container) 42%, var(--md-sys-color-surface-container-low));
 }`;

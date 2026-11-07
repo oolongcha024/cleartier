@@ -6,7 +6,12 @@
   const panel = document.querySelector('#sidebar-navigation');
   if (!toggle || !panel) throw new Error('Open the app preview before running this check.');
   const initiallyExpanded = toggle.getAttribute('aria-expanded') === 'true';
-  const settle = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const settle = async () => {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const animations = document.querySelector('.app-shell').getAnimations({ subtree: true })
+      .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+    await Promise.all(animations.map((animation) => animation.finished.catch(() => {})));
+  };
   const results = [];
 
   try {

@@ -40,6 +40,8 @@ pnpm install --frozen-lockfile
 
 界面按桌面客户端设计，最小窗口为 900×600，默认 1200×800。侧栏展开宽度为 200px，手动收起后为 88px，不随窗口宽度自动切换。仪表盘只按主内容可用宽度的 800px 分界切换单双列，快捷操作始终为两列。主内容纵向滚动，侧栏导航在空间不足时独立滚动；浏览器窗口小于支持尺寸时允许整页滚动，不另设手机布局。
 
+动效使用 MD3 标准曲线，统一定义在 `src/theme/motion.css`，参考 [Material 动效令牌](https://github.com/material-components/material-components-android/blob/master/docs/theming/Motion.md)。侧栏平滑收展时图标列保持固定，文字独立淡入淡出；页面、选择器、弹窗和提示消息提供轻量进出过渡。系统启用“减少动态效果”时跳过位移和延时。
+
 调整主题种子色后，运行以下命令重新生成并提交色彩令牌；普通开发和构建不需要执行：
 
 ```bash
