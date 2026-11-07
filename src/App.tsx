@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
-import { HashRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router';
+import { HashRouter, Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router';
 import { Tooltip } from '@base-ui/react/tooltip';
 import { useTranslation } from 'react-i18next';
 import { Chip, Icon, IconButton, Select, SnackbarProvider } from './components/ui';
@@ -10,35 +10,27 @@ import { version } from '../package.json';
 
 const Dashboard = lazy(async () => ({ default: (await import('./features/dashboard/Dashboard')).Dashboard }));
 const NetworksPage = lazy(async () => ({ default: (await import('./features/networks/NetworksPage')).NetworksPage }));
+const AboutPage = lazy(async () => ({ default: (await import('./features/about/AboutPage')).AboutPage }));
 
 const navigation = [
   { id: 'dashboard', icon: 'space_dashboard', path: '/' },
   { id: 'networks', icon: 'hub', path: '/networks' },
-  { id: 'devices', icon: 'devices', path: '/devices' },
-  { id: 'connections', icon: 'lan', path: '/connections' },
-  { id: 'diagnostics', icon: 'monitor_heart', path: '/diagnostics' },
 ] as const;
 
-function Appearance() {
+function SettingsPage() {
   const { t } = useTranslation();
   const { preference, setPreference } = useTheme();
-  return <section className="card settings-card">
+  return <div className="settings-page"><section className="card settings-card">
     <h2>{t('settings.appearance')}</h2>
     <div className="settings-row"><span>{t('settings.theme')}</span>
       <Select label={t('settings.theme')} value={preference} onChange={(value) => setPreference(value as ThemePreference)}
         options={(['system', 'light', 'dark'] as const).map((value) => ({ value, label: t(`app.${value}`) }))} />
     </div>
-  </section>;
-}
-
-function PlannedPage({ icon }: { icon: string }) {
-  const { t } = useTranslation();
-  return <section className="planned-page">
-    <div className="empty-icon"><Icon name={icon} /></div>
-    <h2>{t('dashboard.pendingTitle')}</h2>
-    <p>{t('dashboard.pendingBody')}</p>
-    <NavLink to="/" className="button button--tonal"><Icon name="arrow_back" />{t('dashboard.back')}</NavLink>
-  </section>;
+  </section>
+    <Link to="/settings/about" className="card settings-about-link">
+      <Icon name="info" /><span>{t('settings.about')}</span><Icon name="chevron_right" />
+    </Link>
+  </div>;
 }
 
 function Shell() {
@@ -48,7 +40,8 @@ function Shell() {
   const [collapsed, setCollapsed] = useState(false);
   const networks = useNetworkStore((state) => state.networks);
   const connected = networks.filter(isConnected).length;
-  const currentPage = navigation.find((item) => item.path === pathname)?.id ?? 'settings';
+  const currentPage = pathname === '/settings/about' ? 'about'
+    : navigation.find((item) => item.path === pathname)?.id ?? 'settings';
 
   return <div className={`app-shell ${collapsed ? 'app-shell--collapsed' : ''}`}>
     <a href="#main-content" className="skip-link" onClick={(event) => {
@@ -92,8 +85,8 @@ function Shell() {
       <Suspense fallback={<div className="page-loading" role="status">{t('app.loading')}</div>}><div key={pathname} className="page-view"><Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/networks" element={<NetworksPage />} />
-        {navigation.slice(1).filter((item) => item.id !== 'networks').map((item) => <Route key={item.id} path={item.path} element={<PlannedPage icon={item.icon} />} />)}
-        <Route path="/settings" element={<Appearance />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings/about" element={<AboutPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes></div></Suspense>
       <footer className="page-footer"><Icon name="science" /><span>{t('app.demoDescription')}</span></footer>

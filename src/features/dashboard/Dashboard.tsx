@@ -1,12 +1,14 @@
 import { useId, useState } from 'react';
-import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Dialog, Hint, Icon, IconButton, Select, Switch, useSnackbar } from '../../components/ui';
+import { Button, Card, Chip, Dialog, Hint, Icon, IconButton, Select, Switch, useSnackbar } from '../../components/ui';
 import { copyText } from '../../lib/clipboard';
 import { formatBytes } from '../../lib/format-bytes';
-import { activePeers, isBusy, isConnected, statusKey, type Network, type Peer } from '../networks/model';
+import { activePeers, activeVirtualIp, isBusy, isConnected, statusKey, type Network } from '../networks/model';
 import { useNetworkStore } from '../networks/store';
 import { NetworkStatus } from '../networks/NetworkStatus';
+import { NetworkEditor } from '../networks/NetworkEditor';
+import { hasPendingConfig } from '../networks/configuration';
+import { PeerTable } from './PeerTable';
 
 function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value: string) => void }) {
   const { t } = useTranslation();
@@ -16,6 +18,7 @@ function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value:
   const connected = isConnected(network);
   const busy = isBusy(network);
   const running = network.coreState === 'running';
+  const name = (network.runningConfig ?? network.savedConfig).name;
   const title = network.coreState === 'stopped' ? 'disconnected'
     : network.coreState === 'starting' ? 'starting'
       : network.coreState === 'stopping' ? 'stopping' : connected ? 'connected' : 'waiting';
@@ -27,8 +30,10 @@ function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value:
 
   return <Card className={`connection-card ${connected ? 'connection-card--connected' : ''}`}>
     <div className="network-heading"><div className={`network-avatar network-avatar--${network.icon}`}><Icon name={network.icon} /></div>
-      <div className="network-identity"><h2 title={network.alias}>{network.alias}</h2><span title={network.name}>{network.name}</span></div>
-      <NetworkStatus network={network} />
+      <div className="network-identity"><h2 title={network.alias}>{network.alias}</h2><span title={name}>{name}</span></div>
+      <div className="network-heading-status"><NetworkStatus network={network} />
+        {hasPendingConfig(network) && !busy && <Chip tone="primary">{t('networkConfig.pending')}</Chip>}
+      </div>
     </div>
     <div className="connection-state">
       <div className={`connection-state-icon ${connected ? 'connection-state-icon--connected' : ''} ${busy ? 'is-spinning' : ''}`}>
@@ -42,8 +47,8 @@ function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value:
     </div>
     <div className="connection-facts">
       <div className="connection-fact"><span className="fact-label">{t('dashboard.virtualIp')}</span>
-        <div className="fact-value ip-value"><span className="selectable-ip">{running ? network.virtualIp : '—'}</span>
-          {running && <IconButton icon="content_copy" label={t('dashboard.copyIp')} onClick={() => onCopy(network.virtualIp)} />}
+        <div className="fact-value ip-value"><span className="selectable-ip">{running ? activeVirtualIp(network) : '—'}</span>
+          {running && <IconButton icon="content_copy" label={t('dashboard.copyIp')} onClick={() => onCopy(activeVirtualIp(network))} />}
         </div>
       </div>
       <div className="connection-fact"><span className="fact-label">{t('dashboard.latency')}</span>
@@ -60,22 +65,36 @@ function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value:
   </Card>;
 }
 
-function QuickActions({ network, onCopy, onDevices }: { network: Network; onCopy: (value: string) => void; onDevices: () => void }) {
+function QuickActions({ network, onCopy, onEdit }: {
+  network: Network; onCopy: (value: string) => void; onEdit: () => void;
+}) {
   const { t } = useTranslation();
+  const notify = useSnackbar();
+  const reconnect = useNetworkStore((state) => state.reconnect);
+  const pending = hasPendingConfig(network);
+  const busy = isBusy(network);
+  const handleReconnect = async () => {
+    const restarting = reconnect(network.id);
+    notify(t(pending ? 'feedback.reconnectingApply' : 'feedback.reconnecting', { name: network.alias }));
+    if (await restarting) notify(t('feedback.reconnected', { name: network.alias }));
+  };
   return <Card className="quick-card"><h2>{t('dashboard.quickActions')}</h2>
     <div className="quick-actions">
       <Hint label={t('dashboard.soon')}><button className="quick-action" disabled>
         <span className="quick-icon"><Icon name="person_add" /></span><span>{t('dashboard.invite')}</span>
       </button></Hint>
-      <button className="quick-action" disabled={network.coreState !== 'running'} onClick={() => onCopy(network.virtualIp)}>
+      <button className="quick-action" disabled={network.coreState !== 'running'} onClick={() => onCopy(activeVirtualIp(network))}>
         <span className="quick-icon"><Icon name="content_copy" /></span><span>{t('dashboard.copyIp')}</span>
       </button>
-      <button className="quick-action" onClick={onDevices}>
-        <span className="quick-icon"><Icon name="devices" /></span><span>{t('dashboard.devices')}</span>
+      <Hint label={t(pending ? 'dashboard.reconnectApplyHint' : 'dashboard.reconnectHint')}>
+        <button className="quick-action" disabled={network.coreState !== 'running'} onClick={() => { void handleReconnect(); }}>
+          <span className="quick-icon"><Icon name={busy ? 'progress_activity' : 'restart_alt'} className={busy ? 'is-spinning' : ''} /></span>
+          <span>{t(pending ? 'dashboard.reconnectApply' : 'dashboard.reconnect')}</span>
+        </button>
+      </Hint>
+      <button className="quick-action" disabled={busy} aria-label={t('networkConfig.editNamed', { name: network.alias })} onClick={onEdit}>
+        <span className="quick-icon"><Icon name="edit" /></span><span>{t('dashboard.editNetwork')}</span>
       </button>
-      <Link to="/networks" className="quick-action">
-        <span className="quick-icon"><Icon name="tune" /></span><span>{t('dashboard.configure')}</span>
-      </Link>
     </div>
   </Card>;
 }
@@ -147,27 +166,14 @@ function TrafficCard({ network }: { network: Network }) {
   </Card>;
 }
 
-function PeerTable({ peers, onCopy }: { peers: Peer[]; onCopy: (value: string) => void }) {
-  const { t } = useTranslation();
-  if (!peers.length) return <div className="devices-empty"><Icon name="devices_off" /><span>{t('dashboard.noDevices')}</span><p>{t('dashboard.noDevicesHint')}</p></div>;
-  return <div className="table-scroll"><table className="device-table"><thead><tr>
-    <th>{t('dashboard.device')}</th><th>{t('dashboard.address')}</th><th>{t('dashboard.connection')}</th><th>{t('dashboard.peerLatency')}</th>
-  </tr></thead><tbody>{peers.map((peer) => <tr key={peer.id}>
-    <td><div className="device-identity"><span className="device-icon"><Icon name={peer.platform} /></span><strong>{peer.name}</strong></div></td>
-    <td><button className="copy-address" onClick={() => onCopy(peer.ip)} aria-label={t('dashboard.copyAddress', { value: peer.ip })}>
-      {peer.ip}<Icon name="content_copy" /></button></td>
-    <td><span className={`connection-type connection-type--${peer.connection}`}><span className="status-dot" />{t(`dashboard.${peer.connection}`)}</span></td>
-    <td className="latency-cell">{peer.latency}<span className="unit">ms</span></td>
-  </tr>)}</tbody></table></div>;
-}
-
 export function Dashboard() {
   const { t } = useTranslation();
   const { networks, selectedId, selectNetwork } = useNetworkStore();
   const network = networks.find((item) => item.id === selectedId)!;
   const peers = activePeers(network);
-  const [devicesOpen, setDevicesOpen] = useState(false);
   const [manualCopy, setManualCopy] = useState('');
+  const [editor, setEditor] = useState({ id: '', open: false, session: 0 });
+  const editingNetwork = networks.find((item) => item.id === editor.id);
   const notify = useSnackbar();
   const connectedCount = networks.filter(isConnected).length;
   const handleCopy = async (value: string) => {
@@ -188,16 +194,15 @@ export function Dashboard() {
     </div>
     <div className="dashboard-grid">
       <ConnectionCard network={network} onCopy={handleCopy} />
-      <QuickActions network={network} onCopy={handleCopy} onDevices={() => setDevicesOpen(true)} />
+      <QuickActions network={network} onCopy={handleCopy}
+        onEdit={() => setEditor((current) => ({ id: network.id, open: true, session: current.session + 1 }))} />
       <TrafficCard network={network} />
-      <Card className="devices-card"><div className="card-heading"><h2>{t('dashboard.devicesTitle')}<span className="heading-count">{peers.length}</span></h2>
-        <Button variant="text" icon="arrow_forward" onClick={() => setDevicesOpen(true)}>{t('dashboard.allDevices')}</Button></div>
+      <Card className="devices-card"><div className="card-heading"><h2>{t('dashboard.devicesTitle')}<span className="heading-count">{peers.length}</span></h2></div>
         <PeerTable peers={peers} onCopy={handleCopy} />
       </Card>
     </div>
-    <Dialog open={devicesOpen} onOpenChange={setDevicesOpen} title={`${network.alias} · ${t('dashboard.devicesTitle')}`} description={t('dashboard.devicesOnline', { count: peers.length })}>
-      <PeerTable peers={peers} onCopy={handleCopy} />
-    </Dialog>
+    {editingNetwork && <NetworkEditor key={editor.session} network={editingNetwork} open={editor.open}
+      onOpenChange={(open) => setEditor((current) => ({ ...current, open }))} />}
     <Dialog open={Boolean(manualCopy)} onOpenChange={(open) => { if (!open) setManualCopy(''); }} title={t('dashboard.copyIp')} description={t('feedback.copyFailed')}>
       <input className="manual-copy" aria-label={t('dashboard.address')} readOnly value={manualCopy} onFocus={(event) => event.currentTarget.select()} />
     </Dialog>

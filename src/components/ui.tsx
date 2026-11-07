@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode, type Ref, type RefObject } from 'react';
 import { Dialog as BaseDialog } from '@base-ui/react/dialog';
 import { Select as BaseSelect } from '@base-ui/react/select';
 import { Switch as BaseSwitch } from '@base-ui/react/switch';
@@ -38,8 +38,8 @@ export function Chip({ children, tone = 'neutral', dot = false }: {
 }) {
   return <span className={`chip chip--${tone}`}>{dot && <span className="status-dot" />}{children}</span>;
 }
-export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
-  return <BaseSwitch.Root className="switch" checked={checked} onCheckedChange={onChange} aria-label={label}>
+export function Switch({ checked, onChange, label, disabled = false }: { checked: boolean; onChange: (value: boolean) => void; label: string; disabled?: boolean }) {
+  return <BaseSwitch.Root className="switch" checked={checked} onCheckedChange={onChange} aria-label={label} disabled={disabled}>
     <BaseSwitch.Thumb className="switch-thumb">{checked && <Icon name="check" />}</BaseSwitch.Thumb>
   </BaseSwitch.Root>;
 }
@@ -65,13 +65,34 @@ export function Select({ value, onChange, options, label, icon, className = '', 
     </BaseSelect.Positioner></BaseSelect.Portal>
   </BaseSelect.Root>;
 }
-export function Dialog({ open, onOpenChange, title, description, children }: {
+export function TextField({ label, value, onChange, name, type = 'text', multiline = false, placeholder, hint, error, trailing, inputRef, disabled = false, inputMode, maxLength }: {
+  label: string; value: string; onChange: (value: string) => void; name: string;
+  type?: 'text' | 'password'; multiline?: boolean; placeholder?: string; hint?: string; error?: string;
+  trailing?: ReactNode; inputRef?: Ref<HTMLInputElement>;
+  disabled?: boolean; inputMode?: 'numeric'; maxLength?: number;
+}) {
+  const id = useId();
+  const shared = { id, name, value, placeholder, disabled, inputMode, maxLength, 'aria-invalid': !!error,
+    'aria-describedby': error || hint ? `${id}-support` : undefined, spellCheck: false };
+  return <div className={`text-field ${error ? 'text-field--error' : ''}`}>
+    <div className="text-field-control">
+      <label htmlFor={id}>{label}</label>
+      {multiline ? <textarea {...shared} rows={3} onChange={(event) => onChange(event.target.value)} />
+        : <input {...shared} ref={inputRef} type={type} autoComplete={type === 'password' ? 'new-password' : 'off'}
+          onChange={(event) => onChange(event.target.value)} />}
+      {trailing && <span className="text-field-trailing">{trailing}</span>}
+    </div>
+    {(error || hint) && <p id={`${id}-support`} className="text-field-support" role={error ? 'alert' : undefined}>{error || hint}</p>}
+  </div>;
+}
+export function Dialog({ open, onOpenChange, title, description, children, className = '', initialFocus }: {
   open: boolean; onOpenChange: (value: boolean) => void; title: string; description?: string; children: ReactNode;
+  className?: string; initialFocus?: RefObject<HTMLElement | null>;
 }) {
   const { t } = useTranslation();
   return <BaseDialog.Root open={open} onOpenChange={onOpenChange}>
     <BaseDialog.Portal><BaseDialog.Backdrop className="dialog-backdrop" />
-      <BaseDialog.Popup className="dialog-popup">
+      <BaseDialog.Popup className={`dialog-popup ${className}`} initialFocus={initialFocus}>
         <div className="dialog-heading"><BaseDialog.Title>{title}</BaseDialog.Title>
           <IconButton icon="close" label={t('app.close')} onClick={() => onOpenChange(false)} />
         </div>

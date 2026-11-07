@@ -1,10 +1,14 @@
 import type { Network } from './model';
+import { createNetworkConfig } from './defaults.ts';
 
 const download = [22, 25, 21, 34, 27, 25, 44, 38, 31, 36, 29, 45, 38, 35, 54, 49, 42, 57, 47, 44, 65, 58, 48, 62, 53, 47, 58, 66, 54, 60, 72];
 const upload = [9, 12, 10, 14, 11, 10, 17, 12, 13, 17, 13, 20, 16, 15, 22, 18, 15, 21, 18, 15, 25, 19, 17, 23, 18, 16, 21, 24, 18, 21, 27];
+const officeConfig = createNetworkConfig('office', { name: 'studio-work', secret: 'demo-office-key', servers: ['tcp://office.example.com:11010'] });
+const gamingConfig = createNetworkConfig('gaming', { name: 'weekend-party', secret: 'demo-game-key', servers: ['udp://game.example.com:11010'] });
+const homeConfig = createNetworkConfig('home', { name: 'home-lab', secret: '', servers: ['tcp://home.example.com:11010'] });
 export const demoNetworks: Network[] = [
   {
-    id: 'office', alias: '远程办公室', name: 'studio-work', icon: 'work',
+    id: 'office', alias: '远程办公室', icon: 'work', savedConfig: officeConfig, runningConfig: officeConfig,
     coreState: 'running', autoConnect: true, virtualIp: '10.42.0.8', entryLatency: 12,
     download: 2.4, upload: 0.128, traffic: { download, upload },
     trafficTotals: { downloadBytes: 2_000_000_000, uploadBytes: 134_217_728 },
@@ -15,7 +19,7 @@ export const demoNetworks: Network[] = [
     ],
   },
   {
-    id: 'gaming', alias: '周末联机', name: 'weekend-party', icon: 'sports_esports',
+    id: 'gaming', alias: '周末联机', icon: 'sports_esports', savedConfig: gamingConfig, runningConfig: gamingConfig,
     coreState: 'running', autoConnect: false, virtualIp: '10.56.0.2', entryLatency: 24,
     download: 0.860, upload: 0.096,
     trafficTotals: { downloadBytes: 478_150_656, uploadBytes: 83_886_080 },
@@ -26,7 +30,7 @@ export const demoNetworks: Network[] = [
     ],
   },
   {
-    id: 'home', alias: '家里的小网络', name: 'home-lab', icon: 'home',
+    id: 'home', alias: '家里的小网络', icon: 'home', savedConfig: homeConfig, runningConfig: null,
     coreState: 'stopped', autoConnect: false, virtualIp: '10.68.0.6', entryLatency: 8,
     download: 0.320, upload: 0.064,
     trafficTotals: null,
