@@ -1,6 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import './lib/i18n';
+import 'material-symbols/rounded.css';
 import './styles.css';
 
 createRoot(document.getElementById('root')!).render(

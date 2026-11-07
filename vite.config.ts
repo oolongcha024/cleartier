@@ -16,7 +16,7 @@ export default defineConfig({
       protocol: 'ws',
     },
     watch: {
-      ignored: ['**/src-tauri/**'],
+      ignored: ['**/src-tauri/**', '**/.cache/**', '**/artifacts/**'],
     },
   },
   preview: {

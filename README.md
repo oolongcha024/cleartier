@@ -2,7 +2,7 @@
 
 基于 EasyTier 核心的跨平台本地桌面客户端，面向异地组网、远程办公和游戏联机，重点改善界面、操作流程以及网络邀请分享体验。
 
-当前已建立 React/Vite/Tauri 最小工程骨架，尚未实现业务页面或接入真实组网核心。项目名称暂沿用仓库目录名，尚未正式确定。
+当前已实现 MD3 基础组件、侧边导航和使用模拟数据的仪表盘，尚未接入真实组网核心。项目名称暂沿用仓库目录名，尚未正式确定。
 
 ## 项目文档
 
@@ -28,7 +28,23 @@ pnpm install --frozen-lockfile
 | 路由与状态 | React Router、Zustand |
 | 国际化 | i18next、react-i18next |
 
-[Base UI](https://base-ui.com/react/overview/quick-start) 提供无样式交互组件；后续按 Material Design 3 实现组件视觉和状态表现，[Material Color Utilities](https://github.com/material-foundation/material-color-utilities) 用于色彩方案。依赖安装不代表已完成 MD3 组件实现。
+[Base UI](https://base-ui.com/react/overview/quick-start) 提供选择器、开关、弹窗和提示的交互底座，组件视觉使用 MD3 色彩角色、色调容器和状态样式。[Material Color Utilities](https://github.com/material-foundation/material-color-utilities) 用于生成浅色与深色主题，色彩结果保存在 CSS 中，不在客户端加载色彩引擎。
+
+## 当前界面
+
+仪表盘支持切换查看网络、模拟连接与断开、修改自动连接开关、复制 IP、查看设备、查看流量和最近动态。各网络独立操作，切换查看对象不会改变其他网络的连接。
+
+网络状态与自动连接选项仅保存在内存中，刷新后恢复演示数据；外观偏好保存在本机浏览器存储中。连接不代表已验证目标服务可访问。邀请和加入按钮暂不可用，详细配置、设备、连接、诊断和记录页面目前只有导航入口；设置页提供外观选择。
+
+前端代码按职责组织：`src/components/` 为基础组件，`src/theme/` 为主题，`src/features/` 为业务视图与模拟状态，`src/lib/i18n.ts` 集中维护中文文案。页面不调用 Tauri 原生 API，可以独立在浏览器中运行。
+
+调整主题种子色后，运行以下命令重新生成并提交色彩令牌；普通开发和构建不需要执行：
+
+```bash
+pnpm theme:generate
+```
+
+主题种子和生成逻辑位于 `scripts/generate-theme.mjs`。
 
 ## 运行工程
 
@@ -63,4 +79,4 @@ Tauri 与浏览器预览共用前端入口。`tauri dev` 会自行启动开发�
 
 ## 下一步
 
-按已确认的原型方向实现仪表盘首页，通过下拉框选择当前查看的网络，详细配置独立分页面。交互先使用模拟数据验证，再接入 EasyTier 核心。
+实现独立的网络配置页面和邀请流程，再通过适配层接入 EasyTier 核心，替换模拟状态。
