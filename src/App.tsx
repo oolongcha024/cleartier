@@ -9,6 +9,7 @@ import { ThemeProvider, useTheme, type ThemePreference } from './theme/theme';
 import { version } from '../package.json';
 
 const Dashboard = lazy(async () => ({ default: (await import('./features/dashboard/Dashboard')).Dashboard }));
+const NetworksPage = lazy(async () => ({ default: (await import('./features/networks/NetworksPage')).NetworksPage }));
 
 const navigation = [
   { id: 'dashboard', icon: 'space_dashboard', path: '/' },
@@ -90,7 +91,8 @@ function Shell() {
       </header>
       <Suspense fallback={<div className="page-loading" role="status">{t('app.loading')}</div>}><div key={pathname} className="page-view"><Routes>
         <Route path="/" element={<Dashboard />} />
-        {navigation.slice(1).map((item) => <Route key={item.id} path={item.path} element={<PlannedPage icon={item.icon} />} />)}
+        <Route path="/networks" element={<NetworksPage />} />
+        {navigation.slice(1).filter((item) => item.id !== 'networks').map((item) => <Route key={item.id} path={item.path} element={<PlannedPage icon={item.icon} />} />)}
         <Route path="/settings" element={<Appearance />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes></div></Suspense>

@@ -12,6 +12,9 @@ export interface Network {
   coreState: CoreState; autoConnect: boolean; virtualIp: string; entryLatency: number;
   peers: Peer[]; download: number; upload: number;
   traffic: { download: number[]; upload: number[] };
+  // Byte counters for this machine in this network; null means no session recorded.
+  // Keep the last snapshot on disconnect. These are independent from rates (MB/s).
+  trafficTotals: { downloadBytes: number; uploadBytes: number } | null;
 }
 export const isConnected = (network: Network) => network.coreState === 'running' && network.peers.length > 0;
 export const isBusy = (network: Network) => network.coreState === 'starting' || network.coreState === 'stopping';

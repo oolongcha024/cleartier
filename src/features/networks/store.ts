@@ -22,7 +22,8 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     if (!network || isBusy(network)) return;
     const connecting = network.coreState === 'stopped';
     set((state) => ({ networks: state.networks.map((item) => item.id === id
-      ? { ...item, coreState: connecting ? 'starting' : 'stopping' } : item) }));
+      ? { ...item, coreState: connecting ? 'starting' : 'stopping',
+        trafficTotals: connecting ? { downloadBytes: 0, uploadBytes: 0 } : item.trafficTotals } : item) }));
     await new Promise((resolve) => setTimeout(resolve, 900));
     set((state) => ({
       networks: state.networks.map((item) => item.id === id

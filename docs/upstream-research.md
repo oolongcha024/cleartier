@@ -37,6 +37,10 @@
 
 本项目的主要改善方向是用户任务组织、信息解释、操作反馈和分享体验，不是重新实现底层组网协议。
 
+### 流量计数口径
+
+官方状态组件对节点的连接列表汇总 `stats.rx_bytes`、`stats.tx_bytes`，再对当前网络的节点信息做汇总，并通过前后差值计算速率，见[流量汇总与速率计算](https://github.com/EasyTier/EasyTier/blob/6e87219/easytier-web/frontend-lib/src/components/Status.vue#L231)。这是当前网络的连接层计数，不能直接解释为系统所有网卡的互联网用量、目标应用的净荷流量或跨重启的历史累计。接入真实核心时还需处理连接消失、重建和计数回退，不能将连接快照求和当作永不减少的会话计数。
+
 ## 3. 运行状态的准确含义
 
 核心内部实例状态包括 `Created / Starting / Running / Stopping / Stopped`，见[实例定义](https://github.com/EasyTier/EasyTier/blob/6e87219/easytier-core/src/instance/mod.rs#L128)。

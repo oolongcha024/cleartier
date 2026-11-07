@@ -1,17 +1,12 @@
 import { useId, useState } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Chip, Dialog, Hint, Icon, IconButton, Select, Switch, useSnackbar } from '../../components/ui';
+import { Button, Card, Dialog, Hint, Icon, IconButton, Select, Switch, useSnackbar } from '../../components/ui';
 import { copyText } from '../../lib/clipboard';
+import { formatBytes } from '../../lib/format-bytes';
 import { activePeers, isBusy, isConnected, statusKey, type Network, type Peer } from '../networks/model';
 import { useNetworkStore } from '../networks/store';
-
-function NetworkStatus({ network }: { network: Network }) {
-  const { t } = useTranslation();
-  return <Chip tone={isConnected(network) ? 'success' : isBusy(network) ? 'primary' : 'neutral'} dot>
-    {t(`dashboard.${statusKey(network)}`)}
-  </Chip>;
-}
+import { NetworkStatus } from '../networks/NetworkStatus';
 
 function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value: string) => void }) {
   const { t } = useTranslation();
@@ -32,7 +27,7 @@ function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value:
 
   return <Card className={`connection-card ${connected ? 'connection-card--connected' : ''}`}>
     <div className="network-heading"><div className={`network-avatar network-avatar--${network.icon}`}><Icon name={network.icon} /></div>
-      <div className="network-identity"><h2 title={network.alias}>{network.alias}</h2><span>{network.name}</span></div>
+      <div className="network-identity"><h2 title={network.alias}>{network.alias}</h2><span title={network.name}>{network.name}</span></div>
       <NetworkStatus network={network} />
     </div>
     <div className="connection-state">
@@ -95,6 +90,8 @@ function TrafficCard({ network }: { network: Network }) {
   const connected = isConnected(network);
   const download = rate(connected ? network.download : 0);
   const upload = rate(connected ? network.upload : 0);
+  const totalDownload = formatBytes(network.trafficTotals?.downloadBytes);
+  const totalUpload = formatBytes(network.trafficTotals?.uploadBytes);
   const maximum = Math.max(1, Math.ceil(network.download * 1.25));
   const plot = (values: number[], current: number) => values.map((point, index) => {
     const x = index * 600 / (values.length - 1);
@@ -105,60 +102,48 @@ function TrafficCard({ network }: { network: Network }) {
   const uploadPath = plot(network.traffic.upload, network.upload);
 
   return <Card className="traffic-card">
-    <div className="card-heading"><h2>{t('dashboard.traffic')}</h2><span className="muted small">{t('dashboard.lastMinute')}</span></div>
-    <div className="traffic-stats">
-      <div className="traffic-stat"><span className="metric-label"><Icon name="arrow_downward" />{t('dashboard.download')}</span>
-        <span className="metric-value">{download.value}<span>{download.unit}</span></span>
+    <div className="card-heading"><h2>{t('dashboard.traffic')}</h2></div>
+    <div className="traffic-body">
+      <div className="traffic-stats">
+        <div className="traffic-stat"><span className="metric-label"><Icon name="arrow_downward" />{t('dashboard.download')}</span>
+          <span className="metric-value">{download.value}<span>{download.unit}</span></span>
+          <dl className="traffic-total" aria-label={t('dashboard.totalDownload')}>
+            <dt><Hint label={t('dashboard.trafficTotalsHint')}><span>{t('dashboard.totalTraffic')}</span></Hint></dt>
+            <dd>{totalDownload.value}{totalDownload.unit && <span>{totalDownload.unit}</span>}</dd>
+          </dl>
+        </div>
+        <div className="traffic-stat traffic-stat--upload"><span className="metric-label"><Icon name="arrow_upward" />{t('dashboard.upload')}</span>
+          <span className="metric-value">{upload.value}<span>{upload.unit}</span></span>
+          <dl className="traffic-total" aria-label={t('dashboard.totalUpload')}>
+            <dt><Hint label={t('dashboard.trafficTotalsHint')}><span>{t('dashboard.totalTraffic')}</span></Hint></dt>
+            <dd>{totalUpload.value}{totalUpload.unit && <span>{totalUpload.unit}</span>}</dd>
+          </dl>
+        </div>
       </div>
-      <div className="traffic-stat traffic-stat--upload"><span className="metric-label"><Icon name="arrow_upward" />{t('dashboard.upload')}</span>
-        <span className="metric-value">{upload.value}<span>{upload.unit}</span></span>
+      <div className="traffic-trend">
+        <div className="traffic-trend-heading"><span className="muted small">{t('dashboard.lastMinute')}</span>
+          <div className="chart-legend"><span><i />{t('dashboard.download')}</span><span><i />{t('dashboard.upload')}</span></div>
+        </div>
+        <div className={`traffic-chart ${connected ? '' : 'traffic-chart--offline'}`}>
+          <div className="chart-scale" aria-hidden="true"><span>{connected ? maximum : 0} MB/s</span><span>{connected ? maximum / 2 : 0}</span><span>0</span></div>
+          <svg viewBox="0 0 600 144" preserveAspectRatio="none" role="img"
+            aria-label={t('dashboard.chartLabel', { name: network.alias, upload: `${upload.value} ${upload.unit}`, download: `${download.value} ${download.unit}` })}>
+            <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--md-sys-color-primary)" stopOpacity=".18" />
+              <stop offset="100%" stopColor="var(--md-sys-color-primary)" stopOpacity="0" />
+            </linearGradient></defs>
+            {[12, 74, 136].map((y) => <line key={y} x1="0" x2="600" y1={y} y2={y} className="chart-grid" />)}
+            {connected && <>
+              <path d={`${downloadPath} L600,144 L0,144 Z`} fill={`url(#${gradientId})`} />
+              <path d={downloadPath} className="chart-line chart-line--download" />
+              <path d={uploadPath} className="chart-line chart-line--upload" />
+            </>}
+          </svg>
+          {!connected && <span className="chart-empty">{t('dashboard.trafficOffline')}</span>}
+        </div>
+        <div className="chart-time" aria-hidden="true"><span>{t('dashboard.sixtyAgo')}</span><span>{t('dashboard.thirtyAgo')}</span><span>{t('dashboard.now')}</span></div>
       </div>
-      <div className="chart-legend"><span><i />{t('dashboard.download')}</span><span><i />{t('dashboard.upload')}</span></div>
     </div>
-    <div className={`traffic-chart ${connected ? '' : 'traffic-chart--offline'}`}>
-      <div className="chart-scale" aria-hidden="true"><span>{connected ? maximum : 0} MB/s</span><span>{connected ? maximum / 2 : 0}</span><span>0</span></div>
-      <svg viewBox="0 0 600 144" preserveAspectRatio="none" role="img"
-        aria-label={t('dashboard.chartLabel', { name: network.alias, upload: `${upload.value} ${upload.unit}`, download: `${download.value} ${download.unit}` })}>
-        <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--md-sys-color-primary)" stopOpacity=".18" />
-          <stop offset="100%" stopColor="var(--md-sys-color-primary)" stopOpacity="0" />
-        </linearGradient></defs>
-        {[12, 74, 136].map((y) => <line key={y} x1="0" x2="600" y1={y} y2={y} className="chart-grid" />)}
-        {connected && <>
-          <path d={`${downloadPath} L600,144 L0,144 Z`} fill={`url(#${gradientId})`} />
-          <path d={downloadPath} className="chart-line chart-line--download" />
-          <path d={uploadPath} className="chart-line chart-line--upload" />
-        </>}
-      </svg>
-      {!connected && <span className="chart-empty">{t('dashboard.trafficOffline')}</span>}
-    </div>
-    <div className="chart-time" aria-hidden="true"><span>{t('dashboard.sixtyAgo')}</span><span>{t('dashboard.thirtyAgo')}</span><span>{t('dashboard.now')}</span></div>
-  </Card>;
-}
-
-function NetworksCard() {
-  const { t } = useTranslation();
-  const { networks, selectedId, selectNetwork, toggleConnection } = useNetworkStore();
-  return <Card className="networks-card"><div className="card-heading"><h2>{t('dashboard.networks')}</h2>
-    <span className="muted small">{t('dashboard.networkCount', { count: networks.length })}</span></div>
-    <div className="network-list">{networks.map((network) => {
-      const selected = selectedId === network.id;
-      return <div key={network.id} className={`network-row ${selected ? 'network-row--selected' : ''}`}>
-        <button className="network-row-select" onClick={() => selectNetwork(network.id)} aria-label={t('dashboard.switchHint', { name: network.alias })} aria-pressed={selected}>
-          <span className={`mini-network-icon ${isConnected(network) ? 'mini-network-icon--connected' : ''}`}><Icon name={network.icon} /></span>
-          <span className="network-row-text"><strong>{network.alias}</strong><span>
-            <span className={`status-dot ${isConnected(network) ? 'status-dot--success' : ''}`} />
-            {t(`dashboard.${statusKey(network)}`)}{isConnected(network) && <> · {t('dashboard.deviceCount', { count: network.peers.length })}</>}
-          </span></span>
-          {selected && <Icon name="check" className="selected-check" />}
-        </button>
-        <IconButton icon={isBusy(network) ? 'progress_activity' : 'power_settings_new'}
-          label={t(network.coreState === 'stopped' ? 'dashboard.connectNamed' : 'dashboard.disconnectNamed', { name: network.alias })}
-          disabled={isBusy(network)} className={isBusy(network) ? 'is-spinning' : ''}
-          onClick={() => { void toggleConnection(network.id); }} />
-      </div>;
-    })}</div>
-    <Link className="network-manage" to="/networks">{t('dashboard.manage')}<Icon name="arrow_forward" /></Link>
   </Card>;
 }
 
@@ -192,9 +177,11 @@ export function Dashboard() {
 
   return <>
     <div className="network-toolbar">
-      <Select value={selectedId} onChange={selectNetwork} label={t('dashboard.selectNetwork')} icon={network.icon} className="network-select"
+      <Select value={selectedId} onChange={selectNetwork} label={t('dashboard.selectNetwork')} icon={network.icon} className="network-select" popupClassName="network-select-popup"
         options={networks.map((item) => ({ value: item.id, label: item.alias, icon: item.icon,
-          suffix: <span className={`status-dot ${isConnected(item) ? 'status-dot--success' : ''}`} /> }))} />
+          suffix: <span className={`network-option-status ${isConnected(item) ? 'network-option-status--connected' : ''}`}>
+            <span className="status-dot" />{t(`dashboard.${statusKey(item)}`)}
+          </span> }))} />
       <span className="toolbar-status"><span className={`status-dot ${connectedCount ? 'status-dot--success' : ''}`} />
         {t(connectedCount ? 'dashboard.networksOnline' : 'dashboard.allOffline', { count: connectedCount })}</span>
       <Hint label={t('dashboard.soon')}><Button variant="tonal" icon="add" disabled>{t('dashboard.join')}</Button></Hint>
@@ -203,7 +190,6 @@ export function Dashboard() {
       <ConnectionCard network={network} onCopy={handleCopy} />
       <QuickActions network={network} onCopy={handleCopy} onDevices={() => setDevicesOpen(true)} />
       <TrafficCard network={network} />
-      <NetworksCard />
       <Card className="devices-card"><div className="card-heading"><h2>{t('dashboard.devicesTitle')}<span className="heading-count">{peers.length}</span></h2>
         <Button variant="text" icon="arrow_forward" onClick={() => setDevicesOpen(true)}>{t('dashboard.allDevices')}</Button></div>
         <PeerTable peers={peers} onCopy={handleCopy} />

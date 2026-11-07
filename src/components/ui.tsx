@@ -44,9 +44,9 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
   </BaseSwitch.Root>;
 }
 export interface SelectOption { value: string; label: string; icon?: string; suffix?: ReactNode }
-export function Select({ value, onChange, options, label, icon, className = '' }: {
+export function Select({ value, onChange, options, label, icon, className = '', popupClassName = '' }: {
   value: string; onChange: (value: string) => void; options: SelectOption[];
-  label: string; icon?: string; className?: string;
+  label: string; icon?: string; className?: string; popupClassName?: string;
 }) {
   return <BaseSelect.Root value={value} onValueChange={(next) => { if (next !== null) onChange(next); }} items={options}>
     <BaseSelect.Trigger className={`select-trigger ${className}`} aria-label={label}>
@@ -54,11 +54,12 @@ export function Select({ value, onChange, options, label, icon, className = '' }
       <BaseSelect.Value /><BaseSelect.Icon className="select-chevron"><Icon name="expand_more" /></BaseSelect.Icon>
     </BaseSelect.Trigger>
     <BaseSelect.Portal><BaseSelect.Positioner sideOffset={8} align="start" alignItemWithTrigger={false} className="select-positioner">
-      <BaseSelect.Popup className="select-popup"><BaseSelect.List>
+      <BaseSelect.Popup className={`select-popup ${popupClassName}`}><BaseSelect.List>
         {options.map((option) => <BaseSelect.Item key={option.value} value={option.value} className="select-option">
           {option.icon && <Icon name={option.icon} />}
-          <BaseSelect.ItemText>{option.label}</BaseSelect.ItemText>
-          {option.suffix}<BaseSelect.ItemIndicator className="select-indicator"><Icon name="check" /></BaseSelect.ItemIndicator>
+          <BaseSelect.ItemText className="select-option-text">{option.label}</BaseSelect.ItemText>
+          {option.suffix && <span className="select-option-suffix">{option.suffix}</span>}
+          <BaseSelect.ItemIndicator keepMounted className="select-indicator"><Icon name="check" /></BaseSelect.ItemIndicator>
         </BaseSelect.Item>)}
       </BaseSelect.List></BaseSelect.Popup>
     </BaseSelect.Positioner></BaseSelect.Portal>

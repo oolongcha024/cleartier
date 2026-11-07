@@ -44,8 +44,10 @@
 .select-option[data-highlighted] { background: var(--state-hover); }
 .select-option[data-selected] { color: var(--md-sys-color-primary); }
 .select-option > .icon { font-size: 20px; }
-.select-option > .status-dot { margin-left: auto; width: 5px; height: 5px; }
-.select-indicator { display: flex; margin-left: auto; }
+.select-option-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-option-suffix { display: inline-flex; margin-left: auto; flex-shrink: 0; }
+.select-indicator { display: flex; width: 18px; flex-shrink: 0; }
+.select-indicator:not([data-selected]) { visibility: hidden; }
 .select-indicator .icon { font-size: 18px; }
 .dialog-backdrop { position: fixed; z-index: 50; inset: 0; background: #0006; opacity: 1; transition: opacity var(--motion-enter); }
 .dialog-backdrop[data-starting-style], .dialog-backdrop[data-ending-style] { opacity: 0; }

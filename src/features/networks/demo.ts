@@ -7,6 +7,7 @@ export const demoNetworks: Network[] = [
     id: 'office', alias: '远程办公室', name: 'studio-work', icon: 'work',
     coreState: 'running', autoConnect: true, virtualIp: '10.42.0.8', entryLatency: 12,
     download: 2.4, upload: 0.128, traffic: { download, upload },
+    trafficTotals: { downloadBytes: 2_000_000_000, uploadBytes: 134_217_728 },
     peers: [
       { id: 'nas', name: 'Studio NAS', ip: '10.42.0.1', platform: 'dns', connection: 'direct', latency: 12 },
       { id: 'mac', name: 'MacBook Pro', ip: '10.42.0.3', platform: 'laptop_mac', connection: 'direct', latency: 18 },
@@ -17,6 +18,7 @@ export const demoNetworks: Network[] = [
     id: 'gaming', alias: '周末联机', name: 'weekend-party', icon: 'sports_esports',
     coreState: 'running', autoConnect: false, virtualIp: '10.56.0.2', entryLatency: 24,
     download: 0.860, upload: 0.096,
+    trafficTotals: { downloadBytes: 478_150_656, uploadBytes: 83_886_080 },
     traffic: { download: download.map((point, i) => point * (i % 3 === 0 ? 0.6 : 0.8)), upload: upload.map((point) => point * 0.7) },
     peers: [
       { id: 'player1', name: 'Alex 的电脑', ip: '10.56.0.3', platform: 'desktop_windows', connection: 'direct', latency: 24 },
@@ -27,6 +29,7 @@ export const demoNetworks: Network[] = [
     id: 'home', alias: '家里的小网络', name: 'home-lab', icon: 'home',
     coreState: 'stopped', autoConnect: false, virtualIp: '10.68.0.6', entryLatency: 8,
     download: 0.320, upload: 0.064,
+    trafficTotals: null,
     traffic: { download: download.map((point) => point * 0.5), upload: upload.map((point) => point * 0.6) },
     peers: [{ id: 'home-nas', name: 'Home Server', ip: '10.68.0.1', platform: 'dns', connection: 'direct', latency: 8 }],
   },
