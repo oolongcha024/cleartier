@@ -7,9 +7,12 @@ import { run } from '@tauri-apps/cli';
 // The sidebar mask, web icon and desktop assets share this vector source.
 const source = await readFile(new URL('../src/assets/logo-mark.svg', import.meta.url), 'utf8');
 const mark = source.slice(source.indexOf('>') + 1, source.lastIndexOf('</svg>')).trim();
+// Desktop branding stays fixed while the in-app mark follows the selected theme.
+const brandBackground = '#3f5f90';
+const brandForeground = '#ffffff';
 const appIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <rect x="32" y="32" width="960" height="960" rx="256" fill="#006c56" />
-  <g transform="translate(172 172) scale(10.625)" color="#eefaf4">
+  <rect x="32" y="32" width="960" height="960" rx="256" fill="${brandBackground}" />
+  <g transform="translate(172 172) scale(10.625)" color="${brandForeground}">
     ${mark}
   </g>
 </svg>

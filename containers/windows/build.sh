@@ -24,6 +24,9 @@ else
 fi
 pnpm "${build_args[@]}" -- --locked
 
+# Verify the actual executable before exporting either the program or installer.
+node /workspace/scripts/verify-windows-icon.mjs "$release_dir/cleartier.exe" /workspace/src-tauri/icons/icon.ico
+
 mkdir -p "$artifact_root"
 artifact_files=()
 if [[ "$build_mode" == exe || "$build_mode" == all ]]; then

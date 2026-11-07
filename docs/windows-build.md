@@ -29,6 +29,8 @@ pnpm build:windows all
 
 远程开发时，可以使用 `python3` 临时提供产物下载服务。
 
+构建在导出前通过 `scripts/verify-windows-icon.mjs` 检查 exe 的 Windows 应用图标资源，确保每个尺寸都与 `src-tauri/icons/icon.ico` 一致；直接程序和安装包模式均执行此检查。图标变更会自动触发原生资源重建，保留依赖编译缓存。
+
 ## Windows 上测试
 
 直接程序需要目标机器已安装 Microsoft Edge WebView2 Runtime。它包含打包后的前端，不需要运行 Vite 或访问远程开发服务器。
