@@ -43,19 +43,22 @@ export function Switch({ checked, onChange, label, disabled = false }: { checked
     <BaseSwitch.Thumb className="switch-thumb">{checked && <Icon name="check" />}</BaseSwitch.Thumb>
   </BaseSwitch.Root>;
 }
-export interface SelectOption { value: string; label: string; icon?: string; suffix?: ReactNode }
+export interface SelectOption { value: string; label: string; icon?: string; leading?: ReactNode; suffix?: ReactNode }
 export function Select({ value, onChange, options, label, icon, className = '', popupClassName = '' }: {
   value: string; onChange: (value: string) => void; options: SelectOption[];
   label: string; icon?: string; className?: string; popupClassName?: string;
 }) {
+  const leading = options.find((option) => option.value === value)?.leading;
   return <BaseSelect.Root value={value} onValueChange={(next) => { if (next !== null) onChange(next); }} items={options}>
     <BaseSelect.Trigger className={`select-trigger ${className}`} aria-label={label}>
+      {leading && <span className="select-leading">{leading}</span>}
       {icon && <span className="select-leading"><Icon name={icon} /></span>}
       <BaseSelect.Value /><BaseSelect.Icon className="select-chevron"><Icon name="expand_more" /></BaseSelect.Icon>
     </BaseSelect.Trigger>
     <BaseSelect.Portal><BaseSelect.Positioner sideOffset={8} align="start" alignItemWithTrigger={false} className="select-positioner">
       <BaseSelect.Popup className={`select-popup ${popupClassName}`}><BaseSelect.List>
         {options.map((option) => <BaseSelect.Item key={option.value} value={option.value} className="select-option">
+          {option.leading && <span className="select-option-leading">{option.leading}</span>}
           {option.icon && <Icon name={option.icon} />}
           <BaseSelect.ItemText className="select-option-text">{option.label}</BaseSelect.ItemText>
           {option.suffix && <span className="select-option-suffix">{option.suffix}</span>}

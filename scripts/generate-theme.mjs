@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { createServer } from 'vite';
+import { themeColors, defaultThemeColor } from '../src/theme/palettes.ts';
 
 async function loadColorUtilities() {
   // This release uses extensionless imports internally, so resolve it with the
@@ -21,7 +22,6 @@ async function loadColorUtilities() {
 const { argbFromHex, Hct, hexFromArgb, SchemeTonalSpot } = await loadColorUtilities();
 
 // Generate at design time so the full color engine is not shipped to each client.
-const seed = '#386a5c';
 const successSeed = '#386a38';
 const roles = [
   'primary', 'onPrimary', 'primaryContainer', 'onPrimaryContainer',
@@ -33,7 +33,7 @@ const roles = [
   'inverseSurface', 'inverseOnSurface',
 ];
 
-const themes = [false, true].map((dark) => {
+const themes = themeColors.flatMap(({ id, seed }) => [false, true].map((dark) => {
   const scheme = new SchemeTonalSpot(Hct.fromInt(argbFromHex(seed)), dark, 0);
   const success = new SchemeTonalSpot(Hct.fromInt(argbFromHex(successSeed)), dark, 0);
   const properties = roles.map((role) => {
@@ -43,8 +43,12 @@ const themes = [false, true].map((dark) => {
   for (const [name, role] of [['success', 'primary'], ['success-container', 'primaryContainer'], ['on-success-container', 'onPrimaryContainer']]) {
     properties.push(`  --color-${name}: ${hexFromArgb(success[role])};`);
   }
-  return `${dark ? ':root[data-theme="dark"]' : ':root'} {\n${properties.join('\n')}\n}`;
-});
+  const mode = dark ? '[data-theme="dark"]' : ':not([data-theme="dark"])';
+  const selector = `:root[data-theme-color="${id}"]${mode}`;
+  const fallback = id === defaultThemeColor ? `:root:not([data-theme-color])${mode},\n` : '';
+  const swatch = `:root${mode} .theme-color-swatch[data-color="${id}"]`;
+  return `${fallback}${selector} {\n${properties.join('\n')}\n}\n\n${swatch} {\n  --theme-swatch: ${hexFromArgb(scheme.primary)};\n}`;
+}));
 
 const shared = `:root {
   --shape-small: 8px;

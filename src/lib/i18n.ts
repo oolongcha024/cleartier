@@ -86,7 +86,10 @@ export const zhCN = {
     saved: '已保存修改（演示）', savedLater: '已保存，下次连接时应用（演示）',
     applying: '已保存，正在重连「{{name}}」（演示）', applied: '「{{name}}」已应用新参数（演示）',
   },
-  settings: { appearance: '外观', theme: '主题', about: '关于 ClearTier' },
+  settings: {
+    appearance: '外观', theme: '显示模式', themeColor: '主题色', about: '关于 ClearTier',
+    colors: { blue: '蓝色', purple: '紫色', teal: '青色', green: '绿色', orange: '橙色', rose: '玫红' },
+  },
   about: {
     clientVersion: '客户端版本', coreVersion: 'EasyTier 内核版本', coreNotIntegrated: '未集成',
     environment: '运行环境', desktop: '桌面客户端', browser: '浏览器预览', unavailable: '暂时无法读取',

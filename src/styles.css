@@ -256,6 +256,7 @@ h3 { font-size: 17px; line-height: 1.5; font-weight: 550; }
 .devices-empty p { font-size: 11px; }
 .page-loading { min-height: 60dvh; display: grid; place-items: center; color: var(--md-sys-color-on-surface-variant); }
 .settings-row { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
+.theme-color-swatch { display: inline-block; width: 18px; height: 18px; flex-shrink: 0; border-radius: 4px; background: var(--theme-swatch); }
 .settings-page, .about-page { display: grid; gap: 20px; }
 .settings-about-link { display: flex; align-items: center; gap: 16px; min-height: 72px; font-weight: 500; transition: background-color var(--motion-short); }
 .settings-about-link > .icon { color: var(--md-sys-color-on-surface-variant); }

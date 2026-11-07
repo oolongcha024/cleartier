@@ -70,7 +70,7 @@ TUN 名称按本地网络实例标识稳定生成，编辑时检查其他已保�
 pnpm theme:generate
 ```
 
-主题种子和生成逻辑位于 `scripts/generate-theme.mjs`。
+设置中提供六种主题色，默认蓝色，支持浅色、深色和跟随系统，选择会保存在本机。主题种子位于 `src/theme/palettes.ts`，生成逻辑位于 `scripts/generate-theme.mjs`；使用 Material Color Utilities 的 Tonal Spot 方案生成完整色彩角色，色彩引擎不进入客户端运行包。
 
 品牌标志采用 CT 字母方案，矢量源文件位于 `src/assets/logo-mark.svg`。侧栏使用该矢量作为遮罩，以适配浅色和深色主题。修改标志后运行 `pnpm icons:generate`，同步生成网页图标及桌面打包所用的 PNG、ICO、ICNS；生成结果随代码提交，普通构建无需重新生成。
 

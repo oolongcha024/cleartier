@@ -33,6 +33,7 @@
 .switch-thumb .icon { font-size: 14px; animation: content-fade-in var(--motion-short); }
 .select-trigger { min-width: 160px; height: 44px; border-radius: var(--shape-medium); border: 1px solid var(--md-sys-color-outline); display: inline-flex; align-items: center; gap: 10px; background: transparent; padding: 0 14px; text-align: left; color: var(--md-sys-color-on-surface); transition: background var(--motion-short); }
 .select-trigger:hover { background: var(--state-hover); }
+.select-leading, .select-option-leading { display: inline-flex; align-items: center; flex-shrink: 0; }
 .select-chevron { margin-left: auto; display: flex; }
 .select-chevron .icon { font-size: 20px; transition: transform var(--motion-short); }
 .select-trigger[data-popup-open] .select-chevron .icon { transform: rotate(180deg); }
