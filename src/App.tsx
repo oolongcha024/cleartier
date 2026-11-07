@@ -59,15 +59,17 @@ function Shell() {
       <NavLink to="/" className="brand" aria-label={t('app.name')}>
         <span className="brand-mark"><Icon name="hub" /></span><span className="brand-name">ClearTier<span className="brand-period">.</span></span>
       </NavLink>
-      <div className="nav-section-label">{t('nav.workspace')}</div>
-      <nav aria-label={t('app.navigation')}>
-        {navigation.map((item) => <NavLink key={item.id} to={item.path} end={item.path === '/'}
-          aria-label={t(`nav.${item.id}`)}
-          title={collapsed ? t(`nav.${item.id}`) : undefined} className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}>
-          <Icon name={item.icon} /><span className="nav-item-label">{t(`nav.${item.id}`)}</span>
-          {item.id === 'networks' && <span className="nav-badge">{networks.length}</span>}
-        </NavLink>)}
-      </nav>
+      <div className="sidebar-navigation" id="sidebar-navigation">
+        <div className="nav-section-label">{t('nav.workspace')}</div>
+        <nav aria-label={t('app.navigation')}>
+          {navigation.map((item) => <NavLink key={item.id} to={item.path} end={item.path === '/'}
+            aria-label={t(`nav.${item.id}`)}
+            title={collapsed ? t(`nav.${item.id}`) : undefined} className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}>
+            <Icon name={item.icon} /><span className="nav-item-label">{t(`nav.${item.id}`)}</span>
+            {item.id === 'networks' && <span className="nav-badge">{networks.length}</span>}
+          </NavLink>)}
+        </nav>
+      </div>
       <div className="sidebar-bottom">
         <div className="sidebar-status"><span className={`status-dot ${connected ? 'status-dot--success' : ''}`} />
           <span>{t(connected ? 'dashboard.networksOnline' : 'dashboard.allOffline', { count: connected })}</span>
@@ -76,7 +78,8 @@ function Shell() {
           <Icon name="settings" /><span className="nav-item-label">{t('nav.settings')}</span>
         </NavLink>
         <div className="sidebar-footer"><span>ClearTier <span className="version">{version}</span></span>
-          <IconButton icon={collapsed ? 'left_panel_open' : 'left_panel_close'} label={t(collapsed ? 'app.expand' : 'app.collapse')} onClick={() => setCollapsed(!collapsed)} />
+          <IconButton icon={collapsed ? 'left_panel_open' : 'left_panel_close'} label={t(collapsed ? 'app.expand' : 'app.collapse')}
+            aria-expanded={!collapsed} aria-controls="sidebar-navigation" onClick={() => setCollapsed(!collapsed)} />
         </div>
       </div>
     </aside>

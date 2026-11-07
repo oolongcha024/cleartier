@@ -32,7 +32,7 @@ function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value:
 
   return <Card className={`connection-card ${connected ? 'connection-card--connected' : ''}`}>
     <div className="network-heading"><div className={`network-avatar network-avatar--${network.icon}`}><Icon name={network.icon} /></div>
-      <div className="network-identity"><h2>{network.alias}</h2><span>{network.name}</span></div>
+      <div className="network-identity"><h2 title={network.alias}>{network.alias}</h2><span>{network.name}</span></div>
       <NetworkStatus network={network} />
     </div>
     <div className="connection-state">
