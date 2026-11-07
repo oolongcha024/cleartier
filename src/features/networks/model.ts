@@ -13,10 +13,6 @@ export interface Network {
   peers: Peer[]; download: number; upload: number;
   traffic: { download: number[]; upload: number[] };
 }
-export interface NetworkEvent {
-  id: string; networkId: string; kind: 'connected' | 'disconnected' | 'direct';
-  at: number; peerCount?: number; device?: string; latency?: number;
-}
 export const isConnected = (network: Network) => network.coreState === 'running' && network.peers.length > 0;
 export const isBusy = (network: Network) => network.coreState === 'starting' || network.coreState === 'stopping';
 export const activePeers = (network: Network) => network.coreState === 'running' ? network.peers : [];

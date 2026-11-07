@@ -1,4 +1,4 @@
-import type { Network, NetworkEvent } from './model';
+import type { Network } from './model';
 
 const download = [22, 25, 21, 34, 27, 25, 44, 38, 31, 36, 29, 45, 38, 35, 54, 49, 42, 57, 47, 44, 65, 58, 48, 62, 53, 47, 58, 66, 54, 60, 72];
 const upload = [9, 12, 10, 14, 11, 10, 17, 12, 13, 17, 13, 20, 16, 15, 22, 18, 15, 21, 18, 15, 25, 19, 17, 23, 18, 16, 21, 24, 18, 21, 27];
@@ -30,10 +30,4 @@ export const demoNetworks: Network[] = [
     traffic: { download: download.map((point) => point * 0.5), upload: upload.map((point) => point * 0.6) },
     peers: [{ id: 'home-nas', name: 'Home Server', ip: '10.68.0.1', platform: 'dns', connection: 'direct', latency: 8 }],
   },
-];
-const now = Date.now();
-export const demoEvents: NetworkEvent[] = [
-  { id: 'event-1', networkId: 'gaming', kind: 'connected', peerCount: 2, at: now - 4 * 60_000 },
-  { id: 'event-2', networkId: 'office', kind: 'direct', device: 'Studio NAS', latency: 12, at: now - 8 * 60_000 },
-  { id: 'event-3', networkId: 'office', kind: 'connected', peerCount: 3, at: now - 12 * 60_000 },
 ];

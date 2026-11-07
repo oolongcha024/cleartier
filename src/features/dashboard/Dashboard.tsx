@@ -176,24 +176,6 @@ function PeerTable({ peers, onCopy }: { peers: Peer[]; onCopy: (value: string) =
   </tr>)}</tbody></table></div>;
 }
 
-function RecentActivity() {
-  const { t, i18n } = useTranslation();
-  const events = useNetworkStore((state) => state.events);
-  const networks = useNetworkStore((state) => state.networks);
-  return <Card className="activity-card"><div className="card-heading"><h2>{t('dashboard.recent')}</h2>
-    <Link to="/activity" className="text-link" aria-label={t('dashboard.allActivity')}><Icon name="arrow_forward" /></Link></div>
-    <ol className="event-list">{events.slice(0, 3).map((event) => {
-      const network = networks.find((item) => item.id === event.networkId);
-      const detail = event.kind === 'connected' ? t('event.peers', { count: event.peerCount })
-        : event.kind === 'disconnected' ? t('event.manual') : t('event.directDetail', { latency: event.latency });
-      return <li className="event-row" key={event.id}><span className={`event-icon event-icon--${event.kind}`}><Icon name={event.kind === 'connected' ? 'check' : event.kind === 'direct' ? 'swap_horiz' : 'power_settings_new'} /></span>
-        <div className="event-text"><p>{t(`event.${event.kind}`, { name: network?.alias, device: event.device })}</p><span>{detail}</span></div>
-        <time dateTime={new Date(event.at).toISOString()}>{new Intl.DateTimeFormat(i18n.language, { hour: '2-digit', minute: '2-digit', hour12: false }).format(event.at)}</time>
-      </li>;
-    })}</ol>
-  </Card>;
-}
-
 export function Dashboard() {
   const { t } = useTranslation();
   const { networks, selectedId, selectNetwork } = useNetworkStore();
@@ -226,7 +208,6 @@ export function Dashboard() {
         <Button variant="text" icon="arrow_forward" onClick={() => setDevicesOpen(true)}>{t('dashboard.allDevices')}</Button></div>
         <PeerTable peers={peers} onCopy={handleCopy} />
       </Card>
-      <RecentActivity />
     </div>
     <Dialog open={devicesOpen} onOpenChange={setDevicesOpen} title={`${network.alias} · ${t('dashboard.devicesTitle')}`} description={t('dashboard.devicesOnline', { count: peers.length })}>
       <PeerTable peers={peers} onCopy={handleCopy} />

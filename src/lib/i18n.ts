@@ -12,8 +12,7 @@ export const zhCN = {
   },
   nav: {
     dashboard: '仪表盘', networks: '网络配置', devices: '网络设备',
-    connections: '连接详情', diagnostics: '网络诊断', activity: '连接记录', settings: '设置',
-    workspace: '工作空间',
+    connections: '连接详情', diagnostics: '网络诊断', settings: '设置',
   },
   dashboard: {
     selectNetwork: '选择网络', networksOnline: '{{count}} 个网络在线',
@@ -42,7 +41,6 @@ export const zhCN = {
     devicesTitle: '网络设备', devicesOnline: '{{count}} 台在线',
     allDevices: '查看全部', device: '设备', address: '虚拟 IP', connection: '连接',
     direct: '直连', relay: '中转',
-    recent: '最近动态', allActivity: '全部记录', noActivity: '暂无连接记录',
     noDevices: '暂无远端设备', noDevicesHint: '连接到节点后，设备会显示在这里',
     soon: '后续提供', pendingTitle: '这个页面正在准备中',
     pendingBody: '目前可以在仪表盘查看网络状态并体验连接操作。',
@@ -52,10 +50,6 @@ export const zhCN = {
   feedback: {
     copied: '已复制 {{value}}', copyFailed: '浏览器未允许复制，请手动选择下方地址',
     autoOn: '已开启 {{name}} 自动连接（演示）', autoOff: '已关闭 {{name}} 自动连接（演示）',
-  },
-  event: {
-    connected: '{{name}} 已连接', disconnected: '{{name}} 已断开', peers: '发现 {{count}} 台远端设备',
-    manual: '已按你的操作停止连接', direct: '{{device}} 已建立直连', directDetail: 'UDP · {{latency}} ms',
   },
 };
 

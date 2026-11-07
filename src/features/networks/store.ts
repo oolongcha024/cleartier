@@ -1,16 +1,16 @@
 import { create } from 'zustand';
-import { demoEvents, demoNetworks } from './demo';
-import { isBusy, type Network, type NetworkEvent } from './model';
+import { demoNetworks } from './demo';
+import { isBusy, type Network } from './model';
 
 interface NetworkStore {
-  networks: Network[]; selectedId: string; events: NetworkEvent[];
+  networks: Network[]; selectedId: string;
   selectNetwork: (id: string) => void;
   setAutoConnect: (id: string, enabled: boolean) => void;
   toggleConnection: (id: string) => Promise<void>;
 }
 // In memory only: simulated connections must never survive as real state.
 export const useNetworkStore = create<NetworkStore>((set, get) => ({
-  networks: demoNetworks, selectedId: demoNetworks[0].id, events: demoEvents,
+  networks: demoNetworks, selectedId: demoNetworks[0].id,
   selectNetwork: (id) => {
     if (get().networks.some((network) => network.id === id)) set({ selectedId: id });
   },
@@ -27,8 +27,6 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     set((state) => ({
       networks: state.networks.map((item) => item.id === id
         ? { ...item, coreState: connecting ? 'running' : 'stopped' } : item),
-      events: [{ id: `event-${Date.now()}-${id}`, networkId: id, kind: connecting ? 'connected' : 'disconnected',
-        peerCount: network.peers.length, at: Date.now() } satisfies NetworkEvent, ...state.events].slice(0, 30),
     }));
   },
 }));

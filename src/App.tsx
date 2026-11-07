@@ -16,7 +16,6 @@ const navigation = [
   { id: 'devices', icon: 'devices', path: '/devices' },
   { id: 'connections', icon: 'lan', path: '/connections' },
   { id: 'diagnostics', icon: 'monitor_heart', path: '/diagnostics' },
-  { id: 'activity', icon: 'history', path: '/activity' },
 ] as const;
 
 function Appearance() {
@@ -57,10 +56,9 @@ function Shell() {
     }}>{t('app.skip')}</a>
     <aside className="sidebar">
       <NavLink to="/" className="brand" aria-label={t('app.name')}>
-        <span className="brand-mark"><Icon name="hub" /></span><span className="brand-name">ClearTier<span className="brand-period">.</span></span>
+        <span className="brand-mark"><span className="brand-logo" aria-hidden="true" /></span><span className="brand-name">ClearTier<span className="brand-period">.</span></span>
       </NavLink>
       <div className="sidebar-navigation" id="sidebar-navigation">
-        <div className="nav-section-label">{t('nav.workspace')}</div>
         <nav aria-label={t('app.navigation')}>
           {navigation.map((item) => <NavLink key={item.id} to={item.path} end={item.path === '/'}
             aria-label={t(`nav.${item.id}`)}
@@ -77,9 +75,10 @@ function Shell() {
         <NavLink to="/settings" aria-label={t('nav.settings')} className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`} title={collapsed ? t('nav.settings') : undefined}>
           <Icon name="settings" /><span className="nav-item-label">{t('nav.settings')}</span>
         </NavLink>
-        <div className="sidebar-footer"><span>ClearTier <span className="version">{version}</span></span>
+        <div className="sidebar-footer">
           <IconButton icon={collapsed ? 'left_panel_open' : 'left_panel_close'} label={t(collapsed ? 'app.expand' : 'app.collapse')}
             aria-expanded={!collapsed} aria-controls="sidebar-navigation" onClick={() => setCollapsed(!collapsed)} />
+          <span>ClearTier <span className="version">{version}</span></span>
         </div>
       </div>
     </aside>
