@@ -1,82 +1,30 @@
-import { useId, useRef, useState, type FormEvent } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Collapsible } from '@base-ui/react/collapsible';
 import { useTranslation } from 'react-i18next';
-import { Button, Dialog, Icon, IconButton, TextField, useSnackbar } from '../../components/ui';
-import { useHostEnvironment } from '../../lib/host-environment';
-import { configurationDraft, configsEqual, draftConfig, hasPendingConfig, validateDraft, type DraftErrors, type NetworkDraft } from './configuration';
-import { isBusy, networkIcons, type Network } from './model';
+import { Button, Dialog, Icon, IconButton, TextField } from '../../components/ui';
+import { useHostEnvironment } from '../../platform/use-host-environment';
+import type { NetworkDraft } from './configuration';
+import { networkIcons, type Network } from './model';
 import { useNetworkStore } from './store';
 import { NetworkAdvancedFields } from './NetworkAdvancedFields';
+import { useNetworkDraft } from './use-network-draft';
 
 export function NetworkEditor({ network, open, onOpenChange }: {
   network: Network; open: boolean; onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const notify = useSnackbar();
-  const saveConfiguration = useNetworkStore((state) => state.saveConfiguration);
-  const applyConfiguration = useNetworkStore((state) => state.applyConfiguration);
   const networks = useNetworkStore((state) => state.networks);
   const otherTunNames = networks.filter((item) => item.id !== network.id).map((item) => item.savedConfig.tunName);
   const environment = useHostEnvironment();
-  const [draft, setDraft] = useState(() => configurationDraft(network));
-  const [errors, setErrors] = useState<DraftErrors>({});
   const [showSecret, setShowSecret] = useState(false);
-  const [choosing, setChoosing] = useState(false);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const aliasInput = useRef<HTMLInputElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const iconLabelId = useId();
-  const busy = isBusy(network);
-  const localChanged = draft.alias !== network.alias || draft.icon !== network.icon;
-  const changed = localChanged || !configsEqual(draftConfig(draft, network.savedConfig), network.savedConfig);
-  const update = <Field extends keyof NetworkDraft>(field: Field, value: NetworkDraft[Field]) => {
-    setDraft((current) => ({ ...current, [field]: value }));
-    setErrors((current) => ({ ...current, [field]: undefined }));
-  };
+  const { draft, errors, update, save, choosing, setChoosing, advancedOpen, setAdvancedOpen, busy, canSave } = useNetworkDraft(
+    network, () => onOpenChange(false),
+    () => requestAnimationFrame(() => form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()),
+  );
   const errorText = (field: keyof NetworkDraft) => errors[field] ? t(`networkConfig.${errors[field]}`) : undefined;
-  const save = (apply: boolean) => {
-    const nextErrors = validateDraft(draft, otherTunNames);
-    if (Object.keys(nextErrors).length) {
-      setErrors(nextErrors);
-      setChoosing(false);
-      setAdvancedOpen(true);
-      requestAnimationFrame(() => form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
-      return;
-    }
-    if (!saveConfiguration(network.id, draft)) {
-      notify(t('networkConfig.busy'));
-      return;
-    }
-    onOpenChange(false);
-    if (apply) {
-      notify(t('networkConfig.applying', { name: draft.alias.trim() || draft.name }));
-      void applyConfiguration(network.id).then((applied) => {
-        if (applied) notify(t('networkConfig.applied', { name: draft.alias.trim() || draft.name }));
-      });
-    } else {
-      const saved = useNetworkStore.getState().networks.find((item) => item.id === network.id)!;
-      notify(t(hasPendingConfig(saved) ? 'networkConfig.savedLater' : 'networkConfig.saved'));
-    }
-  };
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    const nextErrors = validateDraft(draft, otherTunNames);
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) {
-      const basicFields = ['alias', 'icon', 'name', 'hostname', 'secret', 'servers'];
-      if (Object.keys(nextErrors).some((field) => !basicFields.includes(field))) setAdvancedOpen(true);
-      requestAnimationFrame(() => form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
-      return;
-    }
-    const proposed = draftConfig(draft, network.savedConfig);
-    if (localChanged && configsEqual(proposed, network.savedConfig)) {
-      save(false);
-      return;
-    }
-    if (network.coreState === 'running' && network.runningConfig && !configsEqual(proposed, network.runningConfig)) {
-      setChoosing(true);
-    } else save(false);
-  };
   return <Dialog open={open} onOpenChange={onOpenChange} className={`network-editor ${choosing ? '' : 'network-editor--form'}`} initialFocus={aliasInput}
     title={t(choosing ? 'networkConfig.applyTitle' : 'networkConfig.editTitle')}
     description={choosing ? t('networkConfig.applyDescription', { name: draft.alias.trim() || draft.name }) : undefined}>
@@ -88,10 +36,10 @@ export function NetworkEditor({ network, open, onOpenChange }: {
           requestAnimationFrame(() => aliasInput.current?.focus());
         }}>{t('networkConfig.back')}</Button>
         <span className="network-editor-actions-spacer" />
-        <Button variant="outlined" disabled={busy} autoFocus onClick={() => save(false)}>{t('networkConfig.later')}</Button>
-        <Button disabled={busy} onClick={() => save(true)}>{t('networkConfig.applyNow')}</Button>
+        <Button variant="outlined" disabled={busy} autoFocus onClick={() => save('later')}>{t('networkConfig.later')}</Button>
+        <Button disabled={busy} onClick={() => save('now')}>{t('networkConfig.applyNow')}</Button>
       </div>
-    </div> : <form ref={form} className="network-editor-form" noValidate onSubmit={submit}>
+    </div> : <form ref={form} className="network-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); save(); }}>
       <div className="network-editor-fields">
       <div className="network-icon-field">
         <span id={iconLabelId}>{t('networkConfig.icon')}</span>
@@ -135,7 +83,7 @@ export function NetworkEditor({ network, open, onOpenChange }: {
       </div>
       <div className="network-editor-actions">
         <Button variant="text" onClick={() => onOpenChange(false)}>{t('networkConfig.cancel')}</Button>
-        <Button type="submit" disabled={busy || (!changed && !hasPendingConfig(network))}>{t('networkConfig.save')}</Button>
+        <Button type="submit" disabled={busy || !canSave}>{t('networkConfig.save')}</Button>
       </div>
     </form>}
   </Dialog>;

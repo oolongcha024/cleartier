@@ -58,7 +58,31 @@ TUN 名称按本地网络实例标识稳定生成，编辑时检查其他已保�
 
 设置中的“关于 ClearTier”打开独立关于页，显示客户端版本、EasyTier 内核版本及运行环境，支持复制版本信息。客户端版本在桌面端通过 Tauri 读取，浏览器预览取自 `package.json`。目前尚未内置或连接 EasyTier 内核，因此内核版本显示“未集成”，接入后应由实际内核适配层提供版本。
 
-前端代码按职责组织：`src/components/` 为基础组件，`src/theme/` 为主题，`src/features/` 为业务视图与模拟状态，`src/lib/i18n.ts` 集中维护中文文案。原生环境信息调用在 `src/lib/host-environment.ts` 中隔离，页面可以独立在浏览器中运行。
+前端代码按职责组织：
+
+```text
+src/
+  app/                  # Provider 组装、路由、应用外壳
+  components/           # MD3 基础控件与共享视觉样式
+  features/
+    dashboard/          # 仪表盘、流量卡片、设备列表
+    networks/           # 配置规则、编辑流程、网络状态与模拟运行
+    settings/           # 外观设置
+    about/              # 版本与运行环境展示
+  platform/             # 桌面能力读取、浏览器预览回退
+  theme/                # 配色、偏好、动效与滚动条
+  lib/                  # 国际化、剪贴板与格式化
+```
+
+`src/styles.css` 负责基础重置及样式导入顺序，业务样式与所属页面放在一起，共享控件样式归 `components/ui.css`，色彩角色归 `theme/`。统一导入保持路由切换前后的样式层叠顺序稳定。
+
+`app/routes.tsx` 统一声明页面与导航。仪表盘、网络配置、设置和关于页均静态导入，随应用启动准备好；常用页面切换不额外请求页面代码或展示整页加载占位，保留轻量过渡。主机信息、版本等异步结果由各功能在页面内展示自己的读取状态。
+
+网络编辑的两个入口共用 `useNetworkEditor`，页面只负责打开目标网络，编辑会话负责草稿重建与弹窗关闭过渡。`useNetworkDraft` 处理表单交互；`network-store.ts` 的 `saveConfiguration` 统一校验、重连确认、保存与立即应用，并返回明确结果。`savedConfig` 和 `runningConfig` 分别表示已保存和当前会话的参数，修改本地名称或图标不会应用待生效的连接参数。
+
+`createNetworkStore` 创建独立状态实例并接收运行 Adapter；应用入口在 `features/networks/store.ts` 中组装模拟数据与 `createDemoRuntime`，测试使用可控 Adapter，通过相同动作验证行为，无需重置应用单例或等待模拟延时。当前运行 Interface 仅服务于前端模拟，实际 EasyTier 命令及事件映射在接入内核时确定。
+
+主机信息和客户端版本的原生调用集中在 `platform/client.ts`，浏览器预览会回退到演示环境与前端版本，页面不直接调用 Tauri。`src/lib/i18n.ts` 集中维护中文文案。
 
 界面按桌面客户端设计，最小窗口为 900×600，默认 1200×800。侧栏展开宽度为 200px，手动收起后为 88px，不随窗口宽度自动切换。仪表盘只按主内容可用宽度的 800px 分界切换单双列；快捷操作以两列排列邀请朋友、复制 IP、重新连接和编辑网络。主内容纵向滚动，侧栏导航在空间不足时独立滚动；浏览器窗口小于支持尺寸时允许整页滚动，不另设手机布局。
 
@@ -92,6 +116,8 @@ pnpm typecheck
 pnpm build
 pnpm preview
 ```
+
+`tests/browser/` 提供可通过 agent-browser 执行的交互回归检查：`route-transitions.js` 检查首次及重复导航不出现整页加载或新增代码请求，`navigation-overflow.js` 检查侧栏溢出，`advanced-disclosure.js` 检查高级选项展开／收起时的位置，`network-editor-session.js` 检查两个编辑入口的草稿重置、保存、确认与应用。各文件顶部说明所需页面状态；路由检查需要从刚加载的仪表盘开始，也适用于构建产物预览。编辑流程检查会修改内存演示数据，刷新后恢复。窗口大小、浅色／深色与减少动态效果应分别检查。
 
 运行 `pnpm preview` 后，访问终端输出的预览地址。
 

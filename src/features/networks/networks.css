@@ -1,0 +1,18 @@
+.network-avatar { width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center; border-radius: 14px; background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
+.network-avatar .icon { font-size: 24px; }
+.network-identity { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.network-identity h2 { font-size: 19px; line-height: 24px; font-weight: 550; letter-spacing: -.3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.network-identity > span { color: var(--md-sys-color-on-surface-variant); font-size: 12px; line-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.networks-page { display: grid; gap: 16px; }
+.networks-page-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--md-sys-color-on-surface-variant); font-size: 13px; }
+.network-config-card { padding-block: 4px; }
+.network-config-list { list-style: none; margin: 0; padding: 0; }
+.network-config-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-block: 20px; }
+.network-config-row + .network-config-row { border-top: 1px solid var(--md-sys-color-outline-variant); }
+.network-config-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.network-config-identity h2 { font-size: 16px; }
+.network-config-actions { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+.network-config-actions .button { padding-inline: 14px; font-size: 12px; }
+.network-identity > .network-server-summary { margin-top: 4px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 11px; }
+.network-server-summary > span { margin-left: 4px; font-family: inherit; color: var(--md-sys-color-primary); }

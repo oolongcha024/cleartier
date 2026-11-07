@@ -1,16 +1,14 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Chip, Icon } from '../../components/ui';
 import { hasPendingConfig, serverSummary } from './configuration';
 import { isBusy } from './model';
-import { NetworkEditor } from './NetworkEditor';
+import { useNetworkEditor } from './use-network-editor';
 import { useNetworkStore } from './store';
 
 export function NetworksPage() {
   const { t } = useTranslation();
   const networks = useNetworkStore((state) => state.networks);
-  const [editor, setEditor] = useState({ id: '', open: false, session: 0 });
-  const editingNetwork = networks.find((network) => network.id === editor.id);
+  const { openEditor, editor } = useNetworkEditor();
 
   return <div className="networks-page">
     <div className="networks-page-summary"><span>{t('networkConfig.savedCount', { count: networks.length })}</span></div>
@@ -30,14 +28,13 @@ export function NetworksPage() {
           <div className="network-config-actions">
             {hasPendingConfig(network) && !isBusy(network) && <Chip tone="primary">{t('networkConfig.pending')}</Chip>}
             <Button variant="text" icon="edit" disabled={isBusy(network)} aria-label={t('networkConfig.editNamed', { name: network.alias })}
-              onClick={() => setEditor((current) => ({ id: network.id, open: true, session: current.session + 1 }))}>
+              onClick={() => openEditor(network.id)}>
               {t(isBusy(network) ? 'networkConfig.busyShort' : 'networkConfig.edit')}
             </Button>
           </div>
         </li>;
       })}
     </ul></Card>
-    {editingNetwork && <NetworkEditor key={editor.session} network={editingNetwork} open={editor.open}
-      onOpenChange={(open) => setEditor((current) => ({ ...current, open }))} />}
+    {editor}
   </div>;
 }

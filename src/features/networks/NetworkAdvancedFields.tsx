@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Hint, Icon, IconButton, Select, Switch, TextField } from '../../components/ui';
-import type { HostEnvironment } from '../../lib/host-environment';
+import type { HostEnvironment } from '../../platform/client';
 import type { DraftErrors, NetworkDraft, UpdateNetworkDraft } from './configuration';
 import { defaultTunName } from './defaults';
 import { p2pPolicies, type Network } from './model';

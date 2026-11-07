@@ -85,6 +85,7 @@ export const zhCN = {
     busy: '当前网络正在切换连接，请稍后再保存', busyShort: '处理中',
     saved: '已保存修改（演示）', savedLater: '已保存，下次连接时应用（演示）',
     applying: '已保存，正在重连「{{name}}」（演示）', applied: '「{{name}}」已应用新参数（演示）',
+    applyFailed: '「{{name}}」重连失败，已保存修改，可稍后重试',
   },
   settings: {
     appearance: '外观', theme: '显示模式', themeColor: '主题色', about: '关于 ClearTier',

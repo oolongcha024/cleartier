@@ -80,3 +80,16 @@
 .snackbar--visible { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; transition: opacity var(--motion-enter), transform var(--motion-medium); }
 .snackbar button { display: flex; background: transparent; padding: 2px; color: inherit; border-radius: 50%; }
 .snackbar button .icon { font-size: 18px; }
+
+.brand-mark { justify-self: center; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 13px; background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+.brand-logo { width: 29px; height: 29px; background: currentColor; -webkit-mask: url('../assets/logo-mark.svg') center / contain no-repeat; mask: url('../assets/logo-mark.svg') center / contain no-repeat; }
+
+.card { min-width: 0; border-radius: var(--shape-large); background: var(--md-sys-color-surface-container-low); padding: 24px; }
+.card-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+.card-heading h2 { display: flex; align-items: center; gap: 8px; }
+.card-heading .button--text { margin: -8px -12px -8px 0; font-size: 12px; flex-direction: row-reverse; gap: 6px; }
+.card-heading .button--text .icon { font-size: 17px; }
+
+.brand-mark, .card, .chip {
+  transition: background-color var(--motion-short), color var(--motion-short), border-color var(--motion-short);
+}

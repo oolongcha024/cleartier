@@ -1,0 +1,7 @@
+.settings-row { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
+.theme-color-swatch { display: inline-block; width: 18px; height: 18px; flex-shrink: 0; border-radius: 4px; background: var(--theme-swatch); }
+.settings-page { display: grid; gap: 20px; }
+.settings-about-link { display: flex; align-items: center; gap: 16px; min-height: 72px; font-weight: 500; transition: background-color var(--motion-short); }
+.settings-about-link > .icon { color: var(--md-sys-color-on-surface-variant); }
+.settings-about-link > .icon:last-child { margin-left: auto; }
+.settings-about-link:hover { background: var(--md-sys-color-surface-container); }
