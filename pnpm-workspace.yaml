@@ -1,0 +1,4 @@
+minimumReleaseAgeExclude:
+  - i18next@27.0.0
+  - react-i18next@18.0.0
+  - zustand@5.1.0
