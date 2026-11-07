@@ -8,6 +8,17 @@
   "engines": {
     "node": ">=24"
   },
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc -b",
+    "build": "pnpm typecheck && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "build:windows": "node scripts/build-windows.mjs",
+    "build:windows:exe": "node scripts/build-windows.mjs exe",
+    "build:windows:nsis": "node scripts/build-windows.mjs nsis",
+    "build:windows:all": "node scripts/build-windows.mjs all"
+  },
   "dependencies": {
     "@base-ui/react": "1.9.0",
     "@material/material-color-utilities": "0.4.0",

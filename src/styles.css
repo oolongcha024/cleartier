@@ -1,0 +1,49 @@
+:root {
+  font-family: 'Roboto', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #1d1b20;
+  background: #fef7ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+.app {
+  display: grid;
+  min-height: 100dvh;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 400;
+}
+
+p {
+  margin: 0;
+  color: #49454f;
+  font-size: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #e6e0e9;
+    background: #141218;
+  }
+
+  p {
+    color: #cac4d0;
+  }
+}
