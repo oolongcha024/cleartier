@@ -1,0 +1,11 @@
+{
+  "bundle": {
+    "resources": {
+      "resources/windows/wintun.dll": "wintun.dll",
+      "resources/windows/Packet.dll": "Packet.dll",
+      "resources/windows/WinDivert64.sys": "WinDivert64.sys",
+      "resources/windows/core-resources.json": "core-resources.json",
+      "resources/windows/licenses/": "licenses/"
+    }
+  }
+}

@@ -92,7 +92,7 @@ export const zhCN = {
     colors: { blue: '蓝色', purple: '紫色', teal: '青色', green: '绿色', orange: '橙色', rose: '玫红' },
   },
   about: {
-    clientVersion: '客户端版本', coreVersion: 'EasyTier 内核版本', coreNotIntegrated: '未集成',
+    clientVersion: '客户端版本', coreVersion: 'EasyTier 内核版本', corePreview: '浏览器预览不运行内核',
     environment: '运行环境', desktop: '桌面客户端', browser: '浏览器预览', unavailable: '暂时无法读取',
     back: '返回设置', copy: '复制版本信息', versionInfo: '版本信息', copied: '已复制版本信息',
     copyFailed: '复制失败，可手动选择下方信息',

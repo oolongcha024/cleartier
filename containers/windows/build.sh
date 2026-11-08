@@ -13,6 +13,7 @@ artifact_root=/workspace/artifacts/windows-x64
 mkdir -p "$CARGO_HOME" "$XWIN_CACHE_DIR" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
 
 pnpm install --frozen-lockfile --store-dir /cache/pnpm-store
+node scripts/prepare-core-resources.mjs
 
 build_args=(tauri build --ci --runner cargo-xwin --target "$build_target")
 if [[ "$build_mode" == exe ]]; then
@@ -31,8 +32,28 @@ mkdir -p "$artifact_root"
 artifact_files=()
 if [[ "$build_mode" == exe || "$build_mode" == all ]]; then
   mkdir -p "$artifact_root/exe"
+  rm -rf "$artifact_root/exe/licenses"
   cp "$release_dir/cleartier.exe" "$artifact_root/exe/cleartier.exe"
-  artifact_files+=(exe/cleartier.exe)
+  cp /workspace/src-tauri/resources/windows/{wintun.dll,Packet.dll,WinDivert64.sys,core-resources.json} "$artifact_root/exe/"
+  cp -R /workspace/src-tauri/resources/windows/licenses "$artifact_root/exe/"
+  cp /workspace/scripts/check-core.ps1 "$artifact_root/exe/check-core.ps1"
+  python3 - "$artifact_root" <<'PY'
+import pathlib
+import sys
+import zipfile
+
+root = pathlib.Path(sys.argv[1])
+package = root / 'exe'
+names = ['cleartier.exe', 'wintun.dll', 'Packet.dll', 'WinDivert64.sys', 'core-resources.json', 'check-core.ps1']
+with zipfile.ZipFile(root / 'cleartier-windows-x64.zip', 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+    # Explicit files avoid including old debug executables from this directory.
+    for name in names:
+        archive.write(package / name, 'ClearTier/' + name)
+    for path in sorted((package / 'licenses').rglob('*')):
+        if path.is_file():
+            archive.write(path, 'ClearTier/' + path.relative_to(package).as_posix())
+PY
+  artifact_files+=(exe/cleartier.exe cleartier-windows-x64.zip)
 fi
 if [[ "$build_mode" == nsis || "$build_mode" == all ]]; then
   shopt -s nullglob
@@ -63,6 +84,7 @@ const manifest = {
   builtAt: new Date().toISOString(),
   builderImage: process.env.CLEARTIER_BUILDER_IMAGE,
   signed: false,
+  core: JSON.parse(readFileSync('/workspace/src-tauri/resources/windows/core-resources.json', 'utf8')),
   files: paths.map(path => ({
     path,
     size: statSync(join(root, path)).size,

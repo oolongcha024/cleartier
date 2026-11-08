@@ -9,16 +9,25 @@ COPY --from=node /usr/local/ /usr/local/
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         ca-certificates clang lld llvm nsis python3 python3-venv \
-        cmake ninja-build pkg-config file unzip \
+        cmake ninja-build pkg-config file unzip protobuf-compiler libprotobuf-dev \
     && test -f /usr/share/nsis/Include/Win/RestartManager.nsh \
     && rm -rf /var/lib/apt/lists/*
+
+# GitHub's HTTP/2 transport is unreliable on some remote development networks.
+RUN git config --system http.version HTTP/1.1
 
 RUN npm install --global pnpm@11.26.0 \
     && python3 -m venv /opt/cargo-xwin \
     && /opt/cargo-xwin/bin/pip install --no-cache-dir cargo-xwin==0.23.1 \
     && rustup target add x86_64-pc-windows-msvc
 
+# The stable core's thunk-rs build downloads and extracts YY-Thunks archives.
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y 7zip \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV PATH="/opt/cargo-xwin/bin:${PATH}"
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 
 WORKDIR /workspace
 COPY build.sh /usr/local/bin/cleartier-build-windows

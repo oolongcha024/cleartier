@@ -3,14 +3,21 @@ name = "cleartier"
 version = "0.1.0"
 description = "基于 EasyTier 的跨平台本地桌面客户端"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 
 [lib]
 name = "cleartier_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[workspace]
+members = ["crates/cleartier-core"]
+resolver = "3"
 
 [build-dependencies]
 tauri-build = { version = "2.7.4", features = [] }
 
 [dependencies]
 tauri = { version = "2.12.5", features = [] }
+cleartier-core = { path = "crates/cleartier-core" }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread"] }

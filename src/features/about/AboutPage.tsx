@@ -7,12 +7,13 @@ import { useAboutInfo } from './use-about-info';
 
 export function AboutPage() {
   const { t } = useTranslation();
-  const { clientVersion, versionUnavailable, coreVersion, desktop } = useAboutInfo();
+  const { clientVersion, versionUnavailable, coreVersion, coreVersionUnavailable, desktop } = useAboutInfo();
   const [manualCopy, setManualCopy] = useState('');
   const copyInput = useRef<HTMLTextAreaElement>(null);
   const notify = useSnackbar();
   const clientValue = clientVersion ?? t(versionUnavailable ? 'about.unavailable' : 'app.loading');
-  const coreValue = coreVersion ?? t('about.coreNotIntegrated');
+  const coreValue = coreVersion ?? t(!desktop ? 'about.corePreview' : coreVersionUnavailable ? 'about.unavailable' : 'app.loading');
+  const versionsPending = (!clientVersion && !versionUnavailable) || (desktop && !coreVersion && !coreVersionUnavailable);
   const environment = t(desktop ? 'about.desktop' : 'about.browser');
   const handleCopy = async () => {
     const text = [`${t('app.name')} ${clientValue}`,
@@ -27,7 +28,7 @@ export function AboutPage() {
       <div className="about-brand">
         <span className="brand-mark"><span className="brand-logo" aria-hidden="true" /></span>
         <h2>{t('app.name')}</h2>
-        <Button variant="outlined" icon="content_copy" disabled={!clientVersion && !versionUnavailable} onClick={() => { void handleCopy(); }}>
+        <Button variant="outlined" icon="content_copy" disabled={versionsPending} onClick={() => { void handleCopy(); }}>
           {t('about.copy')}
         </Button>
       </div>

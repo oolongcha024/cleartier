@@ -31,6 +31,8 @@ export function readClientVersion(): Promise<string> {
   return isDesktop() ? getVersion() : Promise.resolve(version);
 }
 
-// This is the bundled runtime's version, never the upstream release version.
-export const coreVersion: string | null = null;
+// Read the linked core itself; preview never invents a native version.
+export function readCoreVersion(): Promise<string | null> {
+  return isDesktop() ? invoke<string>('core_version') : Promise.resolve(null);
+}
 export const previewClientVersion = version;
