@@ -1,4 +1,15 @@
 fn main() {
+    println!("cargo:rerun-if-changed=../package.json");
+    let package_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../package.json");
+    let package: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(package_path).expect("failed to read package.json version source"),
+    )
+    .expect("invalid package.json");
+    assert_eq!(
+        package["version"].as_str(),
+        Some(env!("CARGO_PKG_VERSION")),
+        "Cargo version differs from package.json; use pnpm version:start/next/promote/set"
+    );
     // Tauri tracks its config, but cached Windows resources also depend on icons.
     println!("cargo:rerun-if-changed=icons");
     println!("cargo:rerun-if-changed=resources/windows");

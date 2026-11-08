@@ -15,6 +15,7 @@
 - [邀请与快速加入](docs/invitations.md)：一键复制、粘贴填入、最小邀请格式及 Windows 验收。
 - [连接管理](docs/connection-management.md)：真实运行、参数映射、自动连接、失败语义及验收清单。
 - [Windows 原生构建与测试](docs/windows-build.md)：生成包含运行资源的 Windows x64 免安装目录／ZIP、NSIS 安装包或两者。
+- [应用版本管理](docs/versioning.md)：统一版本来源、alpha／beta／rc 推进命令及发布校验。
 - [后台运行、恢复与诊断](docs/desktop-lifecycle.md)：托盘、退出、登录启动、恢复边界及诊断隐私。
 - [Windows 集中验收](docs/windows-acceptance.md)：阶段 2–7 的一次性实机验收清单。
 

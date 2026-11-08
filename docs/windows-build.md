@@ -21,6 +21,8 @@ gh workflow run windows-build.yml --ref main -f bundle=all
 gh run list --workflow windows-build.yml
 ```
 
+应用版本与 alpha／beta／rc 推进规则见[应用版本管理](versioning.md)。构建前检查版本一致性，`build-info.json` 记录 `package.json` 的完整版本及发布阶段。工作流仍需手动触发；使用 `gh workflow run windows-build.yml --ref v0.2.0-rc.1 -f bundle=all` 等标签引用时，额外要求标签版本、HEAD 和干净工作区相符。
+
 前端类型检查与测试、Rust 配置存储与核心单元测试、原生构建、exe 图标与资源校验，以及实际程序的 Direct／Process／Recovery／MissingResource 检查全部通过后，才上传正常下载包。失败时只保留已有诊断报告。Actions Artifacts 保留 14 天，包含所选产物、检查报告和记录提交、工具链、来源及 SHA-256 的 `build-info.json`。
 
 ## Windows 本机构建

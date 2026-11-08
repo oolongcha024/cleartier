@@ -1,6 +1,6 @@
 [package]
 name = "cleartier"
-version = "0.1.0"
+version = "0.1.0-rc.1"
 description = "基于 EasyTier 的跨平台本地桌面客户端"
 edition = "2024"
 rust-version = "1.95"
@@ -15,6 +15,7 @@ resolver = "3"
 
 [build-dependencies]
 tauri-build = { version = "2.7.4", features = [] }
+serde_json = "1"
 
 [dependencies]
 tauri = { version = "2.12.5", features = ["tray-icon"] }

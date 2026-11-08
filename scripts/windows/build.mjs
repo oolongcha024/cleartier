@@ -4,6 +4,7 @@ import { cpSync, copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, sta
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyWindowsIcon } from '../verify-windows-icon.mjs';
+import { checkProjectVersion } from '../version.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const target = 'x86_64-pc-windows-msvc';
@@ -57,7 +58,7 @@ function verifyProgram() {
   }
 }
 
-function exportOutputs(mode, release) {
+function exportOutputs(mode, release, version) {
   const files = [];
   const portable = join(output, 'exe');
   const zip = join(output, 'cleartier-windows-x64.zip');
@@ -80,7 +81,7 @@ function exportOutputs(mode, release) {
   }
   const config = JSON.parse(readFileSync(join(root, 'src-tauri/tauri.conf.json'), 'utf8'));
   const manifest = {
-    product: config.productName, version: config.version, target, mode,
+    product: config.productName, version: version.version, channel: version.channel, target, mode,
     builtAt: new Date().toISOString(), signed: false,
     source: { commit: capture('git', ['rev-parse', 'HEAD']), ref: process.env.GITHUB_REF ?? null },
     builder: { os: process.platform, arch: process.arch, node: process.version,
@@ -103,6 +104,8 @@ export function main(args = process.argv.slice(2).filter(arg => arg !== '--')) {
   if (process.platform !== 'win32' || process.arch !== 'x64') {
     throw new Error('Native builds require Windows x64. Use the manual GitHub Actions Windows build from Linux.');
   }
+  const versionOptions = { releaseTag: process.env.GITHUB_REF?.startsWith('refs/tags/') ? process.env.GITHUB_REF.slice(10) : undefined };
+  const version = checkProjectVersion(root, versionOptions);
   mkdirSync(checks, { recursive: true });
   for (const name of readdirSync(checks)) {
     if (name !== 'environment.txt') rmSync(join(checks, name), { recursive: true, force: true });
@@ -128,7 +131,8 @@ export function main(args = process.argv.slice(2).filter(arg => arg !== '--')) {
     ...(mode === 'exe' ? ['--no-bundle'] : ['--bundles', 'nsis']), '--', '--locked']);
   stageProgram(join(release, 'cleartier.exe'));
   verifyProgram();
-  exportOutputs(mode, release);
+  if (checkProjectVersion(root, versionOptions).version !== version.version) throw new Error('Application version changed during the build. Rebuild with a fixed version.');
+  exportOutputs(mode, release, version);
 }
 
 export function runCli() {
