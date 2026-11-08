@@ -3,12 +3,13 @@ import { NavLink, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Chip, Icon, IconButton } from '../components/ui';
 import { useNetworkStore } from '../features/networks/store';
-import { isConnected } from '../features/networks/model';
+import { isConnected, summaryKey } from '../features/networks/model';
 import { useTheme } from '../theme/theme';
 import { navigation, pageId } from './routes';
 import { version } from '../../package.json';
 import { isDesktop } from '../platform/client';
 import { ConfigurationNotice } from '../features/networks/ConfigurationState';
+import { ConnectionNotice } from '../features/networks/ConnectionNotice';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
@@ -17,9 +18,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const networkCount = useNetworkStore((state) => state.networks.length);
   const connected = useNetworkStore((state) => state.networks.filter(isConnected).length);
+  const summary = useNetworkStore((state) => summaryKey(state.networks));
   const currentPage = pageId(pathname);
   const initialize = useNetworkStore((state) => state.initialize);
+  const refreshRuntime = useNetworkStore((state) => state.refreshRuntime);
   useEffect(() => { void initialize(); }, [initialize]);
+  useEffect(() => {
+    if (!isDesktop()) return;
+    const timer = setInterval(() => { void refreshRuntime(); }, 1000);
+    const refresh = () => { void refreshRuntime(); };
+    window.addEventListener('focus', refresh);
+    return () => { clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, [refreshRuntime]);
 
   return <div className={`app-shell ${collapsed ? 'app-shell--collapsed' : ''}`}>
     <a href="#main-content" className="skip-link" onClick={(event) => {
@@ -42,7 +52,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       <div className="sidebar-bottom">
         <div className="sidebar-status"><span className={`status-dot ${connected ? 'status-dot--success' : ''}`} />
-          <span>{t(connected ? 'dashboard.networksOnline' : 'dashboard.allOffline', { count: connected })}</span>
+          <span>{t(`dashboard.${summary}`, { count: connected })}</span>
         </div>
         <NavLink to="/settings" aria-label={t('nav.settings')} className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`} title={collapsed ? t('nav.settings') : undefined}>
           <Icon name="settings" /><span className="nav-item-label">{t('nav.settings')}</span>
@@ -61,8 +71,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <ConfigurationNotice />
+      <ConnectionNotice />
       <div key={pathname} className="page-view">{children}</div>
-      <footer className="page-footer"><Icon name={isDesktop() ? 'info' : 'science'} /><span>{t(isDesktop() ? 'configuration.connectionUnavailable' : 'app.demoDescription')}</span></footer>
+      {!isDesktop() && <footer className="page-footer"><Icon name="science" /><span>{t('app.demoDescription')}</span></footer>}
     </main>
   </div>;
 }

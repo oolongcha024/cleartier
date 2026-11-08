@@ -476,3 +476,62 @@ pub fn tun_exists(name: &str) -> Result<bool> {
     }
     Err(CoreError::new(ErrorCode::Io, "Adapter list kept changing"))
 }
+
+pub fn address_exists(address: std::net::Ipv4Addr) -> Result<bool> {
+    use windows_sys::Win32::{
+        Foundation::{ERROR_BUFFER_OVERFLOW, ERROR_NO_DATA},
+        NetworkManagement::IpHelper::GetAdaptersAddresses,
+        Networking::WinSock::{AF_INET, SOCKADDR_IN},
+    };
+    let mut size = 0;
+    let code = unsafe { GetAdaptersAddresses(AF_INET as u32, 0, null(), null_mut(), &mut size) };
+    if code == ERROR_NO_DATA {
+        return Ok(false);
+    }
+    if code != ERROR_BUFFER_OVERFLOW {
+        return Err(CoreError::new(
+            ErrorCode::Io,
+            "Cannot enumerate assigned addresses",
+        ));
+    }
+    for _ in 0..3 {
+        let mut storage = vec![0u64; (size as usize).div_ceil(8)];
+        let head = storage.as_mut_ptr().cast();
+        let code = unsafe { GetAdaptersAddresses(AF_INET as u32, 0, null(), head, &mut size) };
+        if code == ERROR_BUFFER_OVERFLOW {
+            continue;
+        }
+        if code == ERROR_NO_DATA {
+            return Ok(false);
+        }
+        if code != 0 {
+            return Err(CoreError::new(
+                ErrorCode::Io,
+                "Cannot enumerate assigned addresses",
+            ));
+        }
+        let mut current = head;
+        while !current.is_null() {
+            let mut unicast = unsafe { (*current).FirstUnicastAddress };
+            while !unicast.is_null() {
+                let socket = unsafe { (*unicast).Address.lpSockaddr };
+                if !socket.is_null() && unsafe { (*socket).sa_family } == AF_INET {
+                    let socket = unsafe { &*(socket as *const SOCKADDR_IN) };
+                    if std::net::Ipv4Addr::from(
+                        unsafe { socket.sin_addr.S_un.S_addr }.to_ne_bytes(),
+                    ) == address
+                    {
+                        return Ok(true);
+                    }
+                }
+                unicast = unsafe { (*unicast).Next };
+            }
+            current = unsafe { (*current).Next };
+        }
+        return Ok(false);
+    }
+    Err(CoreError::new(
+        ErrorCode::Io,
+        "Adapter addresses kept changing",
+    ))
+}

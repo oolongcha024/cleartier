@@ -31,7 +31,7 @@ export function offlineNetwork(id: string, config = createNetworkConfig(id, { na
 }
 export function networksFromDocument(document: ConfigurationDocument): Network[] {
   return document.networks.map(({ id, client, config }) => ({ ...offlineNetwork(id, structuredClone(config)),
-    alias: client.alias, icon: client.icon, autoConnect: client.autoConnect }));
+    alias: client.alias, icon: client.icon, autoConnect: client.autoConnect, peerCount: 0, directPeerCount: 0 }));
 }
 export function documentFromNetworks(previous: ConfigurationDocument, networks: Network[], selectedId: string): ConfigurationDocument {
   return { ...previous, selectedId, networks: networks.map((network) => {

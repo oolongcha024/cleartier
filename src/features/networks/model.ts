@@ -1,6 +1,6 @@
 // Core lifecycle and connected peers are separate facts. A real adapter should
 // map EasyTier snapshots/events here, rather than equate `running` with connected.
-export type CoreState = 'stopped' | 'starting' | 'running' | 'stopping' | 'unknown';
+export type CoreState = 'stopped' | 'starting' | 'running' | 'stopping' | 'unknown' | 'failed';
 export const networkIcons = ['work', 'sports_esports', 'home', 'hub', 'dns', 'public'] as const;
 export type NetworkIcon = typeof networkIcons[number];
 export const p2pPolicies = ['auto', 'lazy', 'disabled', 'only'] as const;
@@ -20,6 +20,7 @@ export interface NetworkConfig {
   magicDns: boolean; dnsSuffix: string; udpBroadcastRelay: boolean;
 }
 export interface Network {
+  connectionError?: { code: string } | null; deviceName?: string; peerCount?: number; directPeerCount?: number;
   id: string; alias: string; icon: NetworkIcon;
   savedConfig: NetworkConfig;
   // A saved edit must not masquerade as the configuration of a live session.
@@ -31,15 +32,25 @@ export interface Network {
   // Keep the last snapshot on disconnect. These are independent from rates (MB/s).
   trafficTotals: { downloadBytes: number; uploadBytes: number } | null;
 }
-export const isConnected = (network: Network) => network.coreState === 'running' && network.peers.length > 0;
+export const isConnected = (network: Network) => network.coreState === 'running' && (network.peerCount ?? network.peers.length) > 0;
 export const isBusy = (network: Network) => network.coreState === 'starting' || network.coreState === 'stopping';
 export const activePeers = (network: Network) => network.coreState === 'running' ? network.peers : [];
 export const activeVirtualIp = (network: Network) => network.runningConfig?.ipv4Mode === 'manual'
-  ? network.runningConfig.ipv4Address : network.virtualIp;
+  && network.peerCount === undefined ? network.runningConfig.ipv4Address : network.virtualIp;
 export function statusKey(network: Network) {
+  if (network.coreState === 'failed') return 'failed';
   if (network.coreState === 'unknown') return 'unavailable';
   if (network.coreState === 'stopped') return 'idle';
   if (network.coreState === 'starting') return 'startingShort';
   if (network.coreState === 'stopping') return 'stoppingShort';
   return network.peers.length > 0 ? 'connectedShort' : 'running';
+}
+
+export function summaryKey(networks: Network[]) {
+  if (networks.some(isConnected)) return 'networksOnline';
+  if (networks.some((network) => network.coreState === 'unknown')) return 'networksUnknown';
+  if (networks.some(isBusy)) return 'networksBusy';
+  if (networks.some((network) => network.coreState === 'running')) return 'networksWaiting';
+  if (networks.some((network) => network.coreState === 'failed')) return 'networksFailed';
+  return 'allOffline';
 }

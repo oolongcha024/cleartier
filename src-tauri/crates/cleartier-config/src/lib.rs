@@ -1,7 +1,9 @@
 //! User-owned configuration storage, independent of the WebView and core process.
 //! A failed load never authorizes a write. All writers lock the same stable file;
 //! a revision check prevents another window from silently overwriting newer data.
+mod connection;
 mod model;
+pub use connection::ConnectionConfig;
 pub use model::{Document, NetworkRecord};
 
 use serde::Serialize;

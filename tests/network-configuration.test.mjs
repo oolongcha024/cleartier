@@ -316,7 +316,7 @@ test('save results distinguish invalid, missing and busy targets', async () => {
   await finish(restarting);
 });
 
-test('runtime rejection restores session state while preserving saved edits and concurrent preferences', async () => {
+test('failed apply keeps saved edits and preferences without pretending the old connection was restored', async () => {
   const store = networkStore.getState();
   const before = structuredClone(network());
   const others = structuredClone(store.networks.filter((item) => item.id !== 'office'));
@@ -325,12 +325,12 @@ test('runtime rejection restores session state while preserving saved edits and 
   await store.setAutoConnect('office', false);
   pending.shift().reject(new Error('runtime unavailable'));
   assert.equal(await result.completion, false);
-  assert.equal(network().coreState, 'running');
-  assert.deepEqual(network().runningConfig, before.runningConfig);
-  assert.deepEqual(network().trafficTotals, before.trafficTotals);
+  assert.equal(network().coreState, 'failed');
+  assert.equal(network().runningConfig, null);
+  assert.equal(network().trafficTotals, null);
   assert.equal(network().savedConfig.name, 'next');
   assert.equal(network().autoConnect, false);
-  assert.equal(hasPendingConfig(network()), true);
+  assert.equal(hasPendingConfig(network()), false);
   assert.deepEqual(networkStore.getState().networks.filter((item) => item.id !== 'office'), others);
 });
 

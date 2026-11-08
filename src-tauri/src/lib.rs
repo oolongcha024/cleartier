@@ -1,6 +1,7 @@
 mod config_commands;
 mod core_commands;
 mod host_environment;
+mod network_commands;
 
 #[tauri::command]
 fn core_version() -> &'static str {
@@ -21,6 +22,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             host_environment,
             core_version,
+            network_commands::network_operation,
+            network_commands::network_snapshot,
             config_commands::config_load,
             config_commands::config_save,
             config_commands::config_restore,

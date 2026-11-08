@@ -2,9 +2,9 @@ import { useTranslation } from 'react-i18next';
 import { Icon } from '../../components/ui';
 import type { Peer } from '../networks/model';
 
-export function PeerTable({ peers, onCopy }: { peers: Peer[]; onCopy: (value: string) => void }) {
+export function PeerTable({ peers, onCopy, detailsPending = false }: { peers: Peer[]; onCopy: (value: string) => void; detailsPending?: boolean }) {
   const { t } = useTranslation();
-  if (!peers.length) return <div className="devices-empty"><Icon name="devices_off" /><span>{t('dashboard.noDevices')}</span><p>{t('dashboard.noDevicesHint')}</p></div>;
+  if (!peers.length) return <div className="devices-empty"><Icon name="devices_off" /><span>{t(detailsPending ? 'connection.deviceDetailsPending' : 'dashboard.noDevices')}</span>{!detailsPending && <p>{t('dashboard.noDevicesHint')}</p>}</div>;
   return <div className="table-scroll"><table className="device-table"><thead><tr>
     <th>{t('dashboard.device')}</th><th>{t('dashboard.address')}</th><th>{t('dashboard.connection')}</th><th>{t('dashboard.peerLatency')}</th>
   </tr></thead><tbody>{peers.map((peer) => <tr key={peer.id}>

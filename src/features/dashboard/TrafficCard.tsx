@@ -12,8 +12,9 @@ export function TrafficCard({ network }: { network: Network }) {
   const { t } = useTranslation();
   const gradientId = useId();
   const connected = isConnected(network);
-  const download = rate(connected ? network.download : 0);
-  const upload = rate(connected ? network.upload : 0);
+  const measured = network.peerCount === undefined;
+  const download = measured ? rate(connected ? network.download : 0) : { value: '—', unit: '' };
+  const upload = measured ? rate(connected ? network.upload : 0) : { value: '—', unit: '' };
   const totalDownload = formatBytes(network.trafficTotals?.downloadBytes);
   const totalUpload = formatBytes(network.trafficTotals?.uploadBytes);
   const maximum = Math.max(1, Math.ceil(network.download * 1.25));
@@ -57,13 +58,13 @@ export function TrafficCard({ network }: { network: Network }) {
               <stop offset="100%" stopColor="var(--md-sys-color-primary)" stopOpacity="0" />
             </linearGradient></defs>
             {[12, 74, 136].map((y) => <line key={y} x1="0" x2="600" y1={y} y2={y} className="chart-grid" />)}
-            {connected && <>
+            {connected && measured && <>
               <path d={`${downloadPath} L600,144 L0,144 Z`} fill={`url(#${gradientId})`} />
               <path d={downloadPath} className="chart-line chart-line--download" />
               <path d={uploadPath} className="chart-line chart-line--upload" />
             </>}
           </svg>
-          {!connected && <span className="chart-empty">{t('dashboard.trafficOffline')}</span>}
+          {(!connected || !measured) && <span className="chart-empty">{t(measured ? 'dashboard.trafficOffline' : 'connection.metricsPending')}</span>}
         </div>
         <div className="chart-time" aria-hidden="true"><span>{t('dashboard.sixtyAgo')}</span><span>{t('dashboard.thirtyAgo')}</span><span>{t('dashboard.now')}</span></div>
       </div>

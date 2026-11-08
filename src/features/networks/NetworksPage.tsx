@@ -39,7 +39,7 @@ export function NetworksPage() {
               {t(isBusy(network) ? 'networkConfig.busyShort' : 'networkConfig.edit')}
             </Button>
             <IconButton icon="delete" label={t('networkConfig.deleteNamed', { name: network.alias })}
-              disabled={writing || network.coreState !== 'stopped'} onClick={() => requestDelete(network)} />
+              disabled={writing || !['stopped', 'failed'].includes(network.coreState) || network.runningConfig !== null} onClick={() => requestDelete(network)} />
           </div>
         </li>;
       })}

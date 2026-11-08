@@ -14,12 +14,12 @@ const resources = join(root, 'src-tauri/resources/windows');
 const packageFiles = ['cleartier.exe', 'wintun.dll', 'Packet.dll', 'WinDivert64.sys', 'core-resources.json', 'check-core.ps1'];
 const usage = 'Usage: pnpm build:windows [exe|nsis|all]\nNative Windows x64 build; exe exports a complete portable ZIP. Default: all.';
 
-function run(command, args) {
+function run(command, args, env = process.env) {
   // pnpm is a Windows command script. All its arguments here are fixed by this
   // program; paths and other data go directly to executables without a shell.
   const executable = command === 'pnpm' ? (process.env.ComSpec || 'cmd.exe') : command;
   const parameters = command === 'pnpm' ? ['/d', '/s', '/c', 'pnpm', ...args] : args;
-  const result = spawnSync(executable, parameters, { cwd: root, stdio: 'inherit' });
+  const result = spawnSync(executable, parameters, { cwd: root, stdio: 'inherit', env });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${command} failed (exit ${result.status ?? 'unknown'}).`);
 }
@@ -115,6 +115,11 @@ export function main(args = process.argv.slice(2).filter(arg => arg !== '--')) {
   run('pnpm', ['test']);
   run('cargo', ['test', '--locked', '--manifest-path', join(root, 'src-tauri/Cargo.toml'), '-p', 'cleartier-config']);
   run(process.execPath, [join(root, 'scripts/prepare-core-resources.mjs')]);
+  // Native test executables also link the upstream runtime DLLs. Scope their
+  // search path to this one command; the packaged application uses its own files.
+  const testEnvironment = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH'));
+  testEnvironment.PATH = `${resources};${process.env.PATH ?? ''}`;
+  run('cargo', ['test', '--locked', '--manifest-path', join(root, 'src-tauri/Cargo.toml'), '-p', 'cleartier-core', '--lib'], testEnvironment);
   const metadata = JSON.parse(capture('cargo', ['metadata', '--locked', '--no-deps', '--format-version', '1',
     '--manifest-path', join(root, 'src-tauri/Cargo.toml')]));
   const release = join(metadata.target_directory, target, 'release');

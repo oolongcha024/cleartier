@@ -4,6 +4,7 @@ import { createNetworkConfig, defaultTunName, newNetworkId } from './defaults.ts
 import { isBusy, type Network } from './model.ts';
 import { documentFromNetworks, emptyDocument, networksFromDocument, offlineNetwork, storageFailure, type ConfigurationStorage, type StorageFailure } from './persistence.ts';
 import type { NetworkRuntime } from './runtime.ts';
+import { createNetworkSessions } from './network-sessions.ts';
 
 export type SaveMode = 'confirm' | 'later' | 'now';
 export type SaveResult =
@@ -15,6 +16,9 @@ export type SaveResult =
 export interface NetworkStore {
   networks: Network[]; selectedId: string;
   phase: 'loading' | 'ready' | 'error'; writing: boolean;
+  autoConnecting: boolean; autoConnectCancelled: boolean;
+  refreshRuntime: () => Promise<boolean>;
+  dismissAutoConnectNotice: () => void;
   storageError: StorageFailure | null; connectionEnabled: boolean;
   initialize: (restore?: boolean) => Promise<void>;
   clearStorageError: () => void;
@@ -28,7 +32,6 @@ export interface NetworkStore {
 
 export function createNetworkStore(initialNetworks: Network[], runtime: NetworkRuntime, options: {
   storage?: ConfigurationStorage; connectionEnabled?: boolean;
-  snapshot?: () => Promise<{ id: string; running: boolean | null }[]>;
 } = {}) {
   return createStore<NetworkStore>()((set, get) => {
     let document = emptyDocument();
@@ -64,27 +67,15 @@ export function createNetworkStore(initialNetworks: Network[], runtime: NetworkR
       queue = operation.then(() => {});
       return operation;
     };
-    const transition = async (id: string, restart = false): Promise<boolean> => {
-      const network = get().networks.find((item) => item.id === id);
-      if (!get().connectionEnabled || !network || isBusy(network) || (restart && network.coreState !== 'running')) return false;
-      const connecting = restart || network.coreState === 'stopped';
-      const config = structuredClone(network.savedConfig);
-      updateNetwork(id, (item) => ({ ...item, coreState: connecting ? 'starting' : 'stopping',
-        trafficTotals: connecting ? { downloadBytes: 0, uploadBytes: 0 } : item.trafficTotals }));
-      try {
-        await runtime(connecting ? { action: restart ? 'restart' : 'start', id, config } : { action: 'stop', id });
-        updateNetwork(id, (item) => ({ ...item, coreState: connecting ? 'running' : 'stopped', runningConfig: connecting ? config : null }));
-        return true;
-      } catch {
-        updateNetwork(id, (item) => ({ ...item, coreState: network.coreState,
-          runningConfig: network.runningConfig, trafficTotals: network.trafficTotals }));
-        return false;
-      }
-    };
+    const sessions = createNetworkSessions(runtime, {
+      read: () => get().networks, update: updateNetwork,
+      automatic: (autoConnecting, autoConnectCancelled) => set({ autoConnecting, autoConnectCancelled }),
+    });
     return {
       networks: structuredClone(initialNetworks), selectedId: initialNetworks[0]?.id ?? '',
       phase: options.storage ? 'loading' : 'ready', writing: false, storageError: null,
-      connectionEnabled: options.connectionEnabled ?? true,
+      connectionEnabled: options.connectionEnabled ?? true, autoConnecting: false, autoConnectCancelled: false,
+      refreshRuntime: sessions.refresh, dismissAutoConnectNotice: () => set({ autoConnectCancelled: false }),
       initialize: (restore = false) => {
         if (!options.storage) return Promise.resolve();
         if (initialization) return initialization;
@@ -94,17 +85,12 @@ export function createNetworkStore(initialNetworks: Network[], runtime: NetworkR
           try {
             document = await (restore ? options.storage!.restore() : options.storage!.load());
             const networks = networksFromDocument(document);
-            if (options.snapshot) {
-              try {
-                const snapshots = await options.snapshot();
-                for (const network of networks) {
-                  const snapshot = snapshots.find((snapshot) => snapshot.id === network.id);
-                  network.coreState = !snapshot || snapshot.running === false ? 'stopped' : snapshot.running === true ? 'running' : 'unknown';
-                }
-              } catch { networks.forEach((network) => { network.coreState = 'unknown'; }); }
-            }
             const selectedId = networks.some((network) => network.id === document.selectedId) ? document.selectedId : networks[0]?.id ?? '';
             set({ networks, selectedId, phase: 'ready' });
+            if (runtime.snapshot) {
+              await sessions.refresh();
+              if (get().connectionEnabled) void sessions.autoConnect();
+            }
           } catch (error) { set({ phase: 'error', storageError: storageFailure(error) }); }
         })().finally(() => { initialization = undefined; });
         return initialization;
@@ -114,10 +100,11 @@ export function createNetworkStore(initialNetworks: Network[], runtime: NetworkR
       setAutoConnect: (id, autoConnect) => commit(() => get().networks.some((network) => network.id === id) ? {
         networks: get().networks.map((network) => network.id === id ? { ...network, autoConnect } : network), selectedId: get().selectedId,
       } : null),
-      toggleConnection: (id) => transition(id), reconnect: (id) => transition(id, true),
+      toggleConnection: (id) => get().phase === 'ready' && get().connectionEnabled ? sessions.toggle(id) : Promise.resolve(false),
+      reconnect: (id) => get().phase === 'ready' && get().connectionEnabled ? sessions.reconnect(id) : Promise.resolve(false),
       removeNetwork: (id) => commit(() => {
         const network = get().networks.find((network) => network.id === id);
-        if (!network || network.coreState !== 'stopped') return null;
+        if (!network || !['stopped', 'failed'].includes(network.coreState) || network.runningConfig !== null) return null;
         const networks = get().networks.filter((network) => network.id !== id);
         return { networks, selectedId: get().selectedId === id ? networks[0]?.id ?? '' : get().selectedId };
       }),
@@ -147,7 +134,8 @@ export function createNetworkStore(initialNetworks: Network[], runtime: NetworkR
             stale = true; return null;
           }
           const updated = current ? { ...current, alias: draft.alias.trim() || draft.name, icon: draft.icon, savedConfig: config }
-            : { ...offlineNetwork(id, config), alias: draft.alias.trim() || draft.name, icon: draft.icon };
+            : { ...offlineNetwork(id, config), alias: draft.alias.trim() || draft.name, icon: draft.icon,
+              ...(runtime.snapshot ? { peerCount: 0, directPeerCount: 0 } : {}) };
           return { networks: creating ? [...get().networks, updated] : get().networks.map((item) => item.id === id ? updated : item),
             selectedId: creating ? id : get().selectedId };
         });

@@ -3,11 +3,11 @@ import { demoNetworks } from './demo';
 import { createNetworkStore, type NetworkStore } from './network-store';
 import { createDemoRuntime } from './runtime';
 import { isDesktop } from '../../platform/client';
-import { desktopConfigurationStorage, readNetworkSnapshot } from '../../platform/configuration';
+import { desktopConfigurationStorage, desktopNetworkRuntime } from '../../platform/configuration';
 
 const networkStore = isDesktop()
-  ? createNetworkStore([], async () => { throw new Error('Connection management is not enabled'); }, {
-    storage: desktopConfigurationStorage, connectionEnabled: false, snapshot: readNetworkSnapshot,
+  ? createNetworkStore([], desktopNetworkRuntime, {
+    storage: desktopConfigurationStorage,
   })
   : createNetworkStore(demoNetworks, createDemoRuntime());
 

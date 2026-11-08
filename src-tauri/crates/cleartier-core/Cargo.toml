@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 anyhow = "1"
+cleartier-config = { path = "../cleartier-config" }
 easytier = { git = "https://github.com/EasyTier/EasyTier.git", rev = "8428a89d2dabc94c97d370ec607c6ca142473626" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -30,3 +31,8 @@ windows-sys = { version = "0.61", features = [
 
 [dev-dependencies]
 tempfile = "3"
+
+[[test]]
+name = "network_manager"
+path = "tests/network_manager.rs"
+harness = false

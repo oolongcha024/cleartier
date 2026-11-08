@@ -1,6 +1,6 @@
 # 核心运行基础
 
-本文描述阶段 1 的进程管理与控制接口。阶段 2 已实现桌面配置持久化，浏览器继续使用演示数据；真实连接交互留到阶段 3。存储约定见[网络配置存储](network-configuration.md)。
+本文描述阶段 1 的进程管理与控制接口。阶段 2 已实现桌面配置持久化，阶段 3 已通过独立连接管理 Module 接入真实操作；浏览器继续使用演示数据。存储约定见[网络配置存储](network-configuration.md)。
 
 ## 代码入口
 
@@ -21,6 +21,8 @@
 
 | Tauri 命令 | 行为 |
 | --- | --- |
+| `network_operation` | 执行目标网络的 start／stop／restart，等待实例就绪并返回快照 |
+| `network_snapshot` | 同步状态与运行配置，按已确认规则处理新实例的地址冲突 |
 | `core_version` | 返回链接的核心版本，不启动进程 |
 | `core_status` | 返回控制进程状态、PID、权限、版本、最近的进程错误及目录 |
 | `core_start(toml)` | 验证配置并按需启动核心，返回实例 ID；接受请求不代表连接就绪 |
@@ -59,3 +61,5 @@ Rust 核心测试命令为 `cargo test --locked -p cleartier-core`，覆盖实�
 Windows 分项实机步骤见 [Windows 构建与测试](windows-build.md)。编译及 Linux 测试成功不能替代 UAC、真实驱动和网卡清理的 Windows 验收。
 
 2026-11-08 用户回传的 Windows `Process`、`Cancel`、`Tun`、`Recovery`、`MissingResource` 五项报告全部通过，且错误与清理错误均为空。它们确认了正常命名管道通信、仅核心提权、UAC 取消、双 TUN 的创建与正常清理、普通权限无 TUN 核心的异常恢复，以及缺少 Wintun 时的启动前拒绝。详细结果与尚未覆盖的范围见 [PLAN.md](../PLAN.md)。
+
+阶段 3 的参数映射、状态与自动连接规则见[连接管理](connection-management.md)。私有 IPC 协议现为 v2，新字段随同一程序一并分发，不作为外部兼容协议。

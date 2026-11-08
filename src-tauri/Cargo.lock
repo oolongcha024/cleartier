@@ -861,6 +861,7 @@ name = "cleartier-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "cleartier-config",
  "easytier",
  "libc",
  "serde",

@@ -187,3 +187,28 @@ mod tests {
         assert!(!Path::new(&path).exists());
     }
 }
+
+pub fn address_exists(address: std::net::Ipv4Addr) -> Result<bool> {
+    let mut head = std::ptr::null_mut();
+    if unsafe { libc::getifaddrs(&mut head) } != 0 {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    let mut found = false;
+    let mut current = head;
+    while !current.is_null() {
+        let item = unsafe { &*current };
+        if !item.ifa_addr.is_null() && unsafe { (*item.ifa_addr).sa_family } as i32 == libc::AF_INET
+        {
+            let socket = unsafe { &*(item.ifa_addr as *const libc::sockaddr_in) };
+            if std::net::Ipv4Addr::from(socket.sin_addr.s_addr.to_ne_bytes()) == address {
+                found = true;
+                break;
+            }
+        }
+        current = item.ifa_next;
+    }
+    unsafe {
+        libc::freeifaddrs(head);
+    }
+    Ok(found)
+}

@@ -18,6 +18,8 @@
   const button = text => [...document.querySelectorAll('.network-editor button')].find(item => item.textContent === text);
   const close = async () => {
     button('取消').click();
+    await waitFor(() => button('放弃修改') || !document.querySelector('.network-editor'), 'Close did not resolve or request confirmation');
+    if (button('放弃修改')) button('放弃修改').click();
     await waitFor(() => !document.querySelector('.network-editor'), 'Editor did not close');
   };
   const open = async (target) => {

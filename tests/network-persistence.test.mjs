@@ -174,17 +174,17 @@ test('startup queries current core snapshots and marks query failure as unknown'
   const initial = documentFromNetworks(emptyDocument(), [candidate], candidate.id);
   const f = fixture(initial);
   let queries = 0;
-  const store = createNetworkStore([], async () => { throw new Error('must not connect'); }, {
-    storage: f.storage, connectionEnabled: false,
-    snapshot: async () => { queries++; return [{ id: candidate.id, running: true }]; },
+  const runtime = Object.assign(async () => { throw new Error('must not connect'); }, {
+    snapshot: async () => { queries++; return [{ id: candidate.id, state: 'running', runningConfig: null,
+      peerCount: 0, directPeerCount: 0, virtualIp: null, deviceName: '', error: null }]; },
   });
+  const store = createNetworkStore([], runtime, { storage: f.storage, connectionEnabled: false });
   await store.getState().initialize();
   assert.equal(queries, 1);
   assert.equal(store.getState().networks[0].coreState, 'running');
   assert.equal(store.getState().networks[0].runningConfig, null);
-  const unavailable = createNetworkStore([], async () => {}, {
-    storage: f.storage, connectionEnabled: false, snapshot: async () => { throw new Error('unavailable'); },
-  });
+  runtime.snapshot = async () => { throw new Error('unavailable'); };
+  const unavailable = createNetworkStore([], runtime, { storage: f.storage, connectionEnabled: false });
   await unavailable.getState().initialize();
   assert.equal(unavailable.getState().phase, 'ready');
   assert.equal(unavailable.getState().networks[0].coreState, 'unknown');

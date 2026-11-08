@@ -79,7 +79,7 @@ impl Document {
     }
 }
 
-fn validate_config(value: &Value) -> Result<(), &'static str> {
+pub(crate) fn validate_config(value: &Value) -> Result<(), &'static str> {
     let config = value.as_object().ok_or("invalid")?;
     for field in [
         "name",

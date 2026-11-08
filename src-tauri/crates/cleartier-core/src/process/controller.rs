@@ -15,6 +15,7 @@ use super::{
 };
 use crate::InstanceSnapshot;
 
+#[derive(Clone)]
 pub struct CoreController {
     inner: Arc<Inner>,
 }
@@ -136,6 +137,24 @@ impl CoreController {
         }
         let config = parse_config(&toml)?;
         let needs_elevation = !config.get_flags().no_tun;
+        if needs_elevation {
+            let name = config.get_flags().dev_name;
+            #[cfg(not(target_os = "macos"))]
+            if !name.is_empty() && platform::tun_exists(&name)? {
+                return Err(CoreError::new(
+                    ErrorCode::TunNameInUse,
+                    "The interface name is already used by the system",
+                ));
+            }
+            if let Some(address) = config.get_ipv4() {
+                if platform::address_exists(address.address())? {
+                    return Err(CoreError::new(
+                        ErrorCode::AddressInUse,
+                        "The virtual address is already assigned",
+                    ));
+                }
+            }
+        }
         let mut session = self.inner.session.lock().await;
         self.ensure_session(&mut session, needs_elevation).await?;
         match self
