@@ -107,19 +107,36 @@ export function Dialog({ open, onOpenChange, title, description, children, class
 }
 const SnackbarContext = createContext<(message: string) => void>(() => {});
 export function SnackbarProvider({ children }: { children: ReactNode }) {
-  const [message, setMessage] = useState('');
+  const [notice, setNotice] = useState<{ id: number; message: string; closing: boolean } | null>(null);
+  const sequence = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { t } = useTranslation();
   useEffect(() => () => clearTimeout(timer.current), []);
-  const notify = (next: string) => {
+  const dismiss = () => {
     clearTimeout(timer.current);
-    setMessage(next);
-    timer.current = setTimeout(() => setMessage(''), 4500);
+    setNotice((current) => current ? { ...current, closing: true } : null);
+  };
+  const notify = (next: string) => {
+    if (!next.trim()) { dismiss(); return; }
+    clearTimeout(timer.current);
+    const id = ++sequence.current;
+    setNotice({ id, message: next, closing: false });
+    timer.current = setTimeout(() => {
+      setNotice((current) => current?.id === id ? { ...current, closing: true } : current);
+    }, 4500);
   };
   return <SnackbarContext value={notify}>{children}
-    <div className={`snackbar ${message ? 'snackbar--visible' : ''}`}>
-      <span role="status" aria-live="polite">{message}</span>
-      {message && <button aria-label={t('app.close')} onClick={() => setMessage('')}><Icon name="close" /></button>}
+    <div className="snackbar-region" role="status" aria-live="polite" aria-atomic="true">
+      {notice && <div key={notice.id} className={`snackbar ${notice.closing ? 'snackbar--closing' : 'snackbar--visible'}`}
+        onAnimationEnd={(event) => {
+          if (event.target !== event.currentTarget || event.animationName !== 'snackbar-exit') return;
+          // Retain content through the exit, then remove this specific notice.
+          // A late event from an older notice must never dismiss its replacement.
+          setNotice((current) => current?.id === notice.id && current.closing ? null : current);
+        }}>
+        <span>{notice.message}</span>
+        <button aria-label={t('app.close')} onClick={dismiss}><Icon name="close" /></button>
+      </div>}
     </div>
   </SnackbarContext>;
 }
