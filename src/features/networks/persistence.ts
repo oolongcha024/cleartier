@@ -1,9 +1,10 @@
+import type { PeerIconPreferences } from './peer-icons.ts';
 import { createNetworkConfig } from './defaults.ts';
 import type { Network, NetworkConfig, NetworkIcon } from './model.ts';
 
 export interface NetworkRecord {
   id: string;
-  client: { alias: string; icon: NetworkIcon; autoConnect: boolean; [field: string]: unknown };
+  client: { alias: string; icon: NetworkIcon; autoConnect: boolean; peerIcons?: PeerIconPreferences; [field: string]: unknown };
   config: NetworkConfig;
   [field: string]: unknown;
 }
@@ -31,13 +32,13 @@ export function offlineNetwork(id: string, config = createNetworkConfig(id, { na
 }
 export function networksFromDocument(document: ConfigurationDocument): Network[] {
   return document.networks.map(({ id, client, config }) => ({ ...offlineNetwork(id, structuredClone(config)),
-    alias: client.alias, icon: client.icon, autoConnect: client.autoConnect, peerCount: 0, directPeerCount: 0 }));
+    alias: client.alias, icon: client.icon, peerIcons: structuredClone(client.peerIcons ?? {}), autoConnect: client.autoConnect, peerCount: 0, directPeerCount: 0 }));
 }
 export function documentFromNetworks(previous: ConfigurationDocument, networks: Network[], selectedId: string): ConfigurationDocument {
   return { ...previous, selectedId, networks: networks.map((network) => {
     const previousRecord = previous.networks.find((record) => record.id === network.id);
     return { ...previousRecord, id: network.id,
-      client: { ...previousRecord?.client, alias: network.alias, icon: network.icon, autoConnect: network.autoConnect },
+      client: { ...previousRecord?.client, alias: network.alias, icon: network.icon, autoConnect: network.autoConnect, peerIcons: structuredClone(network.peerIcons ?? {}) },
       config: structuredClone(network.savedConfig) };
   }) };
 }

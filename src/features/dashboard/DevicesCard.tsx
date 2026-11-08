@@ -11,5 +11,5 @@ export function DevicesCard({ network, onCopy }: { network: Network; onCopy: (va
   const peers = network.coreState === 'running' || network.coreState === 'unknown' ? telemetry.snapshot?.peers ?? [] : [];
   return <Card className="devices-card"><div className="card-heading"><h2>{t('dashboard.devicesTitle')}<span className="heading-count">{peers.length}</span></h2>
     {stale && <span className="data-status" role="status">{t('dashboard.dataStale')}</span>}
-  </div><PeerTable key={network.id} peers={peers} onCopy={onCopy} stale={stale} /></Card>;
+  </div><PeerTable key={network.id} networkId={network.id} preferences={network.peerIcons} peers={peers} onCopy={onCopy} stale={stale} /></Card>;
 }

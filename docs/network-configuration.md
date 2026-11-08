@@ -18,6 +18,8 @@
 
 Tauri 的 `config_load / config_save / config_restore` 委托该 Module。前端 `platform/configuration.ts` 提供桌面 Adapter，`features/networks/network-store.ts` 串行处理持久修改，只有写入成功才更新已保存状态。`persistence.ts` 负责持久数据和展示状态之间的转换。
 
+设备图标偏好保存在 `client.peerIcons`，以对端配置实例 UUID 为键，不进入核心连接配置；缺失该字段的现有 v1 文件按空偏好读取。保存与恢复自动均通过同一原子写入流程。
+
 浏览器预览使用独立的内存数据和演示运行 Adapter，不访问桌面配置，也不在原生命令失败后切回演示成功。
 
 ## 目录与格式
@@ -31,7 +33,7 @@ Tauri 的 `config_load / config_save / config_restore` 委托该 Module。前端
 | `networks.lock` | 多进程协调写入的稳定锁文件 |
 | `networks.damaged-<UUID>.json` | 用户确认恢复时保留的异常原件 |
 
-文档使用 JSON v1，包含 `version`、`revision`、`selectedId` 和 `networks`。每条网络包含 `id`、`client` 和 `config`；`client` 保存 `alias / icon / autoConnect`，`config` 保存现有表单的连接字段。
+文档使用 JSON v1，包含 `version`、`revision`、`selectedId` 和 `networks`。每条网络包含 `id`、`client` 和 `config`；`client` 保存 `alias / icon / autoConnect / peerIcons`，`config` 保存现有表单的连接字段。
 
 客户端信息与连接字段在同一文档中分组，保证一次保存能原子提交；不将多文件更新视作单次原子操作。文档、记录、客户端信息和配置均保留未知字段。该保证针对存储格式，不代表此阶段已经实现任意官方 TOML 的无损导入或注释保留。
 

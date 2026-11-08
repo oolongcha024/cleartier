@@ -1,3 +1,5 @@
+import type { PeerIconPreferences } from './peer-icons.ts';
+
 // Core lifecycle and connected peers are separate facts. A real adapter should
 // map EasyTier snapshots/events here, rather than equate `running` with connected.
 export type CoreState = 'stopped' | 'starting' | 'running' | 'stopping' | 'unknown' | 'failed';
@@ -7,7 +9,7 @@ export const p2pPolicies = ['auto', 'lazy', 'disabled', 'only'] as const;
 export type P2pPolicy = typeof p2pPolicies[number];
 export interface Peer {
   id: string; name: string; ip: string | null;
-  platform?: 'desktop_windows' | 'laptop_mac' | 'dns';
+  instanceId?: string | null; publicServer?: boolean;
   connection: 'direct' | 'relay'; latency: number | null;
   lossRate?: number | null; protocols?: string[]; nextHop?: string | null; version?: string | null;
 }
@@ -22,7 +24,7 @@ export interface NetworkConfig {
 }
 export interface Network {
   connectionError?: { code: string } | null; deviceName?: string; peerCount?: number; directPeerCount?: number;
-  id: string; alias: string; icon: NetworkIcon;
+  id: string; alias: string; icon: NetworkIcon; peerIcons?: PeerIconPreferences;
   savedConfig: NetworkConfig;
   // A saved edit must not masquerade as the configuration of a live session.
   runningConfig: NetworkConfig | null;

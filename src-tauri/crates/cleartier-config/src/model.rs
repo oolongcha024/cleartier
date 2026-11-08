@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +42,8 @@ pub struct ClientConfig {
     pub alias: String,
     pub icon: String,
     pub auto_connect: bool,
+    #[serde(default)]
+    pub peer_icons: BTreeMap<Uuid, String>,
     #[serde(flatten)]
     pub extra: Map<String, Value>,
 }
@@ -63,6 +65,12 @@ impl Document {
             if !["work", "sports_esports", "home", "hub", "dns", "public"]
                 .contains(&network.client.icon.as_str())
             {
+                return Err("invalid");
+            }
+            if network.client.peer_icons.iter().any(|(id, kind)| {
+                id.is_nil()
+                    || !["computer", "laptop", "server", "router", "phone"].contains(&kind.as_str())
+            }) {
                 return Err("invalid");
             }
             // Validate the known schema while preserving every unrecognized field.

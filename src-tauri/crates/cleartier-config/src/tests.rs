@@ -190,3 +190,52 @@ fn oversized_primary_can_be_recovered_without_losing_the_original() {
         .unwrap();
     assert_eq!(fs::metadata(damaged).unwrap().len(), LIMIT + 1);
 }
+
+#[test]
+fn peer_icons_are_local_client_preferences_and_auto_can_remove_them() {
+    let directory = tempfile::tempdir().unwrap();
+    let repository = Repository::new(directory.path().into());
+    let peer = uuid::Uuid::new_v4();
+    let mut input = document();
+    input.networks[0]
+        .client
+        .peer_icons
+        .insert(peer, "server".into());
+    let first = repository.save(input, "").unwrap();
+    let mut reopened = repository.load().unwrap();
+    assert_eq!(
+        reopened.networks[0]
+            .client
+            .peer_icons
+            .get(&peer)
+            .map(String::as_str),
+        Some("server")
+    );
+    assert!(reopened.networks[0].config.get("peerIcons").is_none());
+    reopened.networks[0].client.peer_icons.remove(&peer);
+    repository.save(reopened, &first.revision).unwrap();
+    assert!(
+        repository.load().unwrap().networks[0]
+            .client
+            .peer_icons
+            .is_empty()
+    );
+    let mut invalid = repository.load().unwrap();
+    invalid.networks[0]
+        .client
+        .peer_icons
+        .insert(peer, "inferred-windows".into());
+    assert_eq!(
+        repository
+            .save(invalid.clone(), &invalid.revision)
+            .unwrap_err()
+            .code,
+        "invalid"
+    );
+    invalid.networks[0].client.peer_icons.clear();
+    invalid.networks[0]
+        .client
+        .peer_icons
+        .insert(uuid::Uuid::nil(), "computer".into());
+    assert_eq!(invalid.validate(), Err("invalid"));
+}

@@ -13,9 +13,9 @@ export const demoNetworks: Network[] = [
     download: 2.4, upload: 0.128, traffic: { download, upload },
     trafficTotals: { downloadBytes: 2_000_000_000, uploadBytes: 134_217_728 },
     peers: [
-      { id: 'nas', name: 'Studio NAS', ip: '10.42.0.1', platform: 'dns', connection: 'direct', latency: 12, lossRate: 0, protocols: ['TCP'], version: '2.6.4' },
-      { id: 'mac', name: 'MacBook Pro', ip: '10.42.0.3', platform: 'laptop_mac', connection: 'direct', latency: 18, lossRate: 0.003, protocols: ['UDP'], version: '2.6.4' },
-      { id: 'pc', name: '办公室 PC', ip: '10.42.0.12', platform: 'desktop_windows', connection: 'relay', latency: null, lossRate: null, nextHop: 'Studio NAS', version: '2.6.4' },
+      { id: 'nas', instanceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', publicServer: true, name: 'Studio NAS', ip: '10.42.0.1', connection: 'direct', latency: 12, lossRate: 0, protocols: ['TCP'], version: '2.6.4' },
+      { id: 'mac', instanceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', name: 'MacBook Pro', ip: '10.42.0.3', connection: 'direct', latency: 18, lossRate: 0.003, protocols: ['UDP'], version: '2.6.4' },
+      { id: 'pc', instanceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3', name: '办公室 PC', ip: '10.42.0.12', connection: 'relay', latency: null, lossRate: null, nextHop: 'Studio NAS', version: '2.6.4' },
     ],
   },
   {
@@ -25,8 +25,8 @@ export const demoNetworks: Network[] = [
     trafficTotals: { downloadBytes: 478_150_656, uploadBytes: 83_886_080 },
     traffic: { download: download.map((point, i) => point * (i % 3 === 0 ? 0.6 : 0.8)), upload: upload.map((point) => point * 0.7) },
     peers: [
-      { id: 'player1', name: 'Alex 的电脑', ip: '10.56.0.3', platform: 'desktop_windows', connection: 'direct', latency: 24, lossRate: 0.012, protocols: ['UDP'], version: '2.6.4' },
-      { id: 'player2', name: 'Pixel Station', ip: '10.56.0.5', platform: 'desktop_windows', connection: 'direct', latency: 28, lossRate: 0, protocols: ['UDP'], version: '2.6.4' },
+      { id: 'player1', instanceId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1', name: 'Alex 的电脑', ip: '10.56.0.3', connection: 'direct', latency: 24, lossRate: 0.012, protocols: ['UDP'], version: '2.6.4' },
+      { id: 'player2', instanceId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', name: 'Pixel Station', ip: '10.56.0.5', connection: 'direct', latency: 28, lossRate: 0, protocols: ['UDP'], version: '2.6.4' },
     ],
   },
   {
@@ -35,6 +35,6 @@ export const demoNetworks: Network[] = [
     download: 0.320, upload: 0.064,
     trafficTotals: null,
     traffic: { download: download.map((point) => point * 0.5), upload: upload.map((point) => point * 0.6) },
-    peers: [{ id: 'home-nas', name: 'Home Server', ip: '10.68.0.1', platform: 'dns', connection: 'direct', latency: 8 }],
+    peers: [{ id: 'home-nas', instanceId: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1', name: 'Home Server', ip: '10.68.0.1', connection: 'direct', latency: 8 }],
   },
 ];

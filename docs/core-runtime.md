@@ -62,4 +62,4 @@ Windows 分项实机步骤见 [Windows 构建与测试](windows-build.md)。编�
 
 2026-11-08 用户回传的 Windows `Process`、`Cancel`、`Tun`、`Recovery`、`MissingResource` 五项报告全部通过，且错误与清理错误均为空。它们确认了正常命名管道通信、仅核心提权、UAC 取消、双 TUN 的创建与正常清理、普通权限无 TUN 核心的异常恢复，以及缺少 Wintun 时的启动前拒绝。详细结果与尚未覆盖的范围见 [PLAN.md](../PLAN.md)。
 
-阶段 3 的参数映射、状态与自动连接规则见[连接管理](connection-management.md)。阶段 4 增加会话与统计快照后，私有 IPC 协议现为 v3，新字段随同一程序一并分发，不作为外部兼容协议。
+阶段 3 的参数映射、状态与自动连接规则见[连接管理](connection-management.md)。阶段 4 增加会话、统计快照及设备实例身份／公共服务器标记后，私有 IPC 协议现为 v4，新字段随同一程序一并分发，不作为外部兼容协议。

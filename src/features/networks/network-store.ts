@@ -5,6 +5,7 @@ import { isBusy, type Network } from './model.ts';
 import { documentFromNetworks, emptyDocument, networksFromDocument, offlineNetwork, storageFailure, type ConfigurationStorage, type StorageFailure } from './persistence.ts';
 import type { NetworkRuntime } from './runtime.ts';
 import type { TelemetryStore } from './telemetry.ts';
+import { peerIconKey, peerIconKinds, type PeerIconChoice } from './peer-icons.ts';
 import { createNetworkSessions } from './network-sessions.ts';
 
 export type SaveMode = 'confirm' | 'later' | 'now';
@@ -25,6 +26,7 @@ export interface NetworkStore {
   clearStorageError: () => void;
   selectNetwork: (id: string) => Promise<boolean>;
   setAutoConnect: (id: string, enabled: boolean) => Promise<boolean>;
+  setPeerIcon: (id: string, instanceId: string, choice: PeerIconChoice) => Promise<boolean>;
   toggleConnection: (id: string) => Promise<boolean>;
   reconnect: (id: string) => Promise<boolean>;
   saveConfiguration: (id: string, draft: NetworkDraft, mode?: SaveMode, creating?: boolean) => Promise<SaveResult>;
@@ -62,7 +64,7 @@ export function createNetworkStore(initialNetworks: Network[], runtime: NetworkR
             networks: next.networks.map((network) => {
               const latest = state.networks.find((item) => item.id === network.id);
               return latest ? { ...latest, alias: network.alias, icon: network.icon, savedConfig: network.savedConfig,
-                autoConnect: network.autoConnect } : network;
+                autoConnect: network.autoConnect, ...(network.peerIcons === undefined ? {} : { peerIcons: network.peerIcons }) } : network;
             }) }));
           return true;
         } catch (error) {
@@ -106,6 +108,14 @@ export function createNetworkStore(initialNetworks: Network[], runtime: NetworkR
       setAutoConnect: (id, autoConnect) => commit(() => get().networks.some((network) => network.id === id) ? {
         networks: get().networks.map((network) => network.id === id ? { ...network, autoConnect } : network), selectedId: get().selectedId,
       } : null),
+      setPeerIcon: (id, instanceId, choice) => commit(() => {
+        const network = get().networks.find((network) => network.id === id);
+        const key = peerIconKey({ instanceId });
+        if (!network || !key || (choice !== 'auto' && !peerIconKinds.includes(choice))) return null;
+        const peerIcons = { ...network.peerIcons };
+        if (choice === 'auto') delete peerIcons[key]; else peerIcons[key] = choice;
+        return { networks: get().networks.map((item) => item.id === id ? { ...item, peerIcons } : item), selectedId: get().selectedId };
+      }),
       toggleConnection: (id) => get().phase === 'ready' && get().connectionEnabled ? sessions.toggle(id) : Promise.resolve(false),
       reconnect: (id) => get().phase === 'ready' && get().connectionEnabled ? sessions.reconnect(id) : Promise.resolve(false),
       removeNetwork: (id) => commit(() => {

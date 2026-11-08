@@ -1,9 +1,11 @@
 import { Fragment, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Hint, Icon } from '../../components/ui';
+import type { PeerIconPreferences } from '../networks/peer-icons';
+import { PeerIconPicker } from './PeerIconPicker';
 import type { Peer } from '../networks/model';
 
-export function PeerTable({ peers, onCopy, stale = false }: { peers: Peer[]; onCopy: (value: string) => void; stale?: boolean }) {
+export function PeerTable({ networkId, peers, preferences = {}, onCopy, stale = false }: { networkId: string; peers: Peer[]; preferences?: PeerIconPreferences; onCopy: (value: string) => void; stale?: boolean }) {
   const { t } = useTranslation();
   const prefix = useId();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
@@ -17,9 +19,9 @@ export function PeerTable({ peers, onCopy, stale = false }: { peers: Peer[]; onC
     const open = expanded.has(peer.id);
     const detailsId = `${prefix}-${peer.id}`;
     return <Fragment key={peer.id}><tr className="device-row">
-      <td><button className="device-identity device-expand" aria-expanded={open} aria-controls={detailsId} onClick={() => setExpanded((previous) => {
+      <td><div className="device-identity"><PeerIconPicker networkId={networkId} peer={peer} preferences={preferences} /><button className="device-expand" aria-expanded={open} aria-controls={detailsId} onClick={() => setExpanded((previous) => {
         const next = new Set(previous); if (next.has(peer.id)) next.delete(peer.id); else next.add(peer.id); return next;
-      })}><span className="device-icon"><Icon name={peer.platform ?? 'devices'} /></span><strong title={peer.name}>{peer.name}</strong><Icon name={open ? 'expand_less' : 'expand_more'} /></button></td>
+      })}><strong title={peer.name}>{peer.name}</strong><Icon name={open ? 'expand_less' : 'expand_more'} /></button></div></td>
       <td>{peer.ip ? <button className="copy-address" onClick={() => onCopy(peer.ip!)} aria-label={t('dashboard.copyAddress', { value: peer.ip })} title={peer.ip}>
         <span className="device-address-text">{peer.ip}</span><Icon name="content_copy" /></button> : '—'}</td>
       <td><span className={`connection-type connection-type--${peer.connection}`}><span className="status-dot" />{t(`dashboard.${peer.connection}`)}</span></td>

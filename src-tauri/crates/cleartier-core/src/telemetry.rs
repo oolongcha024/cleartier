@@ -12,6 +12,10 @@ use uuid::Uuid;
 #[serde(rename_all = "camelCase")]
 pub struct PeerSnapshot {
     pub id: String,
+    #[serde(default)]
+    pub instance_id: Option<Uuid>,
+    #[serde(default)]
+    pub public_server: bool,
     pub name: String,
     pub ip: Option<String>,
     pub connection: String,
@@ -95,6 +99,14 @@ impl Measurements {
             }
         }
         let local = info.my_node_info.as_ref().map(|node| node.peer_id);
+        let mut identities = BTreeMap::<Uuid, usize>::new();
+        for route in &info.routes {
+            if Some(route.peer_id) != local {
+                if let Ok(id) = Uuid::parse_str(&route.inst_id) {
+                    *identities.entry(id).or_default() += 1;
+                }
+            }
+        }
         let mut peers: Vec<PeerSnapshot> = info
             .routes
             .iter()
@@ -144,6 +156,13 @@ impl Measurements {
                 });
                 PeerSnapshot {
                     id: route.peer_id.to_string(),
+                    instance_id: Uuid::parse_str(&route.inst_id)
+                        .ok()
+                        .filter(|id| !id.is_nil() && identities.get(id) == Some(&1)),
+                    public_server: route
+                        .feature_flag
+                        .as_ref()
+                        .is_some_and(|flag| flag.is_public_server),
                     name: if route.hostname.is_empty() {
                         route.peer_id.to_string()
                     } else {
@@ -323,5 +342,61 @@ mod tests {
         assert!(!json.contains("network_name"));
         assert!(!json.contains("pubkey"));
         assert!(!json.contains("remote_addr"));
+    }
+}
+
+#[cfg(test)]
+mod identity_tests {
+    use super::*;
+    use easytier::proto::{
+        api::{instance::Route, manage::MyNodeInfo},
+        common::PeerFeatureFlag,
+    };
+    #[test]
+    fn public_role_and_unique_instance_identity_are_reported_without_os_guesses() {
+        let id = Uuid::new_v4();
+        let mut data = NetworkInstanceRunningInfo {
+            my_node_info: Some(MyNodeInfo {
+                peer_id: 1,
+                ..Default::default()
+            }),
+            routes: vec![Route {
+                peer_id: 2,
+                hostname: "my-windows-nas".into(),
+                inst_id: id.to_string(),
+                feature_flag: Some(PeerFeatureFlag {
+                    is_public_server: true,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let first = Measurements::default().snapshot(&data, false);
+        assert_eq!(first.peers[0].instance_id, Some(id));
+        assert!(first.peers[0].public_server);
+        data.routes[0].peer_id = 3;
+        data.routes[0].hostname = "changed name".into();
+        assert_eq!(
+            Measurements::default().snapshot(&data, false).peers[0].instance_id,
+            Some(id)
+        );
+        // Copied remote configurations cannot safely share a manual preference.
+        let mut duplicate = data.routes[0].clone();
+        duplicate.peer_id = 4;
+        data.routes.push(duplicate);
+        assert!(
+            Measurements::default()
+                .snapshot(&data, false)
+                .peers
+                .iter()
+                .all(|peer| peer.instance_id.is_none())
+        );
+        data.routes.pop();
+        data.routes[0].inst_id.clear();
+        data.routes[0].feature_flag = None;
+        let unknown = Measurements::default().snapshot(&data, false);
+        assert!(unknown.peers[0].instance_id.is_none());
+        assert!(!unknown.peers[0].public_server);
     }
 }

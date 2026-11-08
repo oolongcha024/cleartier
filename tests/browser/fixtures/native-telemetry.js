@@ -2,7 +2,7 @@
 // It never creates a core process, adapter or external network connection.
 (() => {
   window.isTauri = true;
-  window.__telemetryTest = { fail: false, operations: [] };
+  window.__telemetryTest = { fail: false, failSave: false, noStableId: false, operations: [] };
   let epoch = 0;
   const profile = (id, name, ip) => ({ id, client: { alias: name, icon: 'work', autoConnect: false }, config: {
     name, secret: 'test-only', servers: ['tcp://example.com:11010'], hostname: 'actual-test-node',
@@ -11,7 +11,8 @@
     magicDns: false, dnsSuffix: 'et.net.', udpBroadcastRelay: false,
   }, ip });
   const profiles = [profile('11111111-1111-4111-8111-111111111111', 'office', '10.42.0.2'), profile('22222222-2222-4222-8222-222222222222', 'game', '10.56.0.2')];
-  let document = { version: 1, revision: 'fixture', selectedId: profiles[0].id, networks: profiles.map(({ ip, ...record }) => record) };
+  const fixtureKey = 'cleartier-native-telemetry-fixture';
+  let document = JSON.parse(localStorage.getItem(fixtureKey) || 'null') ?? { version: 1, revision: 'fixture', selectedId: profiles[0].id, networks: profiles.map(({ ip, ...record }) => record) };
   const sessions = new Map(profiles.map((record, index) => [record.id, { started: performance.now(), session: `session-${index}`, base: (index + 1) * 1024 ** 2, stopped: false }]));
   const snapshot = () => profiles.map((record) => {
     const session = sessions.get(record.id);
@@ -20,8 +21,8 @@
       session: session.session, elapsedMs, hostname: 'actual-test-node',
       downloadBytes: String(session.base + Math.floor(elapsedMs * 1024)), uploadBytes: String(Math.floor(elapsedMs * 256)), incomplete: false,
       peers: [
-        { id: '1', name: 'friend', ip: '10.42.0.3', connection: 'direct', latency: 23.5, lossRate: 0.012, protocols: ['UDP'], nextHop: null, version: '2.6.4-test' },
-        { id: '2', name: 'remote', ip: null, connection: 'relay', latency: null, lossRate: null, protocols: [], nextHop: 'friend', version: '2.6.4-test' },
+        { id: '1', instanceId: window.__telemetryTest.noStableId ? null : 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', publicServer: true, name: 'friend', ip: '10.42.0.3', connection: 'direct', latency: 23.5, lossRate: 0.012, protocols: ['UDP'], nextHop: null, version: '2.6.4-test' },
+        { id: '2', instanceId: window.__telemetryTest.noStableId ? null : 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', publicServer: false, name: 'remote', ip: null, connection: 'relay', latency: null, lossRate: null, protocols: [], nextHop: 'friend', version: '2.6.4-test' },
       ],
     };
     session.last = telemetry;
@@ -31,7 +32,12 @@
   });
   window.__TAURI_INTERNALS__ = { invoke: async (command, args = {}) => {
     if (command === 'config_load') return structuredClone(document);
-    if (command === 'config_save') { document = { ...args.document, revision: String(++epoch) }; return structuredClone(document); }
+    if (command === 'config_save') {
+      if (window.__telemetryTest.failSave) throw { code: 'io' };
+      document = { ...args.document, revision: String(++epoch) };
+      localStorage.setItem(fixtureKey, JSON.stringify(document));
+      return structuredClone(document);
+    }
     if (command === 'network_snapshot') {
       if (window.__telemetryTest.fail) throw { code: 'request_timeout' };
       return snapshot();
