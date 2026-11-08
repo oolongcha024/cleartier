@@ -1,12 +1,14 @@
 .network-editor { width: min(640px, calc(100vw - 48px)); display: flex; flex-direction: column; overflow: hidden; }
 .network-editor--form { height: min(752px, calc(100dvh - 48px)); }
 .network-editor > .dialog-heading { flex-shrink: 0; }
+.network-editor > .dialog-description { margin: 16px 0 24px; font-size: 14px; line-height: 20px; }
 .network-editor-form { display: flex; flex: 1; flex-direction: column; min-height: 0; margin-top: 24px; }
 .network-editor-fields { border: 0; min-inline-size: 0; }
 .network-editor-actions > .configuration-error-text { flex: 1; margin-right: auto; }
 /* Height changes belong to the disclosure, not the browser's scroll anchor. */
 .network-editor-fields { display: grid; flex: 1; align-content: start; gap: 20px; min-height: 0; overflow-y: auto; overflow-anchor: none; padding: 10px 8px 8px; margin-inline: -8px; scrollbar-gutter: stable; overscroll-behavior-y: contain; }
 .network-editor-form > .network-editor-actions { padding-top: 20px; flex-shrink: 0; }
+.network-editor-intro { display: grid; gap: 4px; min-width: 0; }
 .network-icon-field { display: flex; align-items: center; gap: 16px; }
 .network-icon-field > span { font-size: 12px; color: var(--md-sys-color-on-surface-variant); flex-shrink: 0; }
 .network-icon-options { display: flex; gap: 8px; }
@@ -46,4 +48,19 @@
 .network-editor-actions-spacer { flex: 1; }
 .network-apply-note { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 16px; background: var(--md-sys-color-surface-container); color: var(--md-sys-color-on-surface-variant); font-size: 13px; line-height: 22px; }
 .network-apply-note > .icon { color: var(--md-sys-color-primary); flex-shrink: 0; }
-.network-apply-choice .network-editor-actions { margin-top: 28px; }
+.network-apply-choice { display: grid; gap: 24px; }
+
+.network-invitation-field { position: relative; }
+/* Supporting text belongs to the gap before the next row, rather than adding
+   another full form gap. Keep all invitation states the same height. */
+.invitation-input-slot { min-height: 76px; }
+/* 54px content + the outlined control's two 1px borders = the shared 56px field. */
+.network-invitation-field textarea { height: 54px; min-height: 54px; max-height: 54px; resize: none; overflow-wrap: anywhere; }
+.network-invitation-field .text-field-support { margin-top: 4px; font-size: 12px; line-height: 16px; }
+.network-invitation-field .text-field, .invitation-applied { animation: content-fade-in var(--motion-enter); }
+.invitation-applied { display: flex; align-items: center; gap: 12px; min-height: 56px; padding-inline: 16px 4px; border: 1px solid var(--md-sys-color-outline); border-radius: 8px; background: transparent; font-size: 14px; line-height: 20px; }
+.invitation-applied > .icon { color: var(--md-sys-color-primary); font-size: 24px; }
+.invitation-applied > .button { margin-left: auto; min-height: 48px; padding-inline: 16px; }
+.invitation-announcement { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.invitation-manual-copy { resize: vertical; min-height: 96px; max-height: 240px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.invitation-pending-note { margin-bottom: 16px; font-size: 13px; line-height: 20px; color: var(--md-sys-color-on-surface-variant); }

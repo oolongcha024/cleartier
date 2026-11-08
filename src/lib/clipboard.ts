@@ -1,5 +1,12 @@
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { isDesktop } from '../platform/client';
+
 // Remote HTTP previews and desktop webviews have different clipboard permissions.
 export async function copyText(value: string): Promise<boolean> {
+  if (isDesktop()) {
+    try { await writeText(value); return true; }
+    catch { return false; }
+  }
   try {
     await navigator.clipboard.writeText(value);
     return true;

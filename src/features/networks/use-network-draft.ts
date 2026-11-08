@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { fillInvitation, type Invitation } from '../invitations/invitation';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from '../../components/ui';
 import { configurationDraft, configsEqual, draftConfig, hasPendingConfig, validateDraft, type DraftErrors, type NetworkDraft } from './configuration';
@@ -12,6 +13,7 @@ export function useNetworkDraft(network: Network, creating: boolean, close: () =
   const { t } = useTranslation();
   const notify = useSnackbar();
   const saveConfiguration = useNetworkStore((state) => state.saveConfiguration);
+  const selectNetwork = useNetworkStore((state) => state.selectNetwork);
   const networks = useNetworkStore((state) => state.networks);
   const [draft, setDraft] = useState(() => configurationDraft(network));
   const [errors, setErrors] = useState<DraftErrors>({});
@@ -21,6 +23,14 @@ export function useNetworkDraft(network: Network, creating: boolean, close: () =
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const lastInvitationName = useRef<string | undefined>(undefined);
+  const acceptInvitation = (invitation: Invitation) => {
+    const previous = lastInvitationName.current;
+    lastInvitationName.current = invitation.displayName?.trim() || invitation.name;
+    setDraft((current) => fillInvitation(current, invitation, previous));
+    setErrors((current) => ({ ...current, name: undefined, secret: undefined, servers: undefined }));
+    setSaveError(false);
+  };
   const changed = draft.alias !== network.alias || draft.icon !== network.icon
     || !configsEqual(draftConfig(draft, network.savedConfig), network.savedConfig);
   const update = <Field extends keyof NetworkDraft>(field: Field, value: NetworkDraft[Field]) => {
@@ -32,6 +42,14 @@ export function useNetworkDraft(network: Network, creating: boolean, close: () =
     if (saving) return;
     if (changed) setDiscarding(true);
     else close();
+  };
+  const openExisting = async () => {
+    if (!duplicate || saving) return false;
+    setSaving(true); setSaveError(false);
+    try {
+      if (!await selectNetwork(duplicate.id)) { setSaveError(true); return false; }
+      close(); return true;
+    } finally { setSaving(false); }
   };
   const save = async (mode: SaveMode = 'confirm', allowDuplicate = false) => {
     if (saving) return;
@@ -62,7 +80,7 @@ export function useNetworkDraft(network: Network, creating: boolean, close: () =
       }
     } finally { setSaving(false); }
   };
-  return { draft, errors, update, save, choosing, setChoosing, duplicate, setDuplicate, discarding, setDiscarding,
+  return { draft, errors, update, acceptInvitation, save, openExisting, choosing, setChoosing, duplicate, setDuplicate, discarding, setDiscarding,
     requestClose, saving, saveError, advancedOpen, setAdvancedOpen, busy: saving || isBusy(network),
     canSave: creating || changed || hasPendingConfig(network) };
 }

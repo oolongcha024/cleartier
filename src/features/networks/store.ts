@@ -18,6 +18,11 @@ export function useNetworkStore<Value>(selector: (state: NetworkStore) => Value)
   return useStore(networkStore, selector);
 }
 
+// Async user actions re-read their target rather than retaining a render snapshot.
+export function readNetwork(id: string) {
+  return networkStore.getState().networks.find((network) => network.id === id);
+}
+
 export function useNetworkTelemetry(id: string) {
   return useStore(telemetry.store, (state) => state[id] ?? emptyTelemetry);
 }

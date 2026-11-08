@@ -3,6 +3,7 @@ mod check;
 pub mod configuration;
 pub mod connections;
 mod entry;
+pub mod invitations;
 pub mod process;
 mod status;
 mod telemetry;

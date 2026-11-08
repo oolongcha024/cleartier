@@ -1,6 +1,7 @@
 mod config_commands;
 mod core_commands;
 mod host_environment;
+mod invitation_commands;
 mod network_commands;
 mod toml_commands;
 
@@ -20,10 +21,12 @@ pub fn run() {
     }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(core_commands::setup)
         .invoke_handler(tauri::generate_handler![
             host_environment,
             core_version,
+            invitation_commands::invitation_parameters,
             network_commands::network_operation,
             network_commands::network_snapshot,
             config_commands::config_load,

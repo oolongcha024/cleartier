@@ -68,10 +68,11 @@ export function Select({ value, onChange, options, label, icon, className = '', 
     </BaseSelect.Positioner></BaseSelect.Portal>
   </BaseSelect.Root>;
 }
-export function TextField({ label, value, onChange, name, type = 'text', multiline = false, placeholder, hint, error, trailing, inputRef, disabled = false, inputMode, maxLength }: {
+export function TextField({ label, value, onChange, name, type = 'text', multiline = false, placeholder, hint, error, trailing, inputRef, textareaRef, rows = 3, disabled = false, inputMode, maxLength }: {
   label: string; value: string; onChange: (value: string) => void; name: string;
   type?: 'text' | 'password'; multiline?: boolean; placeholder?: string; hint?: string; error?: string;
   trailing?: ReactNode; inputRef?: Ref<HTMLInputElement>;
+  textareaRef?: Ref<HTMLTextAreaElement>; rows?: number;
   disabled?: boolean; inputMode?: 'numeric'; maxLength?: number;
 }) {
   const id = useId();
@@ -80,7 +81,7 @@ export function TextField({ label, value, onChange, name, type = 'text', multili
   return <div className={`text-field ${error ? 'text-field--error' : ''}`}>
     <div className="text-field-control">
       <label htmlFor={id}>{label}</label>
-      {multiline ? <textarea {...shared} rows={3} onChange={(event) => onChange(event.target.value)} />
+      {multiline ? <textarea {...shared} ref={textareaRef} rows={rows} onChange={(event) => onChange(event.target.value)} />
         : <input {...shared} ref={inputRef} type={type} autoComplete={type === 'password' ? 'new-password' : 'off'}
           onChange={(event) => onChange(event.target.value)} />}
       {trailing && <span className="text-field-trailing">{trailing}</span>}

@@ -10,6 +10,7 @@ import { hasPendingConfig } from '../networks/configuration';
 import { DevicesCard } from './DevicesCard';
 import { TrafficCard } from './TrafficCard';
 import { ConfigurationState } from '../networks/ConfigurationState';
+import { useShareInvitation } from '../invitations/use-share-invitation';
 
 function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value: string) => void }) {
   const { t } = useTranslation();
@@ -73,8 +74,8 @@ function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value:
   </Card>;
 }
 
-function QuickActions({ network, onCopy, onEdit }: {
-  network: Network; onCopy: (value: string) => void; onEdit: () => void;
+function QuickActions({ network, onCopy, onEdit, onInvite, sharing }: {
+  network: Network; onCopy: (value: string) => void; onEdit: () => void; onInvite: () => void; sharing: boolean;
 }) {
   const { t } = useTranslation();
   const notify = useSnackbar();
@@ -89,9 +90,9 @@ function QuickActions({ network, onCopy, onEdit }: {
   };
   return <Card className="quick-card"><h2>{t('dashboard.quickActions')}</h2>
     <div className="quick-actions">
-      <Hint label={t('dashboard.soon')}><button className="quick-action" disabled>
+      <button className="quick-action" disabled={busy || sharing} onClick={onInvite}>
         <span className="quick-icon"><Icon name="person_add" /></span><span>{t('dashboard.invite')}</span>
-      </button></Hint>
+      </button>
       <button className="quick-action" disabled={network.coreState !== 'running' || !activeVirtualIp(network)} onClick={() => onCopy(activeVirtualIp(network))}>
         <span className="quick-icon"><Icon name="content_copy" /></span><span>{t('dashboard.copyIp')}</span>
       </button>
@@ -116,6 +117,7 @@ export function Dashboard() {
   const network = networks.find((item) => item.id === selectedId);
   const [manualCopy, setManualCopy] = useState('');
   const { openEditor, openCreator, editor } = useNetworkEditor();
+  const { share, sharing, copyFallback } = useShareInvitation(network?.id ?? '');
   const phase = useNetworkStore((state) => state.phase);
   const notify = useSnackbar();
   const connectedCount = networks.filter(isConnected).length;
@@ -139,11 +141,12 @@ export function Dashboard() {
     <div className="dashboard-grid">
       <ConnectionCard network={network} onCopy={handleCopy} />
       <QuickActions network={network} onCopy={handleCopy}
-        onEdit={() => openEditor(network.id)} />
+        onEdit={() => openEditor(network.id)} onInvite={() => { void share(); }} sharing={sharing} />
       <TrafficCard network={network} />
       <DevicesCard network={network} onCopy={handleCopy} />
     </div>
     {editor}
+    {copyFallback}
     <Dialog open={Boolean(manualCopy)} onOpenChange={(open) => { if (!open) setManualCopy(''); }} title={t('dashboard.copyIp')} description={t('feedback.copyFailed')}>
       <input className="manual-copy" aria-label={t('dashboard.address')} readOnly value={manualCopy} onFocus={(event) => event.currentTarget.select()} />
     </Dialog>
