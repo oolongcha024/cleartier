@@ -1,157 +1,65 @@
-# ClearTier（暂定名）
+<p align="center">
+  <img src="public/app-icon.svg" alt="ClearTier logo" width="96" height="96" />
+</p>
 
-基于 EasyTier 核心的跨平台本地桌面客户端，面向异地组网、远程办公和游戏联机，重点改善界面、操作流程以及网络邀请分享体验。
+<h1 align="center">ClearTier</h1>
 
-当前已实现 MD3 前端、真实多网络配置与连接、设备和流量采样、官方 TOML 迁移、邀请、托盘后台、登录启动、有限自动恢复与脱敏诊断，以及独立浏览器预览。核心使用独立进程，Windows 仅按需提升核心权限；阶段 2–7 的当前实现与本地验证完成，尚待 Windows 集中实机验收。其他平台安装、权限及后台行为分别验证。项目名称暂沿用仓库目录名，尚未正式确定。
+<p align="center">基于 EasyTier 的桌面组网客户端</p>
 
-## 项目文档
+<p align="center">
+  <a href="docs/user-guide.md">使用指南</a> ·
+  <a href="docs/development.md">开发文档</a> ·
+  <a href="https://github.com/oolongcha024/cleartier/issues">问题反馈</a>
+</p>
 
-- [后端接入实施计划](PLAN.md)：真实核心接入的七个阶段、当前状态、打包建议及验收目标。
-- [第一版需求基线](docs/requirements.md)：已确认的功能范围、行为约定、验收场景及待定事项。
-- [官方项目调查](docs/upstream-research.md)：官方项目结构、接口行为及设计约束。
-- [核心运行基础](docs/core-runtime.md)：核心模块、进程通信、权限、目录及错误约定。
-- [网络配置存储](docs/network-configuration.md)：配置管理规则、存储格式、错误恢复及 Windows 验收步骤。
-- [官方 TOML 兼容与高级配置](docs/official-toml.md)：文件迁移、字段保留、兼容校验与高级参数映射。
-- [邀请与快速加入](docs/invitations.md)：一键复制、粘贴填入、最小邀请格式及 Windows 验收。
-- [连接管理](docs/connection-management.md)：真实运行、参数映射、自动连接、失败语义及验收清单。
-- [Windows 原生构建与测试](docs/windows-build.md)：生成包含运行资源的 Windows x64 免安装目录／ZIP、NSIS 安装包或两者。
-- [应用版本管理](docs/versioning.md)：统一版本来源、alpha／beta／rc 推进命令及发布校验。
-- [后台运行、恢复与诊断](docs/desktop-lifecycle.md)：托盘、退出、登录启动、恢复边界及诊断隐私。
-- [Windows 集中验收](docs/windows-acceptance.md)：阶段 2–7 的一次性实机验收清单。
+ClearTier 面向异地组网、远程办公和游戏联机，将多网络连接、配置迁移与邀请分享整合到 Material Design 3 界面中。客户端内置 [EasyTier](https://github.com/EasyTier/EasyTier) 核心，无需另装官方客户端。
 
-## 开发准备
+## 功能
 
-Node.js 和 pnpm 的版本要求见 [package.json](package.json) 中的 `engines` 和 `packageManager`。首次安装运行：
+- **多网络管理**：同时运行多个网络，独立连接、断开和重连；配置可先保存，再选择何时应用。
+- **邀请分享**：复制邀请、粘贴填入，确认后手动加入，保留接收方的本机设置。
+- **配置迁移**：导入、导出官方 TOML，保留界面未展示的字段，并提示兼容性问题。
+- **设备与流量**：查看虚拟 IP、直连／中转、延迟、丢包及当前会话流量，未知指标明确标记。
+- **后台与诊断**：支持托盘、登录启动、逐网络自动连接、有限异常恢复和脱敏诊断导出。
 
-```bash
+## 使用与平台状态
+
+项目处于预发布测试阶段，当前优先验证 Windows，完整实机验收仍在进行。macOS、Linux 的安装、权限和后台行为待分别验证，非 Windows 自动 TUN 提权尚未实现。
+
+Windows 测试包由 [Build Windows 工作流](https://github.com/oolongcha024/cleartier/actions/workflows/windows-build.yml)手动构建，提供完整免安装 ZIP 和 NSIS 安装包；获取及构建方法见[开发指南](docs/development.md#windows-构建)。免安装包需完整解压，保留随包运行资源。
+
+连接已有网络、邀请加入与配置迁移的操作见[使用指南](docs/user-guide.md)。
+
+## 本地开发
+
+按 [package.json](package.json) 的要求准备 Node.js 和 pnpm，在仓库目录运行：
+
+```sh
 pnpm install --frozen-lockfile
-```
-
-当前依赖方案：
-
-| 用途 | 依赖 |
-| --- | --- |
-| 桌面集成 | Tauri API、CLI |
-| 前端与构建 | React、TypeScript、Vite |
-| 交互与 MD3 主题 | Base UI、Material Color Utilities、Material Symbols |
-| 路由与状态 | React Router、Zustand |
-| 国际化 | i18next、react-i18next |
-
-[Base UI](https://base-ui.com/react/overview/quick-start) 提供选择器、开关、弹窗和提示的交互底座，组件视觉使用 MD3 色彩角色、色调容器和状态样式。[Material Color Utilities](https://github.com/material-foundation/material-color-utilities) 用于生成浅色与深色主题，色彩结果保存在 CSS 中，不在客户端加载色彩引擎。
-
-## 当前界面
-
-桌面仪表盘支持添加与编辑网络、切换查看对象并记住上次选择，支持真实连接、断开、重连及启动自动连接。浏览器演示支持模拟连接与断开、复制 IP、查看设备和流量；各网络独立操作。
-
-桌面端展示实际节点名称、虚拟 IP 及完整远端设备列表，基础列包含直连／中转、延迟、丢包率，按行展开协议、下一跳和版本，点击设备图标即可更换，名称与箭头控制详情展开。自动模式依据公共服务器标记，手动偏好只在本机保存；未知指标显示 —。浏览器继续提供演示数据。切换顶部网络选择器即可查看其他网络的设备。
-
-快捷操作中的“重新连接”重连当前运行的网络，也允许手动重试失败网络，使用已保存参数并重置本次连接的累计流量；其他网络不受影响。存在待应用参数时，按钮显示“重连并应用”。未连接或正在切换连接时不可操作。
-
-“编辑网络”直接打开当前所选网络的编辑对话框，关闭后仍停留在仪表盘。该入口与网络配置页共用编辑及保存流程，连接切换期间暂不可用。
-
-首页以当前网络为中心，通过顶部下拉框切换查看对象，选项标明各网络连接状态；在线网络数量单独显示。连接状态与快捷操作之后依次为整行流量卡片、设备列表。宽布局下流量统计在左、趋势图在右，窄布局下上下排列，沿用主内容宽度的同一分界。
-
-流量卡片同时展示实时速率和当前网络的本机累计下载、上传量；累计量按字节保存，以 KiB、MiB、GiB 等单位显示。演示数据在断开后保留上一次连接的累计量，重新连接时只重置目标网络。浏览器累计数值为演示快照，桌面端按真实会话累加隧道字节，包含核心通信与经本机转发的数据。短暂查询失败保留累计和设备并标记过期，趋势留出缺口，不代表整台机器的互联网流量或跨连接的历史用量。统计口径与验收见[仪表盘真实数据](docs/dashboard-telemetry.md)。
-
-网络配置页集中展示已保存网络，支持编辑网络图标、本地名称、网络名称、密钥和多个服务器地址。图标可选办公、游戏、家庭、组网、服务器和互联网，保存后同步到仪表盘、网络选择器及配置列表；图标与本地名称属于本地显示设置，保存时立即更新，无需重连。密钥默认隐藏，地址只做格式检查。在线网络修改连接参数时，可选择仅重连当前网络立即应用，或保存至下次连接时应用。“待应用”区分已保存参数与当前连接参数，离线网络保存后不会自动连接。
-
-本机节点名称位于基础设置，桌面端通过独立接口读取系统主机名，允许自定义及恢复默认。浏览器预览使用 Windows 演示环境及示例主机名。高级选项默认收起，包含自动／手动／不分配虚拟 IPv4、前缀长度、TUN 网卡名称、MTU、IPv6 连接、P2P 策略、延迟优先、TCP／UDP 打洞、UPnP、Magic DNS 与后缀，以及仅 Windows 显示的 UDP 广播中继。
-
-桌面网络配置页支持官方 TOML 文件导入、预览与逐网络导出，不提供文本编辑器。导入按本机迁移处理，创建独立且默认不自动连接的记录；未展示字段保留并参与运行，无法处理的内容列出原因、允许保存导出，并阻止连接。导出包含已保存凭据及本机参数，用于迁移；邀请使用独立的 ClearTier 文本格式。
-
-高级选项采用列表式展开入口，提供键盘操作、展开状态说明和轻量高度过渡。编辑弹窗在展开／收起时保持相同尺寸，内容区独立滚动，手动展开不会自动跳转阅读位置；表单校验发现隐藏的错误时，才展开并定位到错误字段。系统启用“减少动态效果”时跳过过渡。
-
-TUN 名称按本地网络实例标识稳定生成，编辑时检查其他已保存网络的重名；macOS 使用系统分配名称。连接时检查系统网卡占用，实际接口名称由核心事件提供。P2P 策略提供自动、按需直连、关闭自动直连、仅直连；“关闭自动直连”保留对端要求 P2P 的例外，不代表强制中转。“仅直连”禁用延迟优先。以上核心参数均参与已保存／运行配置比较，应用时只重连目标网络；桌面端显示核心实际取得的 IPv4，连接会按配置创建网卡和执行核心网络行为；浏览器操作继续保持演示。
-
-导航保留仪表盘、网络配置和设置。诊断入口位于设置中，提供配置、核心、实例与虚拟网卡检查、近期错误、日志目录和脱敏 JSON 导出，不增加独立诊断页面。
-
-桌面端在系统用户配置目录保存网络参数、本地名称、图标、自动连接偏好和最后选中项；凭据按已确认方案明文保存，界面默认遮罩。添加、编辑、删除必须在持久化成功后才更新已保存状态；损坏配置不自动覆盖，可确认恢复上一版备份。运行状态从核心查询，文件中不保存旧的连接快照。浏览器网络数据仅保存在内存中，刷新后恢复演示数据；外观及后台预览偏好使用独立浏览器存储。加入按钮支持手动填写或粘贴 ClearTier 邀请，邀请成功填入后可以继续编辑并手动添加、连接。
-
-默认关闭窗口隐藏到托盘，首次关闭说明行为；重复启动唤起已有窗口。明确退出会停止网络并清理核心，有运行网络时先确认。设置可更改关闭行为、开启当前用户登录启动与自动恢复；登录启动默认关闭，与逐网络自动连接独立。异常恢复在 Rust 后台执行，最多退避重试 3 次，保留原运行参数和待应用修改；需要重新提权时提示手动操作，不弹出后台 UAC。Windows NSIS 安装／卸载前清理现有实例，卸载默认保留配置并提供明确删除数据的选择。
-
-设置中的“关于 ClearTier”打开独立关于页，显示客户端版本、EasyTier 内核版本及运行环境，支持复制版本信息。客户端版本在桌面端通过 Tauri 读取，浏览器预览取自 `package.json`。桌面端已集成 EasyTier 内核，内核版本由实际适配层读取；浏览器预览不运行内核。
-
-前端代码按职责组织：
-
-```text
-src/
-  app/                  # Provider 组装、路由、应用外壳
-  components/           # MD3 基础控件与共享视觉样式
-  features/
-    dashboard/          # 仪表盘、流量卡片、设备列表
-    networks/           # 配置管理、持久化 Interface、编辑流程及演示运行
-    settings/           # 外观、启动后台与诊断设置
-    desktop/            # 关闭／退出交互及桌面状态同步
-    invitations/        # 最小邀请协议、复制及粘贴填写
-    about/              # 版本与运行环境展示
-  platform/             # 桌面能力读取、浏览器预览回退
-  theme/                # 配色、偏好、动效与滚动条
-  lib/                  # 国际化、剪贴板与格式化
-```
-
-`src/styles.css` 负责基础重置及样式导入顺序，业务样式与所属页面放在一起，共享控件样式归 `components/ui.css`，色彩角色归 `theme/`。统一导入保持路由切换前后的样式层叠顺序稳定。
-
-`app/routes.tsx` 统一声明页面与导航。仪表盘、网络配置、设置和关于页均静态导入，随应用启动准备好；常用页面切换不额外请求页面代码或展示整页加载占位，保留轻量过渡。主机信息、版本等异步结果由各功能在页面内展示自己的读取状态。
-
-网络编辑的两个入口共用 `useNetworkEditor`，页面只负责打开目标网络，编辑会话负责草稿重建与弹窗关闭过渡。`useNetworkDraft` 处理表单交互；`network-store.ts` 的 `create / save / connect / disconnect / reconnect / remove` 统一校验、持久化及操作协调。草稿携带编辑基线版本；同一网络在首次异步等待前预留操作，删除额外等待 Rust 确认没有实例、资源及恢复任务。`savedConfig`、`runningConfig`、`recoveryConfig` 分别表示已保存参数、实际实例参数与恢复目标参数，本地名称或图标不应用待生效的连接参数。
-
-`createNetworkStore` 接收必需的配置存储与运行 Adapter，两种环境通过相同 Interface 返回运行观察；页面不根据字段缺失判断演示环境。`features/networks/store.ts` 完成一次性组装，`NetworkLifecycle` 在应用启动处管理前端缓存读取及过期检查。Rust 的 `NetworkManager` 使用逐网络调度、资源预留和短时间状态锁，实际采样与恢复由原生后台执行；前端读取带代次、逐网络版本和新鲜度的缓存。迟到结果不能撤销新操作，重复缓存不能延长遥测有效期。
-
-主机信息和客户端版本的原生调用集中在 `platform/client.ts`，浏览器预览会回退到演示环境与前端版本，页面不直接调用 Tauri。`src/lib/i18n.ts` 集中维护中文文案。
-
-界面按桌面客户端设计，最小窗口为 900×600，默认 1200×800。侧栏展开宽度为 200px，手动收起后为 88px，不随窗口宽度自动切换。仪表盘只按主内容可用宽度的 800px 分界切换单双列；快捷操作以两列排列邀请朋友、复制 IP、重新连接和编辑网络。主内容纵向滚动，侧栏导航在空间不足时独立滚动；浏览器窗口小于支持尺寸时允许整页滚动，不另设手机布局。
-
-动效使用 MD3 标准曲线，统一定义在 `src/theme/motion.css`，参考 [Material 动效令牌](https://github.com/material-components/material-components-android/blob/master/docs/theming/Motion.md)。侧栏平滑收展时图标列保持固定，文字独立淡入淡出；页面、选择器、弹窗和提示消息提供轻量进出过渡。系统启用“减少动态效果”时跳过位移和延时。
-
-调整主题种子色后，运行以下命令重新生成并提交色彩令牌；普通开发和构建不需要执行：
-
-```bash
-pnpm theme:generate
-```
-
-设置中提供六种主题色，默认蓝色，支持浅色、深色和跟随系统，选择会保存在本机。主题种子位于 `src/theme/palettes.ts`，生成逻辑位于 `scripts/generate-theme.mjs`；使用 Material Color Utilities 的 Tonal Spot 方案生成完整色彩角色，色彩引擎不进入客户端运行包。
-
-品牌标志采用 CT 字母方案，矢量源文件位于 `src/assets/logo-mark.svg`。侧栏使用该矢量作为遮罩，以适配浅色和深色主题。网页和桌面应用图标采用固定蓝底白色 CT，配色集中在 `scripts/generate-icons.mjs`，不随用户的界面主题变化。修改标志或品牌配色后运行 `pnpm icons:generate`，同步生成网页图标及桌面打包所用的 PNG、ICO、ICNS；生成结果随代码提交，普通构建无需重新生成。原生构建追踪 `src-tauri/icons/` 的变化，以更新缓存的图标资源。
-
-## 运行工程
-
-远程开发时，先启动独立前端服务：
-
-```bash
 pnpm dev
 ```
 
-在浏览器中访问 `http://10.126.179.2:5173`，支持热更新。
+访问 `http://10.126.179.2:5173`，支持热更新。浏览器预览使用演示数据，真实组网需运行桌面客户端。Tauri 调试、系统依赖和检查命令见[开发指南](docs/development.md)。
 
-单元测试、前端类型检查、构建和构建产物预览：
+## 文档
 
-```bash
-pnpm test
-pnpm typecheck
-pnpm build
-pnpm preview
-```
+| 文档 | 内容 |
+| --- | --- |
+| [使用指南](docs/user-guide.md) | 网络管理、邀请、配置迁移、后台与问题排查 |
+| [开发指南](docs/development.md) | 环境、调试、测试命令、构建与版本管理 |
+| [架构说明](docs/architecture.md) | 模块职责、运行调度、存储与协议约定 |
+| [测试与验收](docs/testing.md) | 自动化覆盖边界、实机清单与结果记录 |
 
-`pnpm test:browser` 使用 agent-browser 0.38.0 执行 `tests/browser/` 中全部交互回归，自动启动或复用 `http://10.126.179.2:5173`，为每个场景建立独立浏览器会话，按顺序加载原生 fixture，并清理会话；失败截图在 `.cache/browser/`。先安装 `agent-browser@0.38.0` 并运行 `agent-browser install`。可以追加场景名，例如 `pnpm test:browser network-editor-session desktop-lifecycle`。通过 `BROWSER_WIDTH / BROWSER_HEIGHT / BROWSER_COLOR_SCHEME / BROWSER_REDUCED_MOTION` 可检查最小窗口、深色与减少动态效果。
+## 参与贡献
 
-PR 检查位于 `.github/workflows/check.yml`，覆盖前端测试和构建、Rust 格式及完整工程编译、配置与核心测试和浏览器回归。`tests/fixtures/network-contract.json` 同时被 TS 工作流、Rust 配置存储与运行快照测试消费，约束字段保留和跨语言序列化。
-运行 `pnpm preview` 后，访问终端输出的预览地址。
+欢迎通过 [Issues](https://github.com/oolongcha024/cleartier/issues)反馈问题、提出建议，或提交 Pull Request。报告问题时请提供系统、应用与核心版本、复现步骤及脱敏诊断；提交改动前按[开发指南](docs/development.md#自动化检查)完成相关检查。
 
-具备桌面系统依赖和图形环境时，可以运行原生窗口或打包：
+## 许可证
 
-```bash
-pnpm tauri dev
-pnpm tauri build
-```
+ClearTier 采用 [GNU LGPL v3.0](LICENSE)。EasyTier 及其他第三方代码、字体和运行资源遵循各自的许可证。
 
-Tauri 与浏览器预览共用前端入口。`tauri dev` 会自行启动开发服务，使用前先停止独立运行的 `pnpm dev`。
+## 致谢
 
-原生桌面构建需要满足 [Tauri 系统依赖要求](https://v2.tauri.app/start/prerequisites/)。仅使用浏览器预览时，无需桌面系统开发库。
+感谢 [Codex](https://openai.com/codex/) 协助创建 ClearTier，参与项目设计、开发与文档编写。
 
-## 验证与发布
-
-配置、核心、邀请和后台生命周期均已接通。本次工作流与调度重构完成后，继续按 `docs/windows-acceptance.md` 验证 Windows UAC、TUN、双机通信、托盘及安装行为；自动化检查不能替代实机验收。
-
-阶段 5 的 `tests/browser/official-configuration.js` 配合 `fixtures/native-telemetry.js` 和 `fixtures/native-configuration.js` 检查导入／编辑／导出流程；这些仅模拟系统文件对话框和原生通信，实际 TOML 转换由 Rust 测试覆盖。
-
-仪表盘「邀请朋友」一键复制最小邀请；加入网络对话框可粘贴并填入，仍由用户确认添加及手动连接。运行中分享当前参数，未连接分享已保存参数，待应用修改提示重连后重新分享。桌面使用原生剪贴板写文本权限，浏览器保持独立预览；`tests/browser/invitations.js` 配合 `native-telemetry.js` 和 `native-invitations.js` 检查界面流程，不访问真实系统剪贴板。
+感谢 [EasyTier](https://github.com/EasyTier/EasyTier) 项目及其贡献者。ClearTier 基于 EasyTier 构建，使用其组网核心实现网络连接能力。
