@@ -85,6 +85,23 @@ mod check {
                 .count(),
             2
         );
+        let before = manager.snapshot().await.unwrap();
+        let session_a = before
+            .iter()
+            .find(|state| state.id == a)
+            .unwrap()
+            .telemetry
+            .as_ref()
+            .unwrap()
+            .session;
+        let session_b = before
+            .iter()
+            .find(|state| state.id == b)
+            .unwrap()
+            .telemetry
+            .as_ref()
+            .unwrap()
+            .session;
         let mut changed = config("office");
         changed.secret = "new key".into();
         manager
@@ -106,8 +123,42 @@ mod check {
                 .state,
             "running"
         );
+        let restarted = manager.snapshot().await.unwrap();
+        assert_ne!(
+            restarted
+                .iter()
+                .find(|state| state.id == a)
+                .unwrap()
+                .telemetry
+                .as_ref()
+                .unwrap()
+                .session,
+            session_a
+        );
+        assert_eq!(
+            restarted
+                .iter()
+                .find(|state| state.id == b)
+                .unwrap()
+                .telemetry
+                .as_ref()
+                .unwrap()
+                .session,
+            session_b
+        );
         manager.operate(Operation::Stop { id: a }).await.unwrap();
-        assert_eq!(manager.snapshot().await.unwrap().len(), 1);
+        let stopped = manager.snapshot().await.unwrap();
+        assert_eq!(
+            stopped
+                .iter()
+                .filter(|state| state.state == "running")
+                .count(),
+            1
+        );
+        let retained = stopped.iter().find(|state| state.id == a).unwrap();
+        assert_eq!(retained.state, "stopped");
+        assert!(retained.running_config.is_none());
+        assert!(retained.telemetry.is_some());
         core.shutdown().await.unwrap();
     }
 

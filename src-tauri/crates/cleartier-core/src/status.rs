@@ -8,6 +8,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstanceSnapshot {
+    #[serde(default)]
+    pub telemetry: Option<crate::telemetry::TelemetrySnapshot>,
     pub id: Uuid,
     pub running: Option<bool>,
     pub device_name: String,
@@ -28,6 +30,8 @@ pub struct InstanceSnapshot {
 
 #[derive(Clone, Default)]
 pub(crate) struct Signals {
+    pub measurements: crate::telemetry::Measurements,
+    pub latency_first: bool,
     pub ready: bool,
     pub device_name: Option<String>,
     pub fatal: Option<ErrorCode>,
@@ -36,6 +40,9 @@ pub(crate) struct Signals {
 impl Signals {
     pub fn observe(&mut self, event: GlobalCtxEvent) {
         match event {
+            GlobalCtxEvent::PeerConnRemoved(ref connection) => {
+                self.measurements.observe(connection)
+            }
             GlobalCtxEvent::TunDeviceReady(name) => {
                 self.ready = true;
                 self.device_name = Some(name);
@@ -78,11 +85,12 @@ pub(crate) fn snapshot(
     id: Uuid,
     info: Option<NetworkInstanceRunningInfo>,
     no_tun: bool,
-    live: Signals,
+    live: &mut Signals,
 ) -> InstanceSnapshot {
     let Some(info) = info else {
         return InstanceSnapshot {
             id,
+            telemetry: None,
             running: None,
             device_name: String::new(),
             error: None,
@@ -97,6 +105,9 @@ pub(crate) fn snapshot(
     let mut history = Signals::default();
     for event in &info.events {
         if let Ok(event) = serde_json::from_str(event) {
+            if let GlobalCtxEvent::PeerConnRemoved(ref connection) = event {
+                live.measurements.observe(connection);
+            }
             history.observe(event);
         }
     }
@@ -107,6 +118,7 @@ pub(crate) fn snapshot(
     } else {
         live.fatal.or(history.fatal)
     };
+    let telemetry = Some(live.measurements.snapshot(&info, live.latency_first));
     let ready =
         info.my_node_info.is_some() && (no_tun || live.ready || history.ready) && fatal.is_none();
     let local_id = info.my_node_info.as_ref().map(|node| node.peer_id);
@@ -123,16 +135,21 @@ pub(crate) fn snapshot(
         .map(ToString::to_string);
     InstanceSnapshot {
         id,
+        telemetry,
         running: Some(info.running),
         device_name: live
             .device_name
+            .clone()
             .or(history.device_name)
             .unwrap_or(info.dev_name),
         error: fatal.map(|_| "The network instance failed".into()),
         ready,
         virtual_ip,
         peer_count: routes.len(),
-        direct_peer_count: routes.iter().filter(|route| route.cost == 1).count(),
+        direct_peer_count: routes
+            .iter()
+            .filter(|route| crate::telemetry::route_cost(route, live.latency_first) == 1)
+            .count(),
         issue: fatal.or(live.warning).or(history.warning),
         fatal: fatal.is_some(),
     }
@@ -150,11 +167,11 @@ mod tests {
             my_node_info: Some(MyNodeInfo::default()),
             ..Default::default()
         };
-        assert!(!snapshot(id, Some(info.clone()), false, Signals::default()).ready);
+        assert!(!snapshot(id, Some(info.clone()), false, &mut Signals::default()).ready);
         info.events.push(
             serde_json::to_string(&GlobalCtxEvent::TunDeviceReady("actual-tun".into())).unwrap(),
         );
-        let ready = snapshot(id, Some(info.clone()), false, Signals::default());
+        let ready = snapshot(id, Some(info.clone()), false, &mut Signals::default());
         assert!(ready.ready);
         assert_eq!(ready.peer_count, 0);
         assert_eq!(ready.device_name, "actual-tun");
@@ -162,7 +179,7 @@ mod tests {
             serde_json::to_string(&GlobalCtxEvent::TunDeviceError("sensitive detail".into()))
                 .unwrap(),
         );
-        let failed = snapshot(id, Some(info), false, Signals::default());
+        let failed = snapshot(id, Some(info), false, &mut Signals::default());
         assert!(failed.fatal);
         assert_eq!(failed.issue, Some(ErrorCode::TunFailed));
         assert!(
@@ -185,7 +202,7 @@ mod tests {
             my_node_info: Some(MyNodeInfo::default()),
             ..Default::default()
         };
-        let current = snapshot(Uuid::new_v4(), Some(info), false, signals);
+        let current = snapshot(Uuid::new_v4(), Some(info), false, &mut signals);
         assert!(current.ready && !current.fatal);
         assert_eq!(current.issue, Some(ErrorCode::PeerUnreachable));
         assert!(
@@ -259,7 +276,15 @@ mod peer_test {
                 let b_state = b.snapshot().await.unwrap();
                 if a_state[0].peer_count > 0 && b_state[0].peer_count > 0 {
                     assert!(a_state[0].ready && b_state[0].ready);
-                    break;
+                    let measurements = a_state[0].telemetry.as_ref().unwrap();
+                    assert!(!measurements.peers.is_empty());
+                    assert_eq!(measurements.peers[0].connection, "direct");
+                    if !measurements.peers[0].protocols.is_empty()
+                        && measurements.download_bytes.parse::<u64>().unwrap() > 0
+                        && measurements.upload_bytes.parse::<u64>().unwrap() > 0
+                    {
+                        break;
+                    }
                 }
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }

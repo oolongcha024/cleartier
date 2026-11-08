@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Chip, Dialog, Hint, Icon, IconButton, Select, Switch, useSnackbar } from '../../components/ui';
 import { copyText } from '../../lib/clipboard';
-import { activePeers, activeVirtualIp, isBusy, isConnected, statusKey, summaryKey, type Network } from '../networks/model';
-import { useNetworkStore } from '../networks/store';
+import { activeVirtualIp, isBusy, isConnected, statusKey, summaryKey, type Network } from '../networks/model';
+import { useNetworkStore, useNodeHostname } from '../networks/store';
 import { NetworkStatus } from '../networks/NetworkStatus';
 import { useNetworkEditor } from '../networks/use-network-editor';
 import { hasPendingConfig } from '../networks/configuration';
-import { PeerTable } from './PeerTable';
+import { DevicesCard } from './DevicesCard';
 import { TrafficCard } from './TrafficCard';
 import { ConfigurationState } from '../networks/ConfigurationState';
 
@@ -20,6 +20,7 @@ function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value:
   const writing = useNetworkStore((state) => state.writing);
   const refresh = useNetworkStore((state) => state.refreshRuntime);
   const autoConnecting = useNetworkStore((state) => state.autoConnecting);
+  const hostname = useNodeHostname(network.id) ?? (network.peerCount === undefined ? network.runningConfig?.hostname || 'ClearTier-PC' : '');
   const connected = isConnected(network);
   const busy = isBusy(network);
   const running = network.coreState === 'running' || (network.coreState === 'failed' && network.runningConfig !== null);
@@ -57,8 +58,8 @@ function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value:
           {running && activeVirtualIp(network) && <IconButton icon="content_copy" label={t('dashboard.copyIp')} onClick={() => onCopy(activeVirtualIp(network))} />}
         </div>
       </div>
-      <div className="connection-fact"><span className="fact-label">{t('dashboard.latency')}</span>
-        <div className="fact-value">{connected && network.peerCount === undefined ? <>{network.entryLatency}<span className="unit">ms</span></> : '—'}</div>
+      <div className="connection-fact"><span className="fact-label">{t('networkConfig.hostname')}</span>
+        <div className="fact-value node-hostname" title={running ? hostname : undefined}>{running ? hostname || '—' : '—'}</div>
       </div>
       <div className="connection-fact"><span className="fact-label">{t('dashboard.autoConnect')}</span>
         <div className="fact-value"><Switch checked={network.autoConnect} disabled={writing} label={t('dashboard.autoConnectLabel', { name: network.alias })}
@@ -123,7 +124,6 @@ export function Dashboard() {
     else setManualCopy(value);
   };
   if (phase !== 'ready' || !network) return <><ConfigurationState onAdd={openCreator} />{editor}</>;
-  const peers = activePeers(network);
 
   return <>
     <div className="network-toolbar">
@@ -141,9 +141,7 @@ export function Dashboard() {
       <QuickActions network={network} onCopy={handleCopy}
         onEdit={() => openEditor(network.id)} />
       <TrafficCard network={network} />
-      <Card className="devices-card"><div className="card-heading"><h2>{t('dashboard.devicesTitle')}<span className="heading-count">{network.peerCount ?? peers.length}</span></h2></div>
-        <PeerTable peers={peers} onCopy={handleCopy} detailsPending={(network.peerCount ?? 0) > 0} />
-      </Card>
+      <DevicesCard network={network} onCopy={handleCopy} />
     </div>
     {editor}
     <Dialog open={Boolean(manualCopy)} onOpenChange={(open) => { if (!open) setManualCopy(''); }} title={t('dashboard.copyIp')} description={t('feedback.copyFailed')}>

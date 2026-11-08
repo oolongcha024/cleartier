@@ -4,7 +4,9 @@ pub mod connections;
 mod entry;
 pub mod process;
 mod status;
+mod telemetry;
 pub use status::InstanceSnapshot;
+pub use telemetry::{PeerSnapshot, TelemetrySnapshot};
 
 use anyhow::{Context, Result};
 use easytier::{
@@ -34,10 +36,18 @@ impl CoreRuntime {
     pub fn start(&self, toml: &str) -> Result<Uuid> {
         let config = TomlConfigLoader::new_from_str(toml).context("invalid core configuration")?;
         let no_tun = config.get_flags().no_tun;
+        let latency_first = config.get_flags().latency_first;
         let id =
             self.manager
                 .run_network_instance(config, true, ConfigFileControl::STATIC_CONFIG)?;
         self.no_tun.lock().unwrap().insert(id, no_tun);
+        self.event_signals.lock().unwrap().insert(
+            id,
+            status::Signals {
+                latency_first,
+                ..Default::default()
+            },
+        );
         let receiver = self
             .manager
             .iter()
@@ -57,7 +67,15 @@ impl CoreRuntime {
                                 .observe(event);
                         }
                         Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                        _ => {}
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                            signals
+                                .lock()
+                                .unwrap()
+                                .entry(id)
+                                .or_default()
+                                .measurements
+                                .incomplete = true;
+                        }
                     }
                 }
             });
@@ -92,13 +110,8 @@ impl CoreRuntime {
                 .get(&id)
                 .copied()
                 .unwrap_or(false);
-            let signals = self
-                .event_signals
-                .lock()
-                .unwrap()
-                .get(&id)
-                .cloned()
-                .unwrap_or_default();
+            let mut signals = self.event_signals.lock().unwrap();
+            let signals = signals.entry(id).or_default();
             snapshots.push(status::snapshot(id, info, no_tun, signals));
         }
         Ok(snapshots)

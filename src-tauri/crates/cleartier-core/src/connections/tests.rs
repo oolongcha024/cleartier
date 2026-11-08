@@ -31,6 +31,7 @@ impl Backend for Fake {
         script.snapshots.insert(
             id,
             InstanceSnapshot {
+                telemetry: None,
                 id,
                 running: Some(!fatal),
                 device_name: config.get_flags().dev_name,

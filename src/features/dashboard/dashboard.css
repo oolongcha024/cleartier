@@ -104,3 +104,15 @@
   .traffic-body { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .traffic-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-right: 0; border-right: 0; gap: 24px; }
 }
+
+.node-hostname { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; line-height: 32px; }
+.connection-fact { min-width: 0; }
+.device-expand { background: transparent; text-align: left; border-radius: 8px; padding: 4px; margin: -4px; min-height: 40px; max-width: 260px; }
+.device-expand strong { overflow: hidden; text-overflow: ellipsis; }
+.device-expand > .icon { font-size: 18px; color: var(--md-sys-color-on-surface-variant); flex-shrink: 0; }
+.device-expand:hover { background: var(--md-sys-color-surface-container); }
+.device-details td { text-align: left !important; padding: 16px !important; background: var(--md-sys-color-surface-container-low); }
+.device-details dl { display: flex; flex-wrap: wrap; gap: 16px 32px; white-space: normal; }
+.device-details dt { font-size: 11px; color: var(--md-sys-color-on-surface-variant); margin-bottom: 6px; }
+.device-details dd { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
+.data-status { color: var(--md-sys-color-on-surface-variant); font-size: 11px; margin-left: auto; }

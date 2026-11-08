@@ -6,9 +6,10 @@ export type NetworkIcon = typeof networkIcons[number];
 export const p2pPolicies = ['auto', 'lazy', 'disabled', 'only'] as const;
 export type P2pPolicy = typeof p2pPolicies[number];
 export interface Peer {
-  id: string; name: string; ip: string;
-  platform: 'desktop_windows' | 'laptop_mac' | 'dns';
-  connection: 'direct' | 'relay'; latency: number;
+  id: string; name: string; ip: string | null;
+  platform?: 'desktop_windows' | 'laptop_mac' | 'dns';
+  connection: 'direct' | 'relay'; latency: number | null;
+  lossRate?: number | null; protocols?: string[]; nextHop?: string | null; version?: string | null;
 }
 export interface NetworkConfig {
   name: string; secret: string; servers: string[];
@@ -25,16 +26,15 @@ export interface Network {
   savedConfig: NetworkConfig;
   // A saved edit must not masquerade as the configuration of a live session.
   runningConfig: NetworkConfig | null;
-  coreState: CoreState; autoConnect: boolean; virtualIp: string; entryLatency: number;
+  coreState: CoreState; autoConnect: boolean; virtualIp: string;
   peers: Peer[]; download: number; upload: number;
   traffic: { download: number[]; upload: number[] };
   // Byte counters for this machine in this network; null means no session recorded.
-  // Keep the last snapshot on disconnect. These are independent from rates (MB/s).
+  // Browser fixture values; native measurements live in the telemetry Module.
   trafficTotals: { downloadBytes: number; uploadBytes: number } | null;
 }
 export const isConnected = (network: Network) => network.coreState === 'running' && (network.peerCount ?? network.peers.length) > 0;
 export const isBusy = (network: Network) => network.coreState === 'starting' || network.coreState === 'stopping';
-export const activePeers = (network: Network) => network.coreState === 'running' ? network.peers : [];
 export const activeVirtualIp = (network: Network) => network.runningConfig?.ipv4Mode === 'manual'
   && network.peerCount === undefined ? network.runningConfig.ipv4Address : network.virtualIp;
 export function statusKey(network: Network) {
@@ -43,7 +43,7 @@ export function statusKey(network: Network) {
   if (network.coreState === 'stopped') return 'idle';
   if (network.coreState === 'starting') return 'startingShort';
   if (network.coreState === 'stopping') return 'stoppingShort';
-  return network.peers.length > 0 ? 'connectedShort' : 'running';
+  return (network.peerCount ?? network.peers.length) > 0 ? 'connectedShort' : 'running';
 }
 
 export function summaryKey(networks: Network[]) {

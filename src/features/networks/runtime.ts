@@ -1,3 +1,4 @@
+import type { TelemetrySnapshot } from './telemetry.ts';
 import type { CoreState, NetworkConfig } from './model.ts';
 
 export type RuntimeOperation =
@@ -5,6 +6,7 @@ export type RuntimeOperation =
   | { action: 'stop'; id: string };
 export interface RuntimeFailure { code: string }
 export interface RuntimeSnapshot {
+  telemetry?: TelemetrySnapshot | null;
   id: string; state: CoreState; runningConfig: NetworkConfig | null;
   deviceName: string; virtualIp: string | null; peerCount: number; directPeerCount: number;
   error: RuntimeFailure | null;

@@ -53,7 +53,7 @@ pnpm build:windows all
 
 直接程序需要目标机器已安装 Microsoft Edge WebView2 Runtime。它包含打包后的前端，不需要运行 Vite 或访问远程开发服务器。
 
-阶段 2、3 源码已实现本机配置存储和真实连接管理；新产物验收见[网络配置存储](network-configuration.md)及[连接管理](connection-management.md)。此前通过验收的阶段 1 产物仍使用演示网络，不能代替本次改动的 Windows 验收。
+阶段 2–4 源码已实现本机配置存储和真实连接管理；新产物验收见[网络配置存储](network-configuration.md)及[连接管理](connection-management.md)。此前通过验收的阶段 1 产物仍使用演示网络，不能代替本次改动的 Windows 验收。
 
 免安装目录包含 `check-core.ps1`。在该目录打开**普通权限**的 PowerShell，按顺序执行：
 

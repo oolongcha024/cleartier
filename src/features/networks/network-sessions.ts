@@ -1,3 +1,4 @@
+import type { TelemetryStore } from './telemetry.ts';
 import { isBusy, type Network } from './model.ts';
 import { runtimeFailure, type NetworkRuntime, type RuntimeSnapshot, type RuntimeFailure } from './runtime.ts';
 
@@ -8,6 +9,7 @@ export function createNetworkSessions(runtime: NetworkRuntime, access: {
   read: () => Network[];
   update: (id: string, change: (network: Network) => Network) => void;
   automatic: (running: boolean, cancelled: boolean) => void;
+  telemetry?: TelemetryStore;
 }) {
   const active = new Set<string>();
   const generations = new Map<string, number>();
@@ -19,12 +21,20 @@ export function createNetworkSessions(runtime: NetworkRuntime, access: {
     for (const network of access.read()) {
       if (network.id !== target && (active.has(network.id) || generations.get(network.id) !== generation.get(network.id))) continue;
       const snapshot = snapshots.find((snapshot) => snapshot.id === network.id);
-      access.update(network.id, (current) => ({ ...current,
-        coreState: snapshot?.state ?? 'stopped', runningConfig: snapshot?.runningConfig ?? null,
-        deviceName: snapshot?.deviceName ?? '', virtualIp: snapshot?.virtualIp ?? '',
-        peerCount: snapshot?.peerCount ?? 0, directPeerCount: snapshot?.directPeerCount ?? 0,
-        connectionError: snapshot?.error ?? localErrors.get(network.id) ?? null,
-      }));
+      access.telemetry?.receive(network.id, snapshot?.telemetry, snapshot?.state ?? 'stopped');
+      access.update(network.id, (current) => {
+        const change = {
+          coreState: snapshot?.state ?? 'stopped', runningConfig: snapshot?.runningConfig ?? null,
+          deviceName: snapshot?.deviceName ?? '', virtualIp: snapshot?.virtualIp ?? '',
+          peerCount: snapshot?.peerCount ?? 0, directPeerCount: snapshot?.directPeerCount ?? 0,
+          connectionError: snapshot?.error ?? localErrors.get(network.id) ?? null,
+        };
+        // Compare only runtime fields. Saved documents may preserve large
+        // unknown imports and must not be serialized on every metrics sample.
+        const unchanged = Object.entries(change).every(([key, value]) =>
+          JSON.stringify(value) === JSON.stringify(current[key as keyof Network]));
+        return unchanged ? current : { ...current, ...change };
+      });
     }
   };
   const readSnapshot = async (target?: string) => {
@@ -34,6 +44,7 @@ export function createNetworkSessions(runtime: NetworkRuntime, access: {
     catch (error) {
       for (const network of access.read()) {
         if (network.id !== target && (active.has(network.id) || generations.get(network.id) !== generation.get(network.id))) continue;
+        access.telemetry?.stale(network.id);
         access.update(network.id, (current) => ({ ...current, coreState: 'unknown', connectionError: runtimeFailure(error) }));
       }
       return false;

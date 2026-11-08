@@ -26,7 +26,7 @@ export function emptyDocument(): ConfigurationDocument {
 }
 export function offlineNetwork(id: string, config = createNetworkConfig(id, { name: '', secret: '', servers: [] })): Network {
   return { id, alias: config.name, icon: 'hub', autoConnect: false, savedConfig: config,
-    runningConfig: null, coreState: 'stopped', virtualIp: '', entryLatency: 0, peers: [],
+    runningConfig: null, coreState: 'stopped', virtualIp: '', peers: [],
     download: 0, upload: 0, traffic: { download: [], upload: [] }, trafficTotals: null };
 }
 export function networksFromDocument(document: ConfigurationDocument): Network[] {

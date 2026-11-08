@@ -43,7 +43,7 @@ Rust 后端保留实际提交运行的配置，前端以其与磁盘保存值比
 
 页面每秒同步一次，窗口重新获得焦点时额外刷新，同一时刻只保留一次前端查询。命令有逐网络代次保护，迟到查询不覆盖更新的操作；查询失败显示未知，核心已失去控制时显示失败，允许手动重试。
 
-本阶段提供实际虚拟 IP、实际网卡名和节点数量作为连接验收依据。设备详情、路径延迟和流量采样尚未接通时显示未知或空详情，不生成桌面模拟指标；这些继续在阶段 4 完成。
+阶段 3 提供实际虚拟 IP、实际网卡名和节点数量。阶段 4 已接通设备详情、可用的直连隧道质量及流量采样，高频数据通过独立订阅展示；未知值不生成模拟指标。统计口径与验收见[仪表盘真实数据](dashboard-telemetry.md)。
 
 ## 验证
 
@@ -56,7 +56,7 @@ cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-config
 cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-core
 ```
 
-核心完整进程测试在 Linux 隔离容器完成，不需宿主机安装 WebKitGTK。新增自定义集成 harness 使用同一测试可执行文件承担控制端和工作进程，保持真实进程身份验证；测试 Adapter 只关闭 TUN、外部 peers 和监听等系统副作用。另有无 TUN 的回环 TCP 节点测试验证实际发现远端节点。
+核心完整进程测试在 Linux 隔离容器完成，不需宿主机安装 WebKitGTK。新增自定义集成 harness 使用同一测试可执行文件承担控制端和工作进程，保持真实进程身份验证；测试 Adapter 只关闭 TUN、外部 peers 和监听等系统副作用。另有无 TUN 的回环节点测试验证实际发现、隧道协议及非零流量；同进程节点可能由核心优化成 ring 隧道。
 
 Windows 构建入口增加核心 `--lib` 测试，并保留打包后的 Direct／Process／Recovery／MissingResource 检查。这些都不能替代以下实机验收：
 

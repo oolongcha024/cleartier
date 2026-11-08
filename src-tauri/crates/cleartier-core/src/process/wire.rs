@@ -5,7 +5,7 @@ use uuid::Uuid;
 use super::{CoreError, ErrorCode, Result};
 use crate::InstanceSnapshot;
 
-pub const PROTOCOL: u32 = 2;
+pub const PROTOCOL: u32 = 3;
 pub const MAX_FRAME: usize = 1024 * 1024;
 
 pub trait LocalIo: AsyncRead + AsyncWrite + Unpin + Send {}

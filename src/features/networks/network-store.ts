@@ -4,6 +4,7 @@ import { createNetworkConfig, defaultTunName, newNetworkId } from './defaults.ts
 import { isBusy, type Network } from './model.ts';
 import { documentFromNetworks, emptyDocument, networksFromDocument, offlineNetwork, storageFailure, type ConfigurationStorage, type StorageFailure } from './persistence.ts';
 import type { NetworkRuntime } from './runtime.ts';
+import type { TelemetryStore } from './telemetry.ts';
 import { createNetworkSessions } from './network-sessions.ts';
 
 export type SaveMode = 'confirm' | 'later' | 'now';
@@ -31,14 +32,19 @@ export interface NetworkStore {
 }
 
 export function createNetworkStore(initialNetworks: Network[], runtime: NetworkRuntime, options: {
-  storage?: ConfigurationStorage; connectionEnabled?: boolean;
+  storage?: ConfigurationStorage; connectionEnabled?: boolean; telemetry?: TelemetryStore;
 } = {}) {
   return createStore<NetworkStore>()((set, get) => {
     let document = emptyDocument();
     let queue = Promise.resolve();
     let initialization: Promise<void> | undefined;
     const updateNetwork = (id: string, update: (network: Network) => Network) => {
-      set((state) => ({ networks: state.networks.map((network) => network.id === id ? update(network) : network) }));
+      set((state) => {
+        const current = state.networks.find((network) => network.id === id);
+        if (!current) return state;
+        const next = update(current);
+        return next === current ? state : { networks: state.networks.map((network) => network.id === id ? next : network) };
+      });
     };
     // Serialize durable mutations. Build the next snapshot only when its turn
     // begins; delayed writes must not revert another saved network or selection.
@@ -68,7 +74,7 @@ export function createNetworkStore(initialNetworks: Network[], runtime: NetworkR
       return operation;
     };
     const sessions = createNetworkSessions(runtime, {
-      read: () => get().networks, update: updateNetwork,
+      read: () => get().networks, update: updateNetwork, telemetry: options.telemetry,
       automatic: (autoConnecting, autoConnectCancelled) => set({ autoConnecting, autoConnectCancelled }),
     });
     return {
@@ -107,6 +113,9 @@ export function createNetworkStore(initialNetworks: Network[], runtime: NetworkR
         if (!network || !['stopped', 'failed'].includes(network.coreState) || network.runningConfig !== null) return null;
         const networks = get().networks.filter((network) => network.id !== id);
         return { networks, selectedId: get().selectedId === id ? networks[0]?.id ?? '' : get().selectedId };
+      }).then((removed) => {
+        if (removed) options.telemetry?.remove(id);
+        return removed;
       }),
       saveConfiguration: async (id, draft, mode = 'confirm', creating = false) => {
         const network = get().networks.find((item) => item.id === id);

@@ -52,6 +52,7 @@ pub enum Operation {
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct NetworkSnapshot {
+    pub telemetry: Option<crate::TelemetrySnapshot>,
     pub id: Uuid,
     pub state: &'static str,
     pub running_config: Option<ConnectionConfig>,
@@ -64,6 +65,7 @@ pub struct NetworkSnapshot {
 #[derive(Default)]
 struct State {
     configs: BTreeMap<Uuid, ConnectionConfig>,
+    measurements: BTreeMap<Uuid, crate::TelemetrySnapshot>,
     errors: BTreeMap<Uuid, CoreError>,
     lease: Option<File>,
     order: Vec<Uuid>,
@@ -123,6 +125,11 @@ impl<B: Backend> NetworkManager<B> {
             }
             Err(error) => return Err(error),
         };
+        for snapshot in &snapshots {
+            if let Some(telemetry) = &snapshot.telemetry {
+                state.measurements.insert(snapshot.id, telemetry.clone());
+            }
+        }
         state
             .configs
             .retain(|id, _| snapshots.iter().any(|snapshot| snapshot.id == *id));
@@ -284,6 +291,9 @@ impl<B: Backend> NetworkManager<B> {
         state.order.retain(|id| state.configs.contains_key(id));
         let mut result = Vec::new();
         for snapshot in &snapshots {
+            if let Some(telemetry) = &snapshot.telemetry {
+                state.measurements.insert(snapshot.id, telemetry.clone());
+            }
             let observed = snapshot
                 .issue
                 .map(|code| CoreError::new(code, "A network condition requires attention"));
@@ -293,6 +303,7 @@ impl<B: Backend> NetworkManager<B> {
                 state.errors.get(&snapshot.id).cloned().or(observed)
             };
             result.push(NetworkSnapshot {
+                telemetry: snapshot.telemetry.clone(),
                 id: snapshot.id,
                 state: if snapshot.fatal || snapshot.running == Some(false) {
                     "failed"
@@ -314,6 +325,7 @@ impl<B: Backend> NetworkManager<B> {
         for (id, error) in &state.errors {
             if !snapshots.iter().any(|snapshot| snapshot.id == *id) {
                 result.push(NetworkSnapshot {
+                    telemetry: state.measurements.get(id).cloned(),
                     id: *id,
                     state: "failed",
                     running_config: None,
@@ -322,6 +334,21 @@ impl<B: Backend> NetworkManager<B> {
                     peer_count: 0,
                     direct_peer_count: 0,
                     error: Some(error.clone()),
+                });
+            }
+        }
+        for (id, telemetry) in &state.measurements {
+            if !result.iter().any(|snapshot| snapshot.id == *id) {
+                result.push(NetworkSnapshot {
+                    id: *id,
+                    state: "stopped",
+                    running_config: None,
+                    telemetry: Some(telemetry.clone()),
+                    device_name: String::new(),
+                    virtual_ip: None,
+                    peer_count: 0,
+                    direct_peer_count: 0,
+                    error: None,
                 });
             }
         }
