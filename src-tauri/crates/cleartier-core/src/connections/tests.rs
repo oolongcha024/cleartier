@@ -17,6 +17,7 @@ struct Script {
     calls: Vec<(String, Uuid)>,
     fail_start: Option<ErrorCode>,
     fail_stop: Option<ErrorCode>,
+    fail_shutdown: bool,
     stop_gate: Option<Arc<tokio::sync::Notify>>,
     stop_entered: Option<Arc<tokio::sync::Notify>>,
     fatal_start: bool,
@@ -97,7 +98,11 @@ impl Backend for Fake {
         Ok(())
     }
     async fn shutdown(&self) -> Result<()> {
-        self.0.lock().unwrap().snapshots.clear();
+        let mut script = self.0.lock().unwrap();
+        if script.fail_shutdown {
+            return Err(CoreError::new(ErrorCode::Io, "Cleanup not confirmed"));
+        }
+        script.snapshots.clear();
         Ok(())
     }
     async fn snapshot(&self) -> Result<Vec<InstanceSnapshot>> {
@@ -107,6 +112,96 @@ impl Backend for Fake {
         }
         Ok(script.snapshots.values().cloned().collect())
     }
+}
+
+#[tokio::test]
+async fn update_cleanup_requires_confirmation_and_reopens_only_after_confirmed_cleanup() {
+    let root = tempfile::tempdir().unwrap();
+    let fake = Fake::default();
+    let manager = NetworkManager::new(fake.clone(), root.path().join("lease"));
+    let id = Uuid::new_v4();
+    manager
+        .operate(Operation::Start {
+            id,
+            config: parameters("office"),
+        })
+        .await
+        .unwrap();
+    assert!(!manager.shutdown_for_update(false).await.unwrap());
+    assert!(fake.0.lock().unwrap().snapshots.contains_key(&id));
+
+    fake.0.lock().unwrap().fail_shutdown = true;
+    assert!(manager.shutdown_for_update(true).await.is_err());
+    manager.resume_after_update(true).await;
+    assert!(
+        manager
+            .operate(Operation::Start {
+                id: Uuid::new_v4(),
+                config: parameters("other")
+            })
+            .await
+            .is_err()
+    );
+    assert!(fake.0.lock().unwrap().snapshots.contains_key(&id));
+
+    fake.0.lock().unwrap().fail_shutdown = false;
+    assert!(manager.shutdown_for_update(true).await.unwrap());
+    assert!(fake.0.lock().unwrap().snapshots.is_empty());
+    assert!(
+        manager
+            .operate(Operation::Start {
+                id,
+                config: parameters("office")
+            })
+            .await
+            .is_err()
+    );
+    manager.resume_after_update(true).await;
+    manager.maintain().await.unwrap();
+    assert!(fake.0.lock().unwrap().snapshots.is_empty());
+    manager
+        .operate(Operation::Start {
+            id,
+            config: parameters("office"),
+        })
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn update_cleanup_waits_for_and_compensates_an_in_flight_start() {
+    let root = tempfile::tempdir().unwrap();
+    let fake = Fake::default();
+    let gate = Arc::new(tokio::sync::Notify::new());
+    let entered = Arc::new(tokio::sync::Notify::new());
+    {
+        let mut script = fake.0.lock().unwrap();
+        script.start_gate = Some(gate.clone());
+        script.start_entered = Some(entered.clone());
+    }
+    let manager = NetworkManager::new(fake.clone(), root.path().join("lease"));
+    let worker = manager.clone();
+    let start = tokio::spawn(async move {
+        worker
+            .operate(Operation::Start {
+                id: Uuid::new_v4(),
+                config: parameters("office"),
+            })
+            .await
+    });
+    entered.notified().await;
+    assert!(!manager.shutdown_for_update(false).await.unwrap());
+    let worker = manager.clone();
+    let cleanup = tokio::spawn(async move { worker.shutdown_for_update(true).await });
+    for _ in 0..20 {
+        tokio::task::yield_now().await;
+    }
+    assert!(!cleanup.is_finished());
+    gate.notify_one();
+    let _ = start.await.unwrap();
+    assert!(cleanup.await.unwrap().unwrap());
+    assert!(fake.0.lock().unwrap().snapshots.is_empty());
+    assert!(!manager.has_active_networks().await);
 }
 
 #[test]

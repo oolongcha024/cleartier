@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button, Card, Dialog, Icon, useSnackbar } from '../../components/ui';
 import { copyText } from '../../lib/clipboard';
 import { useAboutInfo } from './use-about-info';
+import { UpdateCard } from '../updates/UpdateCard';
 
 export function AboutPage() {
   const { t } = useTranslation();
@@ -38,6 +39,7 @@ export function AboutPage() {
         <div><dt>{t('about.environment')}</dt><dd>{environment}</dd></div>
       </dl>
     </Card>
+    <UpdateCard />
     <Dialog open={Boolean(manualCopy)} onOpenChange={(open) => { if (!open) setManualCopy(''); }} title={t('about.copy')} description={t('about.copyFailed')} initialFocus={copyInput}>
       <textarea ref={copyInput} className="manual-copy about-copy" aria-label={t('about.versionInfo')} readOnly rows={4} value={manualCopy}
         onFocus={(event) => event.currentTarget.select()} />

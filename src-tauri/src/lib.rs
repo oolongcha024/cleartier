@@ -5,6 +5,7 @@ mod invitation_commands;
 mod network_commands;
 mod runtime_setup;
 mod toml_commands;
+mod updates;
 
 #[tauri::command]
 fn core_version() -> &'static str {
@@ -37,11 +38,15 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             runtime_setup::setup(app)?;
-            desktop::setup(app)
+            desktop::setup(app)?;
+            updates::setup(app)
         })
         .invoke_handler(tauri::generate_handler![
+            updates::updates_status,
+            updates::updates_command,
             desktop::preferences::desktop_status,
             desktop::preferences::desktop_update,
             desktop::lifecycle::desktop_exit,

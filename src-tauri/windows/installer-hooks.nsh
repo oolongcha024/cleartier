@@ -35,3 +35,11 @@
 !macro NSIS_HOOK_PREUNINSTALL
   !insertmacro ClearTierGracefulShutdown
 !macroend
+
+; A moved/copied portable executable must not be mistaken for an installation.
+!macro NSIS_HOOK_POSTINSTALL
+  WriteRegStr HKCU "Software\${BUNDLEID}\Installer" "Path" "$INSTDIR"
+!macroend
+!macro NSIS_HOOK_POSTUNINSTALL
+  DeleteRegKey HKCU "Software\${BUNDLEID}\Installer"
+!macroend

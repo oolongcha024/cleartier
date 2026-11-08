@@ -41,7 +41,7 @@ jobs:
       - run: pnpm build
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all --check
       - run: cargo check --locked --manifest-path src-tauri/Cargo.toml --workspace
-      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-config -p cleartier-core
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-config -p cleartier-core -p cleartier-updates
       - name: Install browser runner
         run: |
           npm install --global agent-browser@0.38.0

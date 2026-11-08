@@ -4,7 +4,7 @@ import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // build-info.json is internal build evidence, never a Release attachment.
-async function readPackages(root, directory, tag, commit) {
+async function readPackages(root, directory, tag, commit, repository) {
   const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   if (typeof version !== 'string' || tag !== `v${version}`) throw new Error('Release tag must match package.json version.');
   const info = JSON.parse(readFileSync(join(directory, 'build-info.json'), 'utf8'));
@@ -13,10 +13,11 @@ async function readPackages(root, directory, tag, commit) {
     throw new Error('Build evidence must match this tag, commit and complete Windows x64 build.');
   }
   const entries = info.files;
-  if (!Array.isArray(entries) || entries.length !== 2 ||
+  if (!Array.isArray(entries) || entries.length !== 3 ||
+      entries.filter(file => file.path === 'latest.json').length !== 1 ||
       entries.filter(file => file.path === 'cleartier-windows-x64.zip').length !== 1 ||
       entries.filter(file => typeof file.path === 'string' && /^nsis\/[^/\\]+-setup\.exe$/.test(file.path)).length !== 1) {
-    throw new Error('Expected exactly one portable ZIP and one NSIS installer in build evidence.');
+    throw new Error('Expected exactly one portable ZIP, one NSIS installer and latest.json in build evidence.');
   }
   const files = [];
   for (const entry of entries) {
@@ -29,6 +30,13 @@ async function readPackages(root, directory, tag, commit) {
     if (digest !== `sha256:${entry.sha256}`) throw new Error(`Package checksum mismatch: ${entry.path}`);
     files.push({ path, name: basename(path), size: stat.size, digest });
   }
+  const manifest = JSON.parse(readFileSync(join(directory, 'latest.json'), 'utf8'));
+  const installer = files.find(file => file.name.endsWith('-setup.exe'));
+  const update = manifest.platforms?.['windows-x86_64'];
+  const expectedUrl = `https://github.com/${repository}/releases/download/${tag}/${installer.name}`;
+  if (manifest.version !== version || update?.url !== expectedUrl || typeof update.signature !== 'string' || !update.signature.trim()) {
+    throw new Error('Update manifest must match the signed installer and application version.');
+  }
   return { files, prerelease: version.includes('-') };
 }
 
@@ -36,7 +44,7 @@ export async function publishRelease({ root, directory, tag, commit, repository,
   if (!token || !/^[\w.-]+\/[\w.-]+$/.test(repository ?? '') || !/^[a-f0-9]{40,64}$/i.test(commit ?? '')) {
     throw new Error('Publishing requires a token, owner/repository and commit SHA.');
   }
-  const { files, prerelease } = await readPackages(root, directory, tag, commit);
+  const { files, prerelease } = await readPackages(root, directory, tag, commit, repository);
   const base = `${apiUrl.replace(/\/$/, '')}/repos/${repository}`;
 
   async function request(method, endpoint, { json, file, allowMissing = false } = {}) {
@@ -75,14 +83,14 @@ export async function publishRelease({ root, directory, tag, commit, repository,
   async function assetsFor(release) {
     const assets = await request('GET', `/releases/${release.id}/assets?per_page=100`);
     if (assets.some(asset => !files.some(file => asset.name === file.name)) || new Set(assets.map(asset => asset.name)).size !== assets.length) {
-      throw new Error('Release contains unexpected assets; only the ZIP and NSIS installer may be published.');
+      throw new Error('Release contains unexpected assets; only ZIP, NSIS and latest.json may be published.');
     }
     return assets;
   }
 
   function verifyAssets(assets) {
     if (assets.length !== files.length || files.some(file => !matches(assets.find(asset => asset.name === file.name), file))) {
-      throw new Error('Release assets do not match the verified ZIP and NSIS installer.');
+      throw new Error('Release assets do not match the verified packages and update manifest.');
     }
   }
 
@@ -118,7 +126,7 @@ export async function publishRelease({ root, directory, tag, commit, repository,
   }
   verifyAssets(await assetsFor(release));
   await checkTag();
-  // Preserve an existing draft's title and notes, and publish only after both
+  // Preserve an existing draft's title and notes, and publish only after all
   // remote digests match. This also supports GitHub immutable releases.
   release = await request('PATCH', `/releases/${release.id}`, { json: {
     draft: false, prerelease, make_latest: prerelease ? 'false' : 'legacy',

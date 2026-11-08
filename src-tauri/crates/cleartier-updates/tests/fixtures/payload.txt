@@ -1,0 +1,1 @@
+ClearTier signature verification test fixture.

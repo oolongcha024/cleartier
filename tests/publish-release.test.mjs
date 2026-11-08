@@ -23,6 +23,10 @@ async function fixture(t, { version = '0.1.0-rc.1', initial } = {}) {
     writeFileSync(join(directory, path), bytes);
     return { path, size: bytes.length, sha256: digest(bytes).slice(7) };
   });
+  const update = { version, platforms: { 'windows-x86_64': { url: `https://github.com/owner/cleartier/releases/download/v${version}/ClearTier_${version}_x64-setup.exe`, signature: 'fixture-signature' } } };
+  const updateBytes = Buffer.from(JSON.stringify(update));
+  writeFileSync(join(directory, 'latest.json'), updateBytes);
+  files.push({ path: 'latest.json', size: updateBytes.length, sha256: digest(updateBytes).slice(7) });
   const manifest = { version, target: 'x86_64-pc-windows-msvc', mode: 'all',
     source: { commit, ref: `refs/tags/v${version}` }, files };
   function saveManifest() { writeFileSync(join(directory, 'build-info.json'), JSON.stringify(manifest)); }
@@ -76,7 +80,7 @@ async function fixture(t, { version = '0.1.0-rc.1', initial } = {}) {
       return send(201, asset);
     }
     if (req.method === 'PATCH' && url.pathname === `${base}/releases/7`) {
-      assert.equal(state.assets.length, 2);
+      assert.equal(state.assets.length, 3);
       state.release = { ...state.release, ...json, immutable: true };
       return send(200, state.release);
     }
@@ -95,20 +99,20 @@ async function fixture(t, { version = '0.1.0-rc.1', initial } = {}) {
 }
 
 for (const version of ['0.1.0-alpha.1', '0.1.0-beta.2', '0.1.0-rc.1', '0.1.0']) {
-  test(`${version}: create draft, upload exactly ZIP and NSIS, verify, then publish`, async t => {
+  test(`${version}: create draft, upload ZIP, NSIS and signed manifest, verify, then publish`, async t => {
     const { options, state, files } = await fixture(t, { version });
     const result = await publishRelease(options);
     assert.equal(result.status, 'published');
     const changes = state.trace.filter(event => event.method !== 'GET');
-    assert.deepEqual(changes.map(event => event.method), ['POST', 'POST', 'POST', 'PATCH']);
+    assert.deepEqual(changes.map(event => event.method), ['POST', 'POST', 'POST', 'POST', 'PATCH']);
     assert.equal(changes[0].json.draft, true);
     assert.equal(changes[0].json.generate_release_notes, true);
-    assert.deepEqual(changes.slice(1, 3).map(event => event.name), files.map(file => file.path.split('/').at(-1)));
+    assert.deepEqual(changes.slice(1, 4).map(event => event.name), files.map(file => file.path.split('/').at(-1)));
     assert.equal(changes.at(-1).json.draft, false);
     assert.equal(changes.at(-1).json.prerelease, version.includes('-'));
     assert.equal(changes.at(-1).json.make_latest, version.includes('-') ? 'false' : 'legacy');
     assert.equal(state.tagReads, 2);
-    assert.ok(state.assets.every(asset => !asset.name.endsWith('.json')));
+    assert.deepEqual(state.assets.filter(asset => asset.name.endsWith('.json')).map(asset => asset.name), ['latest.json']);
   });
 }
 
@@ -119,6 +123,22 @@ test('corrupted local package is rejected before any GitHub request', async t =>
   await assert.rejects(publishRelease(options), /checksum mismatch/);
   assert.deepEqual(state.trace, []);
 });
+
+for (const field of ['version', 'url', 'signature']) {
+  test(`invalid update manifest (${field}) is rejected before creating a draft`, async t => {
+    const { options, directory, state, manifest, saveManifest } = await fixture(t);
+    const path = join(directory, 'latest.json');
+    const update = JSON.parse(readFileSync(path, 'utf8'));
+    if (field === 'version') update.version = '9.0.0';
+    else update.platforms['windows-x86_64'][field] = field === 'url' ? 'https://example.invalid/setup.exe' : '';
+    const bytes = Buffer.from(JSON.stringify(update));
+    writeFileSync(path, bytes);
+    Object.assign(manifest.files.find(file => file.path === 'latest.json'), { size: bytes.length, sha256: digest(bytes).slice(7) });
+    saveManifest();
+    await assert.rejects(publishRelease(options), /Update manifest/);
+    assert.deepEqual(state.trace, []);
+  });
+}
 
 for (const change of ['commit', 'ref', 'mode', 'target', 'version', 'files']) {
   test(`incorrect build evidence (${change}) cannot create a release`, async t => {
@@ -148,7 +168,7 @@ test('upload failure leaves a draft; retry reuses the good asset and preserves c
   state.release.name = 'Custom title'; state.release.body = 'Preserve my notes';
   state.failUpload = 0;
   await publishRelease(options);
-  assert.equal(state.uploads, 3);
+  assert.equal(state.uploads, 4);
   assert.equal(state.release.name, 'Custom title');
   assert.equal(state.release.body, 'Preserve my notes');
   assert.equal(state.trace.filter(event => event.path.endsWith('/releases') && event.method === 'POST').length, 1);
@@ -156,7 +176,7 @@ test('upload failure leaves a draft; retry reuses the good asset and preserves c
 
 test('only stale draft assets are replaced', async t => {
   const { options, state, files, assetFor } = await fixture(t, { initial: 'draft' });
-  state.assets = [assetFor(files[0], 1), assetFor(files[1], 2)];
+  state.assets = files.map((file, index) => assetFor(file, index + 1));
   state.assets[0].digest = 'sha256:old';
   await publishRelease(options);
   assert.equal(state.uploads, 1);

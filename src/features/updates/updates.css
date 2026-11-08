@@ -1,0 +1,9 @@
+.update-card h2 { margin: 0; font-size: 18px; font-weight: 550; }
+.update-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.update-status { display: flex; align-items: center; gap: 8px; margin: 20px 0 12px; }
+.update-last-check { display: block; color: var(--md-sys-color-on-surface-variant); font-size: 12px; }
+.update-error { color: var(--md-sys-color-error); font-size: 13px; }
+.update-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 8px; }
+.update-progress { width: 100%; height: 6px; border: 0; border-radius: 8px; accent-color: var(--md-sys-color-primary); margin-bottom: 12px; }
+.update-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
+.update-card .settings-row:last-child { padding-bottom: 0; }

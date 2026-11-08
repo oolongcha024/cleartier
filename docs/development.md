@@ -32,7 +32,7 @@ pnpm typecheck
 pnpm build
 cargo fmt --manifest-path src-tauri/Cargo.toml --all --check
 cargo check --locked --manifest-path src-tauri/Cargo.toml --workspace
-cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-config -p cleartier-core
+cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-config -p cleartier-core -p cleartier-updates
 ```
 
 浏览器回归先安装 CI 对应的 runner，再执行：
@@ -66,10 +66,11 @@ gh run list --workflow windows-build.yml
 | --- | --- |
 | 免安装目录／ZIP | `artifacts/windows-x64/exe/`、`artifacts/windows-x64/cleartier-windows-x64.zip` |
 | NSIS 安装包 | `artifacts/windows-x64/nsis/` |
+| 签名更新清单 | `artifacts/windows-x64/latest.json` |
 | 版本、来源、工具链及 SHA-256 | `artifacts/windows-x64/build-info.json` |
 | 检查报告与失败诊断 | `artifacts/windows-x64/checks/` |
 
-构建入口为 [scripts/windows/build.mjs](../scripts/windows/build.mjs)。ZIP 和安装包均携带项目许可文本。`build-info.json` 和检查报告仅保留在本机构建目录及 Actions Artifacts，Release 附件只有 ZIP 和 NSIS。先查看检查报告和工具链错误，交付时核对提交及校验值。
+构建入口为 [scripts/windows/build.mjs](../scripts/windows/build.mjs)。ZIP 和安装包均携带项目许可文本。`build-info.json` 和检查报告仅保留在本机构建目录及 Actions Artifacts，Release 附件只有 ZIP、NSIS 和 `latest.json`；签名嵌入更新清单，`.sig` 不单独发布。先查看检查报告和工具链错误，交付时核对提交及校验值。
 
 ## 版本管理
 
@@ -102,10 +103,18 @@ pnpm version:check --release v0.1.0-rc.1
 git push origin v0.1.0-rc.1
 ```
 
-标签必须与应用版本一致并指向 HEAD。推送后按顺序执行：Windows 构建及检查 → 创建或复用草稿 → 上传 ZIP／NSIS 并核对远端 SHA-256 → 发布。此顺序兼容 [GitHub 不可变发布](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)，无需预先在网页点击发布。
+标签必须与应用版本一致并指向 HEAD。推送后按顺序执行：Windows 构建及检查 → 创建或复用草稿 → 上传 ZIP／NSIS／latest.json 并核对远端 SHA-256 → 发布。此顺序兼容 [GitHub 不可变发布](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)，无需预先在网页点击发布。
 
 alpha／beta／rc 自动标为预发布；正式版按 GitHub 的版本规则决定 Latest。新草稿自动生成发布说明，已有草稿保留标题与正文，可提前编辑说明再推送标签。编译任务只读仓库，独立发布任务才持有写权限，使用内置 `GITHUB_TOKEN`，无需另配 PAT。
 
 构建失败不创建 Release，上传或校验失败保留草稿；在 Actions 重跑失败任务可继续上传。已发布的相同附件可安全重跑，不会覆盖不同内容；重新构建产生不同文件时应推进新版本。标签被移动或附件不匹配会中止发布。
 
-普通分支测试包允许沿用当前版本，手动构建标签也不会发布。已发布标签不移动或复用，仓库维护者需配置标签保护；当前没有自动更新器，不能依赖 Windows 数字文件版本比较预发布顺序。
+普通分支测试包允许沿用当前版本，手动构建标签也不会发布。已发布标签不移动或复用，仓库维护者需配置标签保护。更新器按 SemVer 比较完整版本，不依赖 Windows 数字文件版本比较预发布顺序。
+
+## 更新签名
+
+NSIS 构建必须设置 `TAURI_SIGNING_PRIVATE_KEY`，加密密钥另需 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`；GitHub Actions 从同名仓库 Secrets 读取。仅构建免安装 ZIP（`exe`）不需要签名密钥。客户端公钥唯一来源为 `src-tauri/tauri.conf.json`，启用版本绑定签名；构建时验证安装包、签名版本和公钥匹配后才生成 `latest.json`。这不替代 Windows Authenticode 代码签名。
+
+当前签名私钥在开发机 `~/.config/cleartier/signing/updater.key`，应另行离线备份，禁止提交或随包交付。后续发布复用同一密钥；丢失密钥无法向现有客户端推送可信更新。轮换前先用旧密钥发布包含新公钥的过渡版本。
+
+更新地址固定使用公开仓库的 HTTPS 地址，不携带访问令牌；仓库公开且 Release 包含完整三个附件后才可正常检查。首个包含更新器的版本须手动安装一次，后续安装版可从关于页升级。

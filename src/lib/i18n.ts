@@ -3,6 +3,19 @@ import { initReactI18next } from 'react-i18next';
 
 // Interface copy is kept together so additional locales can use the same keys.
 export const zhCN = {
+  updates: {
+    title: '软件更新', check: '检查更新', checking: '正在检查', automatic: '自动检查更新', prereleases: '接收预发布版本',
+    downloadInstall: '下载并更新', downloadZip: '下载 ZIP', notes: '发布说明', cancel: '取消下载', later: '稍后', install: '断开连接并安装',
+    progress: '更新下载进度', lastChecked: '上次检查：{{time}}', discovered: '发现 ClearTier {{version}}，可在关于页查看更新。',
+    confirmTitle: '安装更新', confirmDescription: '安装将断开所有网络并退出 ClearTier。升级完成后重新打开，连接按自动连接设置启动。',
+    status: { loading: '正在读取更新状态…', idle: '尚未检查更新', checking: '正在检查更新…', current: '已是当前渠道的最新版本',
+      available: '发现新版本 {{version}}', downloading: '正在下载更新 {{progress}}', ready: '更新已验证，等待安装', installing: '正在清理网络并启动安装器…',
+      preview: '浏览器预览不检查或安装更新', unsupported: '此平台暂不支持应用内更新' },
+    errors: { read: '暂时无法读取更新状态，请重试。', network: '无法连接更新服务，请检查网络后重试。', metadata: '更新信息不完整或不匹配，未启动安装。',
+      signature: '更新签名验证失败，未启动安装。', storage: '更新偏好或缓存无法读取或保存，请检查配置目录。', rateLimited: '更新服务请求受限，请稍后重试。',
+      cleanup: '网络或核心未能完成清理，安装已中止，可重试或明确退出。', install: '安装器未能启动，当前版本仍可继续使用。',
+      open: '无法打开下载地址，请稍后重试。', busy: '正在处理其他更新操作，请稍候。', portable: '免安装版请下载 ZIP 后手动更新。', unavailable: '此更新已不可用，请重新检查。' },
+  },
   app: {
     name: 'ClearTier', demo: '演示数据', loading: '加载中…',
     demoDescription: '当前使用模拟数据，连接操作不会访问真实网络。',

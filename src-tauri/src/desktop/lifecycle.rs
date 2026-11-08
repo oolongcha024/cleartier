@@ -120,6 +120,54 @@ pub(super) fn shutdown(app: &tauri::AppHandle) {
     });
 }
 
+/// Update installation shares the ordinary shutdown barrier, but does not exit
+/// until Tauri has launched the verified installer. Downloading never enters it.
+pub(crate) async fn prepare_update(
+    app: &tauri::AppHandle,
+    confirmed: bool,
+) -> cleartier_updates::Result<()> {
+    let desktop = app.state::<Desktop>();
+    let _mutation = desktop.mutation.lock().await;
+    if desktop
+        .quitting
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return Err(cleartier_updates::Error::new("busy"));
+    }
+    let manager = app.state::<cleartier_core::connections::NetworkManager>();
+    *desktop.pending.lock().unwrap() = None;
+    desktop.notify(app);
+    match manager.shutdown_for_update(confirmed).await {
+        Ok(true) => {}
+        Ok(false) => {
+            desktop.quitting.store(false, Ordering::SeqCst);
+            desktop.notify(app);
+            return Err(cleartier_updates::Error::new("confirmation"));
+        }
+        Err(_) => {
+            desktop.quitting.store(false, Ordering::SeqCst);
+            *desktop.exit_error.write().unwrap() = Some("shutdown");
+            desktop.notify(app);
+            return Err(cleartier_updates::Error::new("cleanup"));
+        }
+    }
+    desktop.exit_ready.store(true, Ordering::SeqCst);
+    Ok(())
+}
+
+pub(crate) async fn resume_after_update(app: &tauri::AppHandle) {
+    let desktop = app.state::<Desktop>();
+    let recover = desktop.preferences.read().unwrap().auto_recover;
+    app.state::<cleartier_core::connections::NetworkManager>()
+        .resume_after_update(recover)
+        .await;
+    desktop.exit_ready.store(false, Ordering::SeqCst);
+    desktop.quitting.store(false, Ordering::SeqCst);
+    *desktop.exit_error.write().unwrap() = None;
+    desktop.notify(app);
+}
+
 #[tauri::command]
 pub fn desktop_exit(app: tauri::AppHandle) {
     request_exit(&app);

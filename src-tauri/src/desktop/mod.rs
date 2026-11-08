@@ -108,7 +108,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         loop {
             interval.tick().await;
             if handle.state::<Desktop>().quitting.load(Ordering::SeqCst) {
-                break;
+                continue;
             }
             let _ = manager.maintain().await;
         }

@@ -154,6 +154,16 @@ impl Default for State {
         }
     }
 }
+fn has_active(state: &State) -> bool {
+    !state.configs.is_empty()
+        || !state.active.is_empty()
+        || state.recovery.pending()
+        || state
+            .observations
+            .values()
+            .any(|snapshot| snapshot.running != Some(false))
+}
+
 struct Inner<B> {
     backend: B,
     state: Mutex<State>,
@@ -283,13 +293,7 @@ impl<B: Backend> NetworkManager<B> {
 
     pub async fn has_active_networks(&self) -> bool {
         let state = self.inner.state.lock().await;
-        !state.configs.is_empty()
-            || !state.active.is_empty()
-            || state.recovery.pending()
-            || state
-                .observations
-                .values()
-                .any(|snapshot| snapshot.running != Some(false))
+        has_active(&state)
     }
     pub async fn recent_errors(&self) -> Vec<crate::support::RecentError> {
         self.inner
@@ -303,8 +307,21 @@ impl<B: Backend> NetworkManager<B> {
     }
 
     pub async fn shutdown(&self) -> Result<()> {
+        self.shutdown_inner(true).await.map(|_| ())
+    }
+
+    /// Check for active work and close admission under the same lock, so a
+    /// connection cannot slip between an update confirmation and shutdown.
+    pub async fn shutdown_for_update(&self, confirmed: bool) -> Result<bool> {
+        self.shutdown_inner(confirmed).await
+    }
+
+    async fn shutdown_inner(&self, confirmed: bool) -> Result<bool> {
         let lanes = {
             let mut state = self.inner.state.lock().await;
+            if !confirmed && has_active(&state) {
+                return Ok(false);
+            }
             state.closing = true;
             state.recovery.clear();
             for generation in state.generations.values_mut() {
@@ -335,7 +352,23 @@ impl<B: Backend> NetworkManager<B> {
             state.observation_error = result.as_ref().err().cloned();
         }
         publish(&mut state);
-        result
+        result.map(|_| true)
+    }
+
+    /// Reopen admission only after a confirmed cleanup and failed installer
+    /// launch. Recovery intentions stay cleared; stopped networks stay stopped.
+    pub async fn resume_after_update(&self, recovery_enabled: bool) {
+        let mut state = self.inner.state.lock().await;
+        if state.closing
+            && state.configs.is_empty()
+            && state.active.is_empty()
+            && state.observations.is_empty()
+            && state.observation_error.is_none()
+        {
+            state.closing = false;
+            state.recovery.set_enabled(recovery_enabled);
+            publish(&mut state);
+        }
     }
 
     async fn synchronize(&self) -> Result<()> {

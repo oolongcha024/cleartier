@@ -78,12 +78,17 @@ function exportOutputs(mode, release, version) {
     rmSync(destination, { recursive: true, force: true });
     mkdirSync(destination, { recursive: true });
     copyFileSync(join(directory, installers[0]), join(destination, installers[0]));
+    copyFileSync(join(directory, `${installers[0]}.sig`), join(destination, `${installers[0]}.sig`));
     files.push(`nsis/${installers[0]}`);
+    run('cargo', ['run', '--locked', '--manifest-path', join(root, 'src-tauri/Cargo.toml'),
+      '-p', 'cleartier-updates', '--bin', 'update-manifest', '--',
+      join(root, 'src-tauri/tauri.conf.json'), join(destination, installers[0]), version.version, join(output, 'latest.json')]);
+    files.push('latest.json');
   }
   const config = JSON.parse(readFileSync(join(root, 'src-tauri/tauri.conf.json'), 'utf8'));
   const manifest = {
     product: config.productName, version: version.version, channel: version.channel, target, mode,
-    builtAt: new Date().toISOString(), signed: false,
+    builtAt: new Date().toISOString(), signing: { authenticode: false, updater: mode !== 'exe' },
     source: { commit: capture('git', ['rev-parse', 'HEAD']), ref: process.env.GITHUB_REF ?? null },
     builder: { os: process.platform, arch: process.arch, node: process.version,
       rust: capture('rustc', ['--version']), protoc: capture('protoc', ['--version']),
@@ -107,17 +112,21 @@ export function main(args = process.argv.slice(2).filter(arg => arg !== '--')) {
   }
   const versionOptions = { releaseTag: process.env.GITHUB_REF?.startsWith('refs/tags/') ? process.env.GITHUB_REF.slice(10) : undefined };
   const version = checkProjectVersion(root, versionOptions);
+  if (mode !== 'exe' && !process.env.TAURI_SIGNING_PRIVATE_KEY) {
+    throw new Error('NSIS update signing requires TAURI_SIGNING_PRIVATE_KEY (key content or path). Configure the repository secret or local environment.');
+  }
   mkdirSync(checks, { recursive: true });
   for (const name of readdirSync(checks)) {
     if (name !== 'environment.txt') rmSync(join(checks, name), { recursive: true, force: true });
   }
   // No stale successful package may be uploaded if a rebuild or check fails.
-  for (const name of ['build-info.json', 'cleartier-windows-x64.zip']) rmSync(join(output, name), { force: true });
+  for (const name of ['build-info.json', 'cleartier-windows-x64.zip', 'latest.json']) rmSync(join(output, name), { force: true });
   rmSync(join(output, 'nsis'), { recursive: true, force: true });
   rmSync(join(output, 'exe'), { recursive: true, force: true });
   run('pnpm', ['typecheck']);
   run('pnpm', ['test']);
   run('cargo', ['test', '--locked', '--manifest-path', join(root, 'src-tauri/Cargo.toml'), '-p', 'cleartier-config']);
+  run('cargo', ['test', '--locked', '--manifest-path', join(root, 'src-tauri/Cargo.toml'), '-p', 'cleartier-updates']);
   run(process.execPath, [join(root, 'scripts/prepare-core-resources.mjs')]);
   // Native test executables also link the upstream runtime DLLs. Scope their
   // search path to this one command; the packaged application uses its own files.

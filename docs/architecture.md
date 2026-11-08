@@ -11,6 +11,7 @@
 | [src/platform](../src/platform/) | Tauri 调用与浏览器能力隔离 |
 | [features/dashboard](../src/features/dashboard/) | 设备、流量及图表；共享控件、主题分别归 `components/`、`theme/` |
 | [src-tauri/src](../src-tauri/src/) | Tauri 命令、应用路径和桌面生命周期组装 |
+| [cleartier-updates](../src-tauri/crates/cleartier-updates/src/) | 更新策略、持久检查间隔、渠道筛选及下载／安装状态 |
 | [cleartier-config](../src-tauri/crates/cleartier-config/src/) | 独立配置存储与后台偏好，不依赖 Tauri 或 EasyTier |
 | [cleartier-core](../src-tauri/crates/cleartier-core/src/) | 配置转换、连接调度、遥测、核心进程与诊断 |
 
@@ -54,6 +55,7 @@ Unix 使用私有目录和本地套接字，校验对端身份；非 Windows 自
 | `networks.lock` | 多进程写入锁 |
 | `networks.damaged-<UUID>.json` | 显式恢复前保留的异常原件 |
 | `desktop.json` | 独立的后台偏好 |
+| `updates.json` | 更新偏好、自动检查时间、服务端限流及候选版本 |
 
 网络文档为 JSON v1，含 `revision / selectedId / networks`，记录分为 `client` 和 `config`。客户端信息与连接参数同次原子提交，保留未知字段；运行状态和流量不落盘。保存校验修订号，使用同目录临时文件替换，拒绝冲突、损坏、超限及不兼容版本；网络文档上限 4 MiB。
 
@@ -74,3 +76,11 @@ Unix 使用私有目录和本地套接字，校验对端身份；非 Windows 自
 [share-invitation.ts](../src/features/invitations/share-invitation.ts) 检查异步读取期间源参数未变；Rust 从实际生效的 TOML 提取最小加入信息，复杂凭据无法可靠表达时拒绝简化。桌面剪贴板只授予文本写入权限。
 
 诊断通过 [support.rs](../src-tauri/crates/cleartier-core/src/support.rs) 的白名单导出状态、匿名实例、版本和错误码，排除密钥、网络／节点名称、地址、用户目录、原始 TOML、邀请及底层自由文本。日志有界轮换，原始日志不直接复制进诊断包。
+
+## 软件更新
+
+`cleartier-updates` 通过快照与操作 Interface 集中管理 24 小时自动检查、SemVer 渠道、持久化、取消与安装顺序。Tauri／GitHub Adapter 和测试 Adapter 共用该 Interface；React 只展示版本化快照并提交意图，浏览器预览不调用原生更新能力。计时位于 Rust，窗口隐藏不影响检查，失败尝试也计入间隔；手动检查绕过间隔，仍遵守服务端限流。
+
+GitHub Release 列表只接纳已发布且附件完整的 Windows x64 版本，选取当前渠道中最高的新版本。下载地址由固定 HTTPS 仓库和版本生成。官方 Tauri updater 验证 NSIS 签名及签名绑定的版本；未通过验证不能安装。ZIP 版仅打开下载地址，安装版由 NSIS 写入的当前用户安装路径识别。
+
+下载期间保持连接；安装前在同一个核心状态锁内检查确认并关闭任务准入，等待进行中的请求及核心清理，再启动 NSIS。清理失败可重试；安装器启动失败后只恢复任务准入，不重新连接已停止的网络。升级保留配置，重启后沿用已有自动连接规则。

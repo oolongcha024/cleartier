@@ -34,6 +34,8 @@ jobs:
       CARGO_TERM_COLOR: always
       CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
       BUILD_BUNDLE: ${{ inputs.bundle || 'all' }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
     defaults:
       run:
         shell: pwsh
@@ -114,6 +116,7 @@ jobs:
             artifacts/windows-x64/cleartier-windows-x64.zip
             artifacts/windows-x64/nsis/*-setup.exe
             artifacts/windows-x64/build-info.json
+            artifacts/windows-x64/latest.json
             artifacts/windows-x64/checks/
       - name: Upload failure diagnostics
         if: failure()

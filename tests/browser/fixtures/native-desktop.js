@@ -7,7 +7,9 @@
   const status = { preferences: { version: 1, closeBehavior: 'background', closeExplained: false,
     launchAtLogin: false, autoRecover: true }, preferenceError: null, autostartError: false,
     trayAvailable: true, pending: null, quitting: false, exitError: null };
-  const emit = () => { for (const id of listeners.values()) callbacks.get(id)?.({ event: 'desktop-changed', id, payload: null }); };
+  const emit = () => { for (const [id, listener] of listeners) {
+    if (listener.event === 'desktop-changed') callbacks.get(listener.handler)?.({ event: 'desktop-changed', id, payload: null });
+  } };
   const test = window.__desktopTest = { status, updates: [], responses: [], failSave: false, failExport: false, cancelExport: false, failRespond: false,
     logs: 0, exports: 0, recovery: null,
     request: (kind) => { status.pending = { id: ++sequence, kind }; emit(); },
@@ -20,7 +22,7 @@
   window.__TAURI_INTERNALS__.transformCallback = (callback) => { const id = ++sequence; callbacks.set(id, callback); return id; };
   window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener: (_event, id) => listeners.delete(id) };
   window.__TAURI_INTERNALS__.invoke = async (command, args = {}) => {
-    if (command === 'plugin:event|listen') { const id = ++sequence; listeners.set(id, args.handler); return id; }
+    if (command === 'plugin:event|listen') { const id = ++sequence; listeners.set(id, { event: args.event, handler: args.handler }); return id; }
     if (command === 'plugin:event|unlisten') { listeners.delete(args.eventId); return; }
     if (command === 'desktop_status') return structuredClone(status);
     if (command === 'desktop_update') {
