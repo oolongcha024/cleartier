@@ -51,7 +51,9 @@ pnpm test:browser
 
 ## Windows 构建
 
-Windows x64 本机需要 MSVC、Windows SDK、Rust MSVC target、Git 和 protoc 等工具，具体版本及环境设置以 [Windows 工作流](../.github/workflows/windows-build.yml)为准：
+Windows x64 本机需要 MSVC、Windows SDK、Rust MSVC target、Git 和 protoc 等工具，具体版本及环境设置以 [Windows 工作流](../.github/workflows/windows-build.yml)为准。
+
+直接执行 Windows 核心测试前，先运行 `node scripts/prepare-core-resources.mjs` 准备运行资源与链接库；下面的标准构建命令会自动准备：
 
 ```sh
 pnpm build:windows all
