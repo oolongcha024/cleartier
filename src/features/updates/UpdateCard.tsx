@@ -24,27 +24,31 @@ export function UpdateCard() {
         {t(phase === 'checking' ? 'updates.checking' : 'updates.check')}
       </Button>
     </div>
-    <p className="update-status" role="status">
-      {busy && <Icon name="progress_activity" className="is-spinning" />}
-      {t(`updates.status.${status}`, { version: candidate?.version, progress: percentage === null ? '' : `${percentage}%` })}
-    </p>
-    {phase === 'downloading' && <progress className="update-progress" aria-label={t('updates.progress')} max={100} value={percentage ?? undefined} />}
-    {code && <p className="update-error" role="alert">{t(`updates.errors.${errorKey}`)}</p>}
-    {snapshot?.lastChecked && <time className="update-last-check" dateTime={new Date(snapshot.lastChecked * 1000).toISOString()}>
-      {t('updates.lastChecked', { time: new Date(snapshot.lastChecked * 1000).toLocaleString('zh-CN') })}
-    </time>}
-    {candidate && supported && <div className="update-actions">
-      {phase === 'downloading' ? <Button variant="text" onClick={() => { void run({ action: 'cancel' }); }}>{t('updates.cancel')}</Button>
-        : <Button icon={snapshot.distribution === 'installed' ? 'system_update' : 'download'} disabled={busy || pending || phase === 'ready'}
-          onClick={() => { void run(snapshot.distribution === 'installed' ? { action: 'update', confirmed: false } : { action: 'openZip' }); }}>
-          {t(snapshot.distribution === 'installed' ? 'updates.downloadInstall' : 'updates.downloadZip')}
-        </Button>}
-      <Button variant="text" icon="open_in_new" disabled={phase === 'installing'} onClick={() => { void run({ action: 'openRelease' }); }}>{t('updates.notes')}</Button>
-    </div>}
-    <div className="settings-row"><span>{t('updates.automatic')}</span><Switch checked={snapshot?.preferences.automatic ?? true}
-      label={t('updates.automatic')} disabled={!snapshot || (!supported && !preview) || busy || pending || phase === 'ready'} onChange={value => change('automatic', value)} /></div>
-    <div className="settings-row"><span>{t('updates.prereleases')}</span><Switch checked={snapshot?.preferences.prereleases ?? false}
-      label={t('updates.prereleases')} disabled={!snapshot || (!supported && !preview) || busy || pending || phase === 'ready'} onChange={value => change('prereleases', value)} /></div>
+    <div className="update-details">
+      <p className="update-status" role="status">
+        {busy && <Icon name="progress_activity" className="is-spinning" />}
+        {t(`updates.status.${status}`, { version: candidate?.version, progress: percentage === null ? '' : `${percentage}%` })}
+      </p>
+      {phase === 'downloading' && <progress className="update-progress" aria-label={t('updates.progress')} max={100} value={percentage ?? undefined} />}
+      {code && <p className="update-error" role="alert">{t(`updates.errors.${errorKey}`)}</p>}
+      {snapshot?.lastChecked && <time className="update-last-check" dateTime={new Date(snapshot.lastChecked * 1000).toISOString()}>
+        {t('updates.lastChecked', { time: new Date(snapshot.lastChecked * 1000).toLocaleString('zh-CN') })}
+      </time>}
+      {candidate && supported && <div className="update-actions">
+        {phase === 'downloading' ? <Button variant="text" onClick={() => { void run({ action: 'cancel' }); }}>{t('updates.cancel')}</Button>
+          : <Button icon={snapshot.distribution === 'installed' ? 'system_update' : 'download'} disabled={busy || pending || phase === 'ready'}
+            onClick={() => { void run(snapshot.distribution === 'installed' ? { action: 'update', confirmed: false } : { action: 'openZip' }); }}>
+            {t(snapshot.distribution === 'installed' ? 'updates.downloadInstall' : 'updates.downloadZip')}
+          </Button>}
+        <Button variant="text" icon="open_in_new" disabled={phase === 'installing'} onClick={() => { void run({ action: 'openRelease' }); }}>{t('updates.notes')}</Button>
+      </div>}
+    </div>
+    <div className="update-preferences">
+      <div className="update-preference"><span>{t('updates.automatic')}</span><Switch checked={snapshot?.preferences.automatic ?? true}
+        label={t('updates.automatic')} disabled={!snapshot || (!supported && !preview) || busy || pending || phase === 'ready'} onChange={value => change('automatic', value)} /></div>
+      <div className="update-preference"><span>{t('updates.prereleases')}</span><Switch checked={snapshot?.preferences.prereleases ?? false}
+        label={t('updates.prereleases')} disabled={!snapshot || (!supported && !preview) || busy || pending || phase === 'ready'} onChange={value => change('prereleases', value)} /></div>
+    </div>
     <Dialog open={phase === 'ready'} onOpenChange={open => { if (!open) void run({ action: 'cancel' }); }} title={t('updates.confirmTitle')} description={t('updates.confirmDescription')}>
       {code && <p className="update-error" role="alert">{t(`updates.errors.${errorKey}`)}</p>}
       <div className="update-dialog-actions"><Button variant="text" disabled={pending} onClick={() => { void run({ action: 'cancel' }); }}>{t('updates.later')}</Button>
