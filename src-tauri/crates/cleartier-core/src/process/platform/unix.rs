@@ -147,7 +147,10 @@ pub fn lock_resources(_executable: &Path) -> Result<Vec<File>> {
     Ok(Vec::new())
 }
 pub fn tun_exists(name: &str) -> Result<bool> {
-    Ok(Path::new("/sys/class/net").join(name).exists())
+    let name = std::ffi::CString::new(name)
+        .map_err(|_| CoreError::new(ErrorCode::InvalidConfig, "Invalid interface name"))?;
+    // Both Linux and macOS expose real interface names through this POSIX call.
+    Ok(unsafe { libc::if_nametoindex(name.as_ptr()) } != 0)
 }
 
 #[cfg(test)]
@@ -211,4 +214,16 @@ pub fn address_exists(address: std::net::Ipv4Addr) -> Result<bool> {
         libc::freeifaddrs(head);
     }
     Ok(found)
+}
+
+#[cfg(test)]
+#[test]
+fn detects_actual_posix_interfaces_without_a_linux_only_path() {
+    let loopback = if cfg!(target_os = "macos") {
+        "lo0"
+    } else {
+        "lo"
+    };
+    assert!(tun_exists(loopback).unwrap());
+    assert!(!tun_exists("ct-no-such-nic").unwrap());
 }

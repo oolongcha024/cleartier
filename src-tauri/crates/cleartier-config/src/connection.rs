@@ -23,6 +23,9 @@ pub struct ConnectionConfig {
     pub magic_dns: bool,
     pub dns_suffix: String,
     pub udp_broadcast_relay: bool,
+    /// The imported document is a preservation base, never a second live config.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub official_toml: Option<String>,
     #[serde(flatten)]
     pub extra: Map<String, Value>,
 }

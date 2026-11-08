@@ -357,3 +357,39 @@ async fn late_address_collision_stops_only_the_newer_network() {
         &("stop".into(), b)
     );
 }
+
+#[tokio::test]
+async fn unsupported_import_is_rejected_before_stopping_the_current_connection() {
+    let directory = tempfile::tempdir().unwrap();
+    let fake = Fake::default();
+    let manager = NetworkManager::new(fake.clone(), directory.path().join("lease"));
+    let id = Uuid::new_v4();
+    manager
+        .operate(Operation::Start {
+            id,
+            config: parameters("office"),
+        })
+        .await
+        .unwrap();
+    let imported = crate::configuration::import(
+        id,
+        "[network_identity]\nnetwork_name = 'office'\n[flags]\nfuture_flag = true\n",
+    )
+    .unwrap();
+    let error = manager
+        .operate(Operation::Restart {
+            id,
+            config: imported.config,
+        })
+        .await
+        .err()
+        .unwrap();
+    assert_eq!(error.code, ErrorCode::UnsupportedConfig);
+    assert_eq!(fake.0.lock().unwrap().calls, vec![("start".into(), id)]);
+    let snapshot = manager.snapshot().await.unwrap();
+    assert_eq!(snapshot[0].state, "running");
+    assert_eq!(
+        snapshot[0].running_config.as_ref().unwrap().secret,
+        parameters("office").secret
+    );
+}

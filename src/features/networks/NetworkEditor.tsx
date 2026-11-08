@@ -1,9 +1,11 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { Collapsible } from '@base-ui/react/collapsible';
 import { useTranslation } from 'react-i18next';
 import { Button, Dialog, Icon, IconButton, TextField } from '../../components/ui';
 import { useHostEnvironment } from '../../platform/use-host-environment';
-import type { NetworkDraft } from './configuration';
+import { draftConfig, type NetworkDraft } from './configuration';
+import { isDesktop } from '../../platform/client';
+import { ConfigurationCompatibility, useCompatibility } from './ConfigurationCompatibility';
 import { networkIcons, type Network } from './model';
 import { useNetworkStore } from './store';
 import { NetworkAdvancedFields } from './NetworkAdvancedFields';
@@ -27,6 +29,9 @@ export function NetworkEditor({ network, open, onOpenChange, creating = false }:
   );
   const errorText = (field: keyof NetworkDraft) => errors[field] ? t(`networkConfig.${errors[field]}`) : undefined;
   const connectionEnabled = useNetworkStore((state) => state.connectionEnabled);
+  const imported = network.savedConfig.officialToml !== undefined;
+  const proposedConfig = useMemo(() => draftConfig(draft, network.savedConfig), [draft, network.savedConfig]);
+  const compatibility = useCompatibility(network.id, proposedConfig, imported && isDesktop());
   const choice = choosing || duplicate || discarding;
   return <Dialog open={open} onOpenChange={(next) => { if (!next) requestClose(); }} className={`network-editor ${choice ? '' : 'network-editor--form'}`} initialFocus={choice ? undefined : aliasInput}
     title={t(discarding ? 'networkConfig.discardTitle' : duplicate ? 'networkConfig.duplicateTitle' : choosing ? 'networkConfig.applyTitle' : creating ? 'networkConfig.addTitle' : 'networkConfig.editTitle')}
@@ -48,7 +53,7 @@ export function NetworkEditor({ network, open, onOpenChange, creating = false }:
         }}>{t('networkConfig.back')}</Button>
         <span className="network-editor-actions-spacer" />
         <Button variant="outlined" disabled={busy} autoFocus onClick={() => save('later')}>{t('networkConfig.later')}</Button>
-        <Button disabled={busy || !connectionEnabled} onClick={() => save('now')}>{t('networkConfig.applyNow')}</Button>
+        <Button disabled={busy || !connectionEnabled || (imported && (compatibility.checking || compatibility.error || Boolean(compatibility.report?.issues.length)))} onClick={() => save('now')}>{t('networkConfig.applyNow')}</Button>
       </div>
     </div> : <form ref={form} className="network-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); save(); }}>
       <fieldset className="network-editor-fields" disabled={saving}>
@@ -79,6 +84,7 @@ export function NetworkEditor({ network, open, onOpenChange, creating = false }:
           aria-pressed={showSecret} onClick={() => setShowSecret((value) => !value)} />} />
       <TextField name="servers" label={t('networkConfig.servers')} multiline value={draft.servers}
         onChange={(value) => update('servers', value)} hint={t('networkConfig.serversHint')} error={errorText('servers')} />
+      {imported && <ConfigurationCompatibility {...compatibility} />}
       <Collapsible.Root className="network-advanced" open={advancedOpen} onOpenChange={setAdvancedOpen}>
         <h3 className="network-advanced-heading">
           <Collapsible.Trigger id={`${iconLabelId}-advanced-trigger`} className="network-advanced-toggle" aria-controls={`${iconLabelId}-advanced`}>

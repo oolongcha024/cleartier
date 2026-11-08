@@ -2,6 +2,7 @@ mod config_commands;
 mod core_commands;
 mod host_environment;
 mod network_commands;
+mod toml_commands;
 
 #[tauri::command]
 fn core_version() -> &'static str {
@@ -18,6 +19,7 @@ pub fn run() {
         std::process::exit(code);
     }
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(core_commands::setup)
         .invoke_handler(tauri::generate_handler![
             host_environment,
@@ -27,6 +29,9 @@ pub fn run() {
             config_commands::config_load,
             config_commands::config_save,
             config_commands::config_restore,
+            toml_commands::toml_import,
+            toml_commands::toml_inspect,
+            toml_commands::toml_export,
             core_commands::core_status,
             core_commands::core_start,
             core_commands::core_stop,

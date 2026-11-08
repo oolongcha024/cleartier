@@ -14,9 +14,10 @@ export interface Peer {
   lossRate?: number | null; protocols?: string[]; nextHop?: string | null; version?: string | null;
 }
 export interface NetworkConfig {
+  officialToml?: string;
   name: string; secret: string; servers: string[];
   hostname: string | null;
-  ipv4Mode: 'auto' | 'manual'; ipv4Address: string; ipv4Prefix: number;
+  ipv4Mode: 'auto' | 'manual' | 'none'; ipv4Address: string; ipv4Prefix: number;
   tunName: string; mtu: number | null; ipv6: boolean;
   p2pPolicy: P2pPolicy; latencyFirst: boolean;
   tcpHolePunching: boolean; udpHolePunching: boolean; upnp: boolean;

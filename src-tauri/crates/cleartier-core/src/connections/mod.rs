@@ -1,7 +1,7 @@
 //! The connection Interface owns ordering, running configurations and failures.
 //! Disk persistence stays outside this Module; restarting never restores an old
 //! connection after a failed new start.
-mod config;
+pub(crate) mod config;
 use crate::{
     InstanceSnapshot,
     process::{CoreController, CoreError, ErrorCode, Result},
@@ -154,7 +154,9 @@ impl<B: Backend> NetworkManager<B> {
                             "Another profile for this network is active",
                         ));
                     }
-                    if running.tun_name.eq_ignore_ascii_case(&config.tun_name) {
+                    if !config.tun_name.is_empty()
+                        && running.tun_name.eq_ignore_ascii_case(&config.tun_name)
+                    {
                         return Err(CoreError::new(
                             ErrorCode::TunNameInUse,
                             "The interface name is in use",

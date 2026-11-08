@@ -79,7 +79,7 @@ impl Document {
                 .as_str()
                 .unwrap()
                 .to_ascii_lowercase();
-            if !tun_names.insert(tun) {
+            if !tun.is_empty() && !tun_names.insert(tun) {
                 return Err("invalid");
             }
         }
@@ -89,6 +89,16 @@ impl Document {
 
 pub(crate) fn validate_config(value: &Value) -> Result<(), &'static str> {
     let config = value.as_object().ok_or("invalid")?;
+    if let Some(original) = config.get("officialToml").filter(|value| !value.is_null()) {
+        // Import may be retained for export even when the pinned core rejects it.
+        // Typed editor values and the bounded preservation base are still required.
+        let original = original.as_str().ok_or("invalid")?;
+        if original.len() > 256 * 1024 {
+            return Err("tooLarge");
+        }
+        serde_json::from_value::<super::ConnectionConfig>(value.clone()).map_err(|_| "invalid")?;
+        return Ok(());
+    }
     for field in [
         "name",
         "secret",
@@ -131,7 +141,7 @@ pub(crate) fn validate_config(value: &Value) -> Result<(), &'static str> {
     {
         return Err("invalid");
     }
-    if !["auto", "manual"].contains(&config["ipv4Mode"].as_str().unwrap())
+    if !["auto", "manual", "none"].contains(&config["ipv4Mode"].as_str().unwrap())
         || !["auto", "lazy", "disabled", "only"].contains(&config["p2pPolicy"].as_str().unwrap())
     {
         return Err("invalid");

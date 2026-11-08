@@ -1,7 +1,7 @@
 import { createStore } from 'zustand/vanilla';
 import { configsEqual, draftConfig, hasPendingConfig, validateDraft, type DraftErrors, type NetworkDraft } from './configuration.ts';
 import { createNetworkConfig, defaultTunName, newNetworkId } from './defaults.ts';
-import { isBusy, type Network } from './model.ts';
+import { isBusy, type Network, type NetworkConfig } from './model.ts';
 import { documentFromNetworks, emptyDocument, networksFromDocument, offlineNetwork, storageFailure, type ConfigurationStorage, type StorageFailure } from './persistence.ts';
 import type { NetworkRuntime } from './runtime.ts';
 import type { TelemetryStore } from './telemetry.ts';
@@ -31,6 +31,7 @@ export interface NetworkStore {
   reconnect: (id: string) => Promise<boolean>;
   saveConfiguration: (id: string, draft: NetworkDraft, mode?: SaveMode, creating?: boolean) => Promise<SaveResult>;
   removeNetwork: (id: string) => Promise<boolean>;
+  importConfiguration: (id: string, config: NetworkConfig, alias: string) => Promise<'saved' | 'conflict' | 'storage-error'>;
 }
 
 export function createNetworkStore(initialNetworks: Network[], runtime: NetworkRuntime, options: {
@@ -118,6 +119,18 @@ export function createNetworkStore(initialNetworks: Network[], runtime: NetworkR
       }),
       toggleConnection: (id) => get().phase === 'ready' && get().connectionEnabled ? sessions.toggle(id) : Promise.resolve(false),
       reconnect: (id) => get().phase === 'ready' && get().connectionEnabled ? sessions.reconnect(id) : Promise.resolve(false),
+      importConfiguration: async (id, config, alias) => {
+        let conflict = false;
+        const saved = await commit(() => {
+          if (get().networks.some((item) => item.id === id || (config.tunName && item.savedConfig.tunName.toLowerCase() === config.tunName.toLowerCase()))) {
+            conflict = true; return null;
+          }
+          const network = { ...offlineNetwork(id, structuredClone(config)), alias: alias.trim() || config.name,
+            ...(runtime.snapshot ? { peerCount: 0, directPeerCount: 0 } : {}) };
+          return { networks: [...get().networks, network], selectedId: id };
+        });
+        return saved ? 'saved' : conflict ? 'conflict' : 'storage-error';
+      },
       removeNetwork: (id) => commit(() => {
         const network = get().networks.find((network) => network.id === id);
         if (!network || !['stopped', 'failed'].includes(network.coreState) || network.runningConfig !== null) return null;
@@ -132,7 +145,7 @@ export function createNetworkStore(initialNetworks: Network[], runtime: NetworkR
         if (!network && !creating) return { status: 'missing' };
         if (network && (creating || isBusy(network))) return { status: 'busy' };
         const otherTunNames = get().networks.filter((item) => item.id !== id).map((item) => item.savedConfig.tunName);
-        const errors = validateDraft(draft, otherTunNames);
+        const errors = validateDraft(draft, otherTunNames, network?.savedConfig);
         if (Object.keys(errors).length) return { status: 'invalid', errors };
         const previousConfig = network?.savedConfig;
         const config = draftConfig(draft, previousConfig ?? createNetworkConfig(id, { name: draft.name, secret: draft.secret, servers: [] }));

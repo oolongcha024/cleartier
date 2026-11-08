@@ -20,3 +20,6 @@ tauri-build = { version = "2.7.4", features = [] }
 tauri = { version = "2.12.5", features = [] }
 cleartier-core = { path = "crates/cleartier-core" }
 cleartier-config = { path = "crates/cleartier-config" }
+tauri-plugin-dialog = "2.8.4"
+uuid = { version = "1", features = ["v4"] }
+tempfile = "3"

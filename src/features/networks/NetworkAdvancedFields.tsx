@@ -28,7 +28,7 @@ export function NetworkAdvancedFields({ draft, errors, update, network, otherTun
         <Select label={t('networkConfig.ipv4Assignment')} value={draft.ipv4Mode} onChange={(value) => {
           update('ipv4Mode', value as NetworkDraft['ipv4Mode']);
           if (value === 'manual' && !draft.ipv4Address) update('ipv4Address', network.virtualIp);
-        }} options={['auto', 'manual'].map((value) => ({ value, label: t(`networkConfig.ipv4Modes.${value}`) }))} />
+        }} options={['auto', 'manual', 'none'].map((value) => ({ value, label: t(`networkConfig.ipv4Modes.${value}`) }))} />
       </div>
       {draft.ipv4Mode === 'manual' && <div className="network-editor-address">
         <TextField name="ipv4Address" label={t('networkConfig.ipv4Address')} value={draft.ipv4Address}
@@ -44,7 +44,7 @@ export function NetworkAdvancedFields({ draft, errors, update, network, otherTun
       <TextField name="mtu" label={t('networkConfig.mtu')} value={draft.mtu} inputMode="numeric"
         placeholder={t('networkConfig.coreDefault')} hint={t('networkConfig.mtuHint')}
         onChange={(value) => update('mtu', value)} error={errorText('mtu')} />
-      <ToggleRow label={t('networkConfig.ipv6')} checked={draft.ipv6} onChange={(value) => update('ipv6', value)} />
+      <ToggleRow label={t('networkConfig.ipv6')} hint={t('networkConfig.ipv6Hint')} checked={draft.ipv6} onChange={(value) => update('ipv6', value)} />
     </section>
     <section className="network-advanced-section" aria-labelledby="network-p2p-heading">
       <h3 id="network-p2p-heading">{t('networkConfig.connectionGroup')}</h3>
@@ -56,7 +56,7 @@ export function NetworkAdvancedFields({ draft, errors, update, network, otherTun
       </div>
       <p className="network-option-note">{t(`networkConfig.p2pHints.${draft.p2pPolicy}`)}</p>
       <ToggleRow label={t('networkConfig.latencyFirst')} hint={t(draft.p2pPolicy === 'only' ? 'networkConfig.latencyOnlyHint' : 'networkConfig.latencyHint')}
-        checked={draft.latencyFirst} disabled={draft.p2pPolicy === 'only'} onChange={(value) => update('latencyFirst', value)} />
+        checked={draft.latencyFirst} disabled={draft.p2pPolicy === 'only' && !draft.latencyFirst} onChange={(value) => update('latencyFirst', value)} />
       <ToggleRow label={t('networkConfig.tcpHolePunching')} checked={draft.tcpHolePunching} onChange={(value) => update('tcpHolePunching', value)} />
       <ToggleRow label={t('networkConfig.udpHolePunching')} checked={draft.udpHolePunching} onChange={(value) => update('udpHolePunching', value)} />
       <ToggleRow label={t('networkConfig.upnp')} hint={t('networkConfig.upnpHint')} checked={draft.upnp} onChange={(value) => update('upnp', value)} />

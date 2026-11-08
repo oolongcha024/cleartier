@@ -7,6 +7,10 @@ use uuid::Uuid;
 /// Listener ports are allocated by the OS so independent networks do not all
 /// contend for the upstream CLI's fixed default port.
 pub fn to_core(id: Uuid, config: &ConnectionConfig) -> Result<String> {
+    crate::configuration::for_connection(id, config)
+}
+
+pub(crate) fn editor_toml(id: Uuid, config: &ConnectionConfig) -> Result<String> {
     config
         .validate()
         .map_err(|_| CoreError::new(ErrorCode::InvalidConfig, "Invalid network parameters"))?;
@@ -81,13 +85,6 @@ pub fn to_core(id: Uuid, config: &ConnectionConfig) -> Result<String> {
         format!("{}.", config.dns_suffix)
     };
     flags.enable_udp_broadcast_relay = config.udp_broadcast_relay;
-    #[cfg(not(windows))]
-    if flags.enable_udp_broadcast_relay {
-        return Err(CoreError::new(
-            ErrorCode::UnsupportedPlatform,
-            "UDP broadcast relay requires Windows",
-        ));
-    }
     core.set_flags(flags);
     Ok(core.dump())
 }

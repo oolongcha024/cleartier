@@ -1,5 +1,6 @@
 //! EasyTier ownership and status queries, independent of Tauri and WebView.
 mod check;
+pub mod configuration;
 pub mod connections;
 mod entry;
 pub mod process;

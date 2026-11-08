@@ -125,6 +125,13 @@ fn parse_config(toml: &str) -> Result<easytier::common::config::TomlConfigLoader
             ));
         }
     }
+    // Validate flags before invoking upstream's loader (which unwraps bad types).
+    if !crate::configuration::validation_issues(&value).is_empty() {
+        return Err(CoreError::new(
+            ErrorCode::InvalidConfig,
+            "Unsupported EasyTier configuration",
+        ));
+    }
     TomlConfigLoader::new_from_str(toml)
         .map_err(|_| CoreError::new(ErrorCode::InvalidConfig, "Invalid EasyTier configuration"))
 }

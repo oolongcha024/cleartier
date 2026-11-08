@@ -35,7 +35,7 @@ export function useNetworkDraft(network: Network, creating: boolean, close: () =
   };
   const save = async (mode: SaveMode = 'confirm', allowDuplicate = false) => {
     if (saving) return;
-    const validation = validateDraft(draft, networks.filter((item) => item.id !== network.id).map((item) => item.savedConfig.tunName));
+    const validation = validateDraft(draft, networks.filter((item) => item.id !== network.id).map((item) => item.savedConfig.tunName), network.savedConfig);
     if (Object.keys(validation).length) {
       setErrors(validation); setChoosing(false); setDuplicate(null);
       const basicFields = ['alias', 'icon', 'name', 'hostname', 'secret', 'servers'];

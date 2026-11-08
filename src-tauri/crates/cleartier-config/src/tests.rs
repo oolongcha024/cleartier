@@ -239,3 +239,29 @@ fn peer_icons_are_local_client_preferences_and_auto_can_remove_them() {
         .insert(uuid::Uuid::nil(), "computer".into());
     assert_eq!(invalid.validate(), Err("invalid"));
 }
+
+#[test]
+fn imported_toml_survives_disk_round_trip_even_with_unsupported_values() {
+    let directory = tempfile::tempdir().unwrap();
+    let repository = Repository::new(directory.path().into());
+    let mut input = document();
+    input.networks[0].config["officialToml"] = json!("[flags]\nfuture_flag = true\nmtu = 1500\n");
+    input.networks[0].config["mtu"] = json!(1500);
+    input.networks[0].config["servers"] = json!([]);
+    input.networks[0].config["ipv4Mode"] = json!("none");
+    let first = repository.save(input, "").unwrap();
+    let mut loaded = repository.load().unwrap();
+    assert_eq!(
+        loaded.networks[0].config["officialToml"],
+        first.networks[0].config["officialToml"]
+    );
+    loaded.networks[0].client.alias = "new alias".into();
+    let next = repository.save(loaded, &first.revision).unwrap();
+    assert_eq!(next.networks[0].config, first.networks[0].config);
+    let mut invalid = next.clone();
+    invalid.networks[0].config["officialToml"] = json!(42);
+    assert_eq!(
+        repository.save(invalid, &next.revision).unwrap_err().code,
+        "invalid"
+    );
+}

@@ -1,4 +1,5 @@
 import type { TelemetryStore } from './telemetry.ts';
+import { configsEqual } from './configuration.ts';
 import { isBusy, type Network } from './model.ts';
 import { runtimeFailure, type NetworkRuntime, type RuntimeSnapshot, type RuntimeFailure } from './runtime.ts';
 
@@ -31,8 +32,9 @@ export function createNetworkSessions(runtime: NetworkRuntime, access: {
         };
         // Compare only runtime fields. Saved documents may preserve large
         // unknown imports and must not be serialized on every metrics sample.
-        const unchanged = Object.entries(change).every(([key, value]) =>
-          JSON.stringify(value) === JSON.stringify(current[key as keyof Network]));
+        const unchanged = Object.entries(change).every(([key, value]) => key === 'runningConfig'
+          ? current.runningConfig === change.runningConfig || Boolean(current.runningConfig && change.runningConfig && configsEqual(current.runningConfig, change.runningConfig))
+          : JSON.stringify(value) === JSON.stringify(current[key as keyof Network]));
         return unchanged ? current : { ...current, ...change };
       });
     }

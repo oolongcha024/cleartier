@@ -22,6 +22,9 @@ mod check {
     impl Backend for Isolated {
         async fn start(&self, toml: String) -> Result<Uuid> {
             let config = TomlConfigLoader::new_from_str(&toml).unwrap();
+            if config.get_inst_name() == "imported-instance" {
+                assert!(config.get_flags().private_mode);
+            }
             let mut flags = config.get_flags();
             flags.no_tun = true;
             flags.enable_ipv6 = false;
@@ -60,10 +63,11 @@ mod check {
         let manager = NetworkManager::new(Isolated(core.clone()), root.path().join("lease"));
         let a = Uuid::new_v4();
         let b = Uuid::new_v4();
+        let imported = cleartier_core::configuration::import(a, "instance_name = 'imported-instance'\n[network_identity]\nnetwork_name = 'office'\nnetwork_secret = 'test key'\n[flags]\nprivate_mode = true\n").unwrap().config;
         manager
             .operate(Operation::Start {
                 id: a,
-                config: config("office"),
+                config: imported.clone(),
             })
             .await
             .unwrap();
@@ -102,7 +106,7 @@ mod check {
             .as_ref()
             .unwrap()
             .session;
-        let mut changed = config("office");
+        let mut changed = imported;
         changed.secret = "new key".into();
         manager
             .operate(Operation::Restart {

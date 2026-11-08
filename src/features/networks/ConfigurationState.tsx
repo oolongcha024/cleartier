@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button, Card, Dialog, Icon } from '../../components/ui';
 import { useNetworkStore } from './store';
 
-export function ConfigurationState({ onAdd }: { onAdd: () => void }) {
+export function ConfigurationState({ onAdd, onImport, importing = false }: { onAdd: () => void; onImport?: () => void; importing?: boolean }) {
   const { t } = useTranslation();
   const phase = useNetworkStore((state) => state.phase);
   const error = useNetworkStore((state) => state.storageError);
@@ -14,7 +14,10 @@ export function ConfigurationState({ onAdd }: { onAdd: () => void }) {
     <Card className="configuration-state" aria-busy={phase === 'loading'}>
       <Icon name={phase === 'loading' ? 'folder_open' : failed ? 'error_outline' : 'hub'} />
       <h2>{t(phase === 'loading' ? 'configuration.loading' : failed ? 'configuration.loadFailed' : 'configuration.empty')}</h2>
-      {phase === 'ready' && <Button icon="add" onClick={onAdd}>{t('dashboard.join')}</Button>}
+      {phase === 'ready' && <div className="configuration-state-actions">
+        {onImport && <Button variant="outlined" icon="file_open" disabled={importing} onClick={onImport}>{t('toml.import')}</Button>}
+        <Button icon="add" onClick={onAdd}>{t('dashboard.join')}</Button>
+      </div>}
       {failed && <>
         <p role="alert">{t(`configuration.errors.${error?.code}`, { defaultValue: t('configuration.errors.io') })}</p>
         <div className="configuration-state-actions"><Button variant="outlined" onClick={() => { void initialize(); }}>{t('configuration.retry')}</Button>
