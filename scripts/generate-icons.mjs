@@ -1,6 +1,6 @@
-import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '@tauri-apps/cli';
 
@@ -22,16 +22,15 @@ const sourceIcon = new URL('app-icon.svg', publicDirectory);
 await mkdir(publicDirectory, { recursive: true });
 await writeFile(sourceIcon, appIcon);
 
-// Tauri also generates mobile assets; retain the desktop files for this project.
+// Keep only the icons referenced by the desktop bundle configuration.
+const configuration = JSON.parse(await readFile(new URL('../src-tauri/tauri.conf.json', import.meta.url), 'utf8'));
 const temporaryDirectory = await mkdtemp(join(tmpdir(), 'cleartier-icons-'));
 const desktopDirectory = new URL('../src-tauri/icons/', import.meta.url);
 try {
   await run(['icon', fileURLToPath(sourceIcon), '--output', temporaryDirectory]);
   await mkdir(desktopDirectory, { recursive: true });
-  for (const entry of await readdir(temporaryDirectory, { withFileTypes: true })) {
-    if (entry.isFile() && /\.(png|ico|icns)$/.test(entry.name)) {
-      await copyFile(join(temporaryDirectory, entry.name), new URL(entry.name, desktopDirectory));
-    }
+  for (const icon of configuration.bundle.icon) {
+    await copyFile(join(temporaryDirectory, basename(icon)), new URL(`../src-tauri/${icon}`, import.meta.url));
   }
 } finally {
   await rm(temporaryDirectory, { recursive: true, force: true });

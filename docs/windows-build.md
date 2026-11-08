@@ -1,6 +1,6 @@
 # Windows x64 原生构建与测试
 
-Windows 构建入口已切换为原生 MSVC，使用未修改的官方 Git 依赖；GitHub Actions 原生编译尚待首次实测。Linux 远程开发时通过 GitHub 托管 Windows runner 构建，宿主机无需安装 Windows 编译工具。
+Windows 构建使用原生 MSVC 和未修改的官方 Git 依赖，已通过 GitHub Actions 首次编译与核心检查。Linux 远程开发时通过 GitHub 托管 Windows runner 构建，宿主机无需安装 Windows 编译工具。
 
 ## GitHub Actions
 
@@ -84,10 +84,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\check-core.ps1 -Mode M
 
 NSIS 安装包沿用 Tauri 的默认 WebView2 检查／安装流程，缺少运行时时需要联网下载。构建流程默认导出未签名产物，安装和功能验收应在 Windows 环境进行。
 
-## 工具链与迁移状态
+## 工具链与验证记录
 
 工具链版本和 runner 配置以 [Windows 工作流](../.github/workflows/windows-build.yml) 为准。Windows 本机构建需要 MSVC Build Tools、Windows SDK、Rust MSVC target、Node.js、pnpm、Git、protoc（包含 protobuf 标准头文件），以及 thunk-rs 使用的 curl、7zip。依赖安装使用仓库锁文件。
 
 `scripts/windows/build.mjs` 集中处理检查、原生编译、临时资源目录、核心检查及产物导出；工作流负责准备工具链、缓存和上传。`scripts/verify-windows-icon.mjs` 校验实际 exe 中的应用图标资源。图标和应用清单变更会触发原生资源重建。
 
-本次迁移已将本地 vendor 移出仓库，移除 Cargo patch，并恢复官方 WinDivert Git 依赖。按最新决定，首次 CI 直接验证没有本地补丁的构建。旧 `containers/windows/` 文件暂留作迁移参考，不参与当前默认构建；待 Windows 原生 CI 通过后删除。
+本地 vendor 和 Cargo patch 已移除，旧 Podman Windows 构建文件也已清理。当前直接引用官方 WinDivert Git 依赖。
+
+2026-11-08，提交 `54f9625` 的 [Windows 原生 CI](https://github.com/oolongcha024/cleartier/actions/runs/42457090789) 成功：前端检查、ZIP 与 NSIS 构建、图标／资源校验和四项无交互核心检查全部通过。下载产物已核对提交、SHA-256、资源、ZIP 结构及核心报告；exe 六个尺寸的图标与仓库 ICO 一致。交互 UAC／TUN 仍保留实机验证。

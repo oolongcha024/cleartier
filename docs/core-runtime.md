@@ -54,7 +54,7 @@ Unix 使用私有目录中的本地套接字，目录权限为 `0700`、套接�
 
 ## 验证
 
-核心测试在现有 Podman 构建容器中运行 `cargo test --locked -p cleartier-core`，覆盖实际进程的多网络控制、异常退出与重启、错误配置、IPC 帧限制及对端身份拒绝。断网容器可复验这些测试。
+Rust 核心测试命令为 `cargo test --locked -p cleartier-core`，覆盖实际进程的多网络控制、异常退出与重启、错误配置、IPC 帧限制及对端身份拒绝。Linux 断网容器中已有通过记录。当前 Windows CI 使用打包程序运行 Direct／Process／Recovery／MissingResource 检查，四项已在首轮原生构建中通过。
 
 Windows 分项实机步骤见 [Windows 构建与测试](windows-build.md)。编译及 Linux 测试成功不能替代 UAC、真实驱动和网卡清理的 Windows 验收。
 

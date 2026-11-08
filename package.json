@@ -24,7 +24,6 @@
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",
-    "@material/material-color-utilities": "0.4.0",
     "@tauri-apps/api": "2.12.4",
     "i18next": "27.0.0",
     "material-symbols": "0.48.3",
@@ -35,6 +34,7 @@
     "zustand": "5.1.0"
   },
   "devDependencies": {
+    "@material/material-color-utilities": "0.4.0",
     "@tauri-apps/cli": "2.12.4",
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",

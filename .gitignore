@@ -2,6 +2,5 @@ node_modules/
 .pnpm-store/
 dist/
 .DS_Store
-.cache/windows-builder/
-.cache/windows-native/
+.cache/
 artifacts/

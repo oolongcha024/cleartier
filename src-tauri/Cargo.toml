@@ -19,5 +19,3 @@ tauri-build = { version = "2.7.4", features = [] }
 [dependencies]
 tauri = { version = "2.12.5", features = [] }
 cleartier-core = { path = "crates/cleartier-core" }
-serde_json = "1"
-tokio = { version = "1", features = ["rt-multi-thread"] }
