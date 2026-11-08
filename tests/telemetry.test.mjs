@@ -93,3 +93,19 @@ test('byte-only samples never notify the configuration and connection store subs
   await store.getState().refreshRuntime();
   assert.equal(f.get().freshness, 'stale'); assert.equal(store.getState().networks[0].coreState, 'unknown');
 });
+
+test('gradient areas close inside each measured interval and never bridge a missing sample', () => {
+  const chart = trafficChart([
+    { at: 0, download: 1024, upload: 512 },
+    { at: 1000, download: 2048, upload: null },
+    { at: 2000, download: null, upload: null },
+    { at: 3000, download: 1024, upload: null },
+    { at: 4000, download: 1024, upload: 512 },
+  ]);
+  assert.equal(chart.areas.download.length, 2);
+  assert.match(chart.areas.download[0], /^M560\.0,.* L570\.0,136\.0 L560\.0,136\.0 Z$/);
+  assert.match(chart.areas.download[1], /^M590\.0,.* L600\.0,136\.0 L590\.0,136\.0 Z$/);
+  assert.deepEqual(chart.areas.upload, [], 'isolated samples cannot invent a filled interval');
+  assert.deepEqual(chart.axis, { unit: 'KiB/s', ticks: ['2', '1', '0'] });
+  assert.deepEqual(trafficChart([]).axis, { unit: 'KiB/s', ticks: ['1', '0.5', '0'] });
+});

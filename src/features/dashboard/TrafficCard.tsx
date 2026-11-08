@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, Hint, Icon } from '../../components/ui';
 import { formatBytes } from '../../lib/format-bytes';
@@ -7,6 +8,7 @@ import { trafficChart } from './traffic-chart';
 
 export function TrafficCard({ network }: { network: Network }) {
   const { t } = useTranslation();
+  const gradientId = useId();
   const telemetry = useDashboardTelemetry(network);
   const { snapshot, freshness } = telemetry;
   const running = network.coreState === 'running';
@@ -20,8 +22,8 @@ export function TrafficCard({ network }: { network: Network }) {
   const totalDownload = formatBytes(snapshot ? Number(snapshot.downloadBytes) : undefined);
   const totalUpload = formatBytes(snapshot ? Number(snapshot.uploadBytes) : undefined);
   const chart = trafficChart(telemetry.points);
-  const scale = formatBytes(chart.scale);
-  const empty = !running ? 'dashboard.trafficOffline' : stale ? 'dashboard.dataStale' : 'dashboard.sampling';
+  const showHistory = running || stale;
+  const empty = stale ? 'dashboard.dataStale' : !running ? 'dashboard.trafficOffline' : 'dashboard.sampling';
 
   return <Card className="traffic-card">
     <div className="card-heading"><h2>{t('dashboard.traffic')}</h2>{stale && <span className="data-status" role="status">{t('dashboard.dataStale')}</span>}
@@ -45,15 +47,29 @@ export function TrafficCard({ network }: { network: Network }) {
         </div>
       </div>
       <div className="traffic-trend">
-        <div className="traffic-trend-heading"><span className="muted small">{t('dashboard.lastMinute')}</span>
+        <div className="traffic-trend-heading"><span className="chart-unit" aria-hidden="true">{chart.axis.unit}</span><span className="trend-period">{t('dashboard.lastMinute')}</span>
           <div className="chart-legend"><span><i />{t('dashboard.download')}</span><span><i />{t('dashboard.upload')}</span></div>
         </div>
         <div className={`traffic-chart ${available ? '' : 'traffic-chart--offline'}`}>
-          <div className="chart-scale" aria-hidden="true"><span>{scale.value} {scale.unit}/s</span><span>{(chart.scale / 2 / (1024 ** Math.floor(Math.log(chart.scale) / Math.log(1024)))).toFixed(1)}</span><span>0</span></div>
+          <div className="chart-scale" aria-hidden="true">{chart.axis.ticks.map((tick, index) => <span key={index}>{tick}</span>)}</div>
           <svg viewBox="0 0 600 144" preserveAspectRatio="none" role="img"
             aria-label={t('dashboard.chartLabel', { name: network.alias, upload: `${upload.value} ${upload.unit}`, download: `${download.value} ${download.unit}` })}>
+            <defs>
+              <linearGradient id={`${gradientId}-download`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--md-sys-color-primary)" stopOpacity=".18" />
+                <stop offset="100%" stopColor="var(--md-sys-color-primary)" stopOpacity=".01" />
+              </linearGradient>
+              <linearGradient id={`${gradientId}-upload`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--md-sys-color-tertiary)" stopOpacity=".10" />
+                <stop offset="100%" stopColor="var(--md-sys-color-tertiary)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {showHistory && <g aria-hidden="true">
+              {chart.areas.download.map((path, index) => <path key={`download-${index}`} d={path} fill={`url(#${gradientId}-download)`} />)}
+              {chart.areas.upload.map((path, index) => <path key={`upload-${index}`} d={path} fill={`url(#${gradientId}-upload)`} />)}
+            </g>}
             {[12, 74, 136].map((y) => <line key={y} x1="0" y1={y} x2="600" y2={y} className="chart-grid" />)}
-            {running && <>
+            {showHistory && <>
               {chart.download.map((path, index) => <path key={index} d={path} className="chart-line chart-line--download" />)}
               {chart.upload.map((path, index) => <path key={index} d={path} className="chart-line chart-line--upload" />)}
             </>}
