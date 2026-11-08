@@ -21,24 +21,83 @@
   font-size: 14px;
 }
 
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 900px; }
-button, input, select { font: inherit; }
-button, a, input { -webkit-tap-highlight-color: transparent; }
-button, a { touch-action: manipulation; }
-button { color: inherit; }
-a { color: inherit; text-decoration: none; }
-button { cursor: pointer; }
-button:disabled { cursor: default; }
-button, input { border: 0; }
-button:focus-visible, a:focus-visible, input:focus-visible, [role='switch']:focus-visible, [role='combobox']:focus-visible {
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 900px;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button,
+a,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+a {
+  touch-action: manipulation;
+}
+button {
+  color: inherit;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+}
+button,
+input {
+  border: 0;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[role='switch']:focus-visible,
+[role='combobox']:focus-visible {
   outline: 3px solid var(--md-sys-color-primary);
   outline-offset: 3px;
 }
-h1, h2, h3, p { margin: 0; }
-h1 { font-size: 28px; line-height: 1.3; font-weight: 500; letter-spacing: -.8px; }
-h2 { font-size: 16px; line-height: 1.5; font-weight: 600; }
-h3 { font-size: 17px; line-height: 1.5; font-weight: 550; }
-.muted { color: var(--md-sys-color-on-surface-variant); }
-.small { font-size: 12px; }
-.unit { margin-left: 5px; font-size: 12px; font-weight: 400; color: var(--md-sys-color-on-surface-variant); }
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h1 {
+  font-size: 28px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: -0.8px;
+}
+h2 {
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+h3 {
+  font-size: 17px;
+  line-height: 1.5;
+  font-weight: 550;
+}
+.muted {
+  color: var(--md-sys-color-on-surface-variant);
+}
+.small {
+  font-size: 12px;
+}
+.unit {
+  margin-left: 5px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--md-sys-color-on-surface-variant);
+}

@@ -4,8 +4,12 @@ import { isDesktop } from '../platform/client';
 // Remote HTTP previews and desktop webviews have different clipboard permissions.
 export async function copyText(value: string): Promise<boolean> {
   if (isDesktop()) {
-    try { await writeText(value); return true; }
-    catch { return false; }
+    try {
+      await writeText(value);
+      return true;
+    } catch {
+      return false;
+    }
   }
   try {
     await navigator.clipboard.writeText(value);
@@ -18,7 +22,11 @@ export async function copyText(value: string): Promise<boolean> {
     document.body.append(input);
     input.select();
     let copied = false;
-    try { copied = document.execCommand('copy'); } catch { /* Manual copy remains available. */ }
+    try {
+      copied = document.execCommand('copy');
+    } catch {
+      /* Manual copy remains available. */
+    }
     input.remove();
     if (previousFocus instanceof HTMLElement) previousFocus.focus();
     return copied;

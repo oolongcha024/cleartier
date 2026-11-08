@@ -9,7 +9,20 @@ import { DesktopLifecycle } from '../features/desktop/DesktopLifecycle';
 import { UpdateLifecycle } from '../features/updates/UpdateLifecycle';
 
 export default function App() {
-  return <ThemeProvider><Tooltip.Provider><SnackbarProvider><HashRouter>
-    <NetworkLifecycle /><UpdateLifecycle /><AppShell><AppRoutes /></AppShell><DesktopLifecycle />
-  </HashRouter></SnackbarProvider></Tooltip.Provider></ThemeProvider>;
+  return (
+    <ThemeProvider>
+      <Tooltip.Provider>
+        <SnackbarProvider>
+          <HashRouter>
+            <NetworkLifecycle />
+            <UpdateLifecycle />
+            <AppShell>
+              <AppRoutes />
+            </AppShell>
+            <DesktopLifecycle />
+          </HashRouter>
+        </SnackbarProvider>
+      </Tooltip.Provider>
+    </ThemeProvider>
+  );
 }

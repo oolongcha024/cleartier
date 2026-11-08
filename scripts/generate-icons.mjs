@@ -23,14 +23,19 @@ await mkdir(publicDirectory, { recursive: true });
 await writeFile(sourceIcon, appIcon);
 
 // Keep only the icons referenced by the desktop bundle configuration.
-const configuration = JSON.parse(await readFile(new URL('../src-tauri/tauri.conf.json', import.meta.url), 'utf8'));
+const configuration = JSON.parse(
+  await readFile(new URL('../src-tauri/tauri.conf.json', import.meta.url), 'utf8'),
+);
 const temporaryDirectory = await mkdtemp(join(tmpdir(), 'cleartier-icons-'));
 const desktopDirectory = new URL('../src-tauri/icons/', import.meta.url);
 try {
   await run(['icon', fileURLToPath(sourceIcon), '--output', temporaryDirectory]);
   await mkdir(desktopDirectory, { recursive: true });
   for (const icon of configuration.bundle.icon) {
-    await copyFile(join(temporaryDirectory, basename(icon)), new URL(`../src-tauri/${icon}`, import.meta.url));
+    await copyFile(
+      join(temporaryDirectory, basename(icon)),
+      new URL(`../src-tauri/${icon}`, import.meta.url),
+    );
   }
 } finally {
   await rm(temporaryDirectory, { recursive: true, force: true });

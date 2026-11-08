@@ -7,6 +7,11 @@ export function readJoinParameters(id: string, config: NetworkConfig): Promise<J
   if (isDesktop()) return invoke<JoinParameters>('invitation_parameters', { id, config });
   // Browser demo configurations have no native TOML base. Never attempt to
   // discard unparsed imported settings or claim a native validation succeeded.
-  if (config.officialToml !== undefined) return Promise.reject(new InvitationError('unsupportedConfiguration'));
-  return Promise.resolve({ name: config.name, secret: config.secret, servers: [...config.servers] });
+  if (config.officialToml !== undefined)
+    return Promise.reject(new InvitationError('unsupportedConfiguration'));
+  return Promise.resolve({
+    name: config.name,
+    secret: config.secret,
+    servers: [...config.servers],
+  });
 }

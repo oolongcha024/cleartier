@@ -7,7 +7,13 @@ export function ConnectionNotice() {
   const cancelled = useNetworkStore((state) => state.autoConnectCancelled);
   const dismiss = useNetworkStore((state) => state.dismissAutoConnectNotice);
   if (!cancelled) return null;
-  return <div className="configuration-notice" role="status"><Icon name="info" />
-    <span>{t('connection.autoCancelled')}</span><Button variant="text" onClick={dismiss}>{t('app.close')}</Button>
-  </div>;
+  return (
+    <div className="configuration-notice" role="status">
+      <Icon name="info" />
+      <span>{t('connection.autoCancelled')}</span>
+      <Button variant="text" onClick={dismiss}>
+        {t('app.close')}
+      </Button>
+    </div>
+  );
 }

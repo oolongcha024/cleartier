@@ -1,0 +1,10 @@
+# Tool-owned files and generated assets keep their original representation.
+pnpm-lock.yaml
+**/Cargo.lock
+src/theme/tokens.css
+public/app-icon.svg
+src-tauri/icons/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/resources/windows/
+src-tauri/crates/cleartier-updates/tests/fixtures/

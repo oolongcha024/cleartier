@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react';
-import { isDesktop, previewClientVersion, readClientVersion, readCoreVersion } from '../../platform/client';
+import {
+  isDesktop,
+  previewClientVersion,
+  readClientVersion,
+  readCoreVersion,
+} from '../../platform/client';
 
 export function useAboutInfo() {
   const desktop = isDesktop();
-  const [clientVersion, setClientVersion] = useState<string | null>(desktop ? null : previewClientVersion);
+  const [clientVersion, setClientVersion] = useState<string | null>(
+    desktop ? null : previewClientVersion,
+  );
   const [versionUnavailable, setVersionUnavailable] = useState(false);
   const [coreVersion, setCoreVersion] = useState<string | null>(null);
   const [coreVersionUnavailable, setCoreVersionUnavailable] = useState(false);
@@ -17,7 +24,9 @@ export function useAboutInfo() {
       if (core.status === 'fulfilled') setCoreVersion(core.value);
       else setCoreVersionUnavailable(true);
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [desktop]);
   return { clientVersion, versionUnavailable, coreVersion, coreVersionUnavailable, desktop };
 }

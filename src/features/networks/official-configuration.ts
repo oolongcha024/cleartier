@@ -1,6 +1,9 @@
 import type { NetworkConfig } from './model';
 
-export interface CompatibilityIssue { path: string; code: string }
+export interface CompatibilityIssue {
+  path: string;
+  code: string;
+}
 export interface ConfigurationPreview {
   id: string;
   config: NetworkConfig;
@@ -15,5 +18,7 @@ export interface OfficialConfiguration {
   export: (id: string, config: NetworkConfig) => Promise<boolean>;
 }
 export function transferError(error: unknown): string {
-  return typeof error === 'string' && ['invalid', 'io', 'tooLarge', 'desktopOnly'].includes(error) ? error : 'io';
+  return typeof error === 'string' && ['invalid', 'io', 'tooLarge', 'desktopOnly'].includes(error)
+    ? error
+    : 'io';
 }

@@ -5,7 +5,9 @@ import { fileURLToPath } from 'node:url';
 // Check the actual Windows application resource, not a PNG embedded elsewhere
 // in the executable. Keep this independent of host-specific inspection tools.
 export function verifyWindowsIcon(executable, ico) {
-  const fail = (message) => { throw new Error(`Windows icon verification failed: ${message}`); };
+  const fail = (message) => {
+    throw new Error(`Windows icon verification failed: ${message}`);
+  };
   const slice = (buffer, offset, size) => {
     if (offset < 0 || size < 0 || offset + size > buffer.length) fail('truncated resource');
     return buffer.subarray(offset, offset + size);
@@ -28,7 +30,9 @@ export function verifyWindowsIcon(executable, ico) {
     };
   });
   const offsetOf = (address) => {
-    const section = sections.find((item) => address >= item.address && address < item.address + item.size);
+    const section = sections.find(
+      (item) => address >= item.address && address < item.address + item.size,
+    );
     if (!section) fail('unmapped resource address');
     return section.offset + address - section.address;
   };
@@ -53,7 +57,8 @@ export function verifyWindowsIcon(executable, ico) {
         else {
           const leaf = root + entry.target;
           result.push({
-            id: path[0], language: entry.id,
+            id: path[0],
+            language: entry.id,
             data: slice(executable, offsetOf(u32(executable, leaf)), u32(executable, leaf + 4)),
           });
         }
@@ -75,7 +80,8 @@ export function verifyWindowsIcon(executable, ico) {
   const groups = resources(14).filter((group) => group.id === 32512);
   if (!groups.length) fail('missing application icon group');
   for (const group of groups) {
-    if (u16(group.data, 0) !== 0 || u16(group.data, 2) !== 1 || u16(group.data, 4) !== count) fail('icon image count differs');
+    if (u16(group.data, 0) !== 0 || u16(group.data, 2) !== 1 || u16(group.data, 4) !== count)
+      fail('icon image count differs');
     const remaining = [...expected];
     for (let index = 0; index < count; index++) {
       const entry = 6 + index * 14;
@@ -83,7 +89,8 @@ export function verifyWindowsIcon(executable, ico) {
       const image = images.find((item) => item.id === id && item.language === group.language);
       if (!image || image.data.length !== u32(group.data, entry + 8)) fail('missing icon image');
       const match = remaining.findIndex((data) => data.equals(image.data));
-      if (match === -1) fail('embedded icon differs from the current ICO; rebuild Windows resources');
+      if (match === -1)
+        fail('embedded icon differs from the current ICO; rebuild Windows resources');
       remaining.splice(match, 1);
     }
   }
@@ -93,7 +100,8 @@ export function verifyWindowsIcon(executable, ico) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const [executablePath, iconPath, ...extra] = process.argv.slice(2);
-    if (!executablePath || !iconPath || extra.length) throw new Error('Usage: node scripts/verify-windows-icon.mjs <exe> <ico>');
+    if (!executablePath || !iconPath || extra.length)
+      throw new Error('Usage: node scripts/verify-windows-icon.mjs <exe> <ico>');
     const result = verifyWindowsIcon(readFileSync(executablePath), readFileSync(iconPath));
     console.log(`Verified Windows application icon: ${result.images} images match ${iconPath}`);
   } catch (error) {

@@ -1,6 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './client';
-import type { ConfigurationPreview, OfficialConfiguration } from '../features/networks/official-configuration';
+import type {
+  ConfigurationPreview,
+  OfficialConfiguration,
+} from '../features/networks/official-configuration';
 
 const desktop: OfficialConfiguration = {
   pick: () => invoke<ConfigurationPreview | null>('toml_import'),

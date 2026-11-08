@@ -4,16 +4,16 @@
 
 ## 模块职责
 
-| 入口 | 职责 |
-| --- | --- |
-| [src/app](../src/app/) | Provider、路由与外壳，常用页面静态导入 |
-| [features/networks](../src/features/networks/) | 编辑会话、工作流、持久化协调、运行观察及演示 Adapter |
-| [src/platform](../src/platform/) | Tauri 调用与浏览器能力隔离 |
-| [features/dashboard](../src/features/dashboard/) | 设备、流量及图表；共享控件、主题分别归 `components/`、`theme/` |
-| [src-tauri/src](../src-tauri/src/) | Tauri 命令、应用路径和桌面生命周期组装 |
-| [cleartier-updates](../src-tauri/crates/cleartier-updates/src/) | 更新策略、持久检查间隔、渠道筛选及下载／安装状态 |
-| [cleartier-config](../src-tauri/crates/cleartier-config/src/) | 独立配置存储与后台偏好，不依赖 Tauri 或 EasyTier |
-| [cleartier-core](../src-tauri/crates/cleartier-core/src/) | 配置转换、连接调度、遥测、核心进程与诊断 |
+| 入口                                                            | 职责                                                           |
+| --------------------------------------------------------------- | -------------------------------------------------------------- |
+| [src/app](../src/app/)                                          | Provider、路由与外壳，常用页面静态导入                         |
+| [features/networks](../src/features/networks/)                  | 编辑会话、工作流、持久化协调、运行观察及演示 Adapter           |
+| [src/platform](../src/platform/)                                | Tauri 调用与浏览器能力隔离                                     |
+| [features/dashboard](../src/features/dashboard/)                | 设备、流量及图表；共享控件、主题分别归 `components/`、`theme/` |
+| [src-tauri/src](../src-tauri/src/)                              | Tauri 命令、应用路径和桌面生命周期组装                         |
+| [cleartier-updates](../src-tauri/crates/cleartier-updates/src/) | 更新策略、持久检查间隔、渠道筛选及下载／安装状态               |
+| [cleartier-config](../src-tauri/crates/cleartier-config/src/)   | 独立配置存储与后台偏好，不依赖 Tauri 或 EasyTier               |
+| [cleartier-core](../src-tauri/crates/cleartier-core/src/)       | 配置转换、连接调度、遥测、核心进程与诊断                       |
 
 核心依赖固定在 [Cargo.toml](../src-tauri/crates/cleartier-core/Cargo.toml) 的 EasyTier 提交；参数行为以该版本及仓库测试为准。升级时重新核对映射、兼容性和实机效果。
 
@@ -49,13 +49,13 @@ Unix 使用私有目录和本地套接字，校验对端身份；非 Windows 自
 
 用户配置使用 Tauri `app_config_dir()`，运行目录和日志使用 `app_local_data_dir()`。网络文件由 [配置存储](../src-tauri/crates/cleartier-config/src/lib.rs)管理：
 
-| 文件 | 内容 |
-| --- | --- |
-| `networks.json`、`networks.backup.json` | 当前配置与上一次有效配置 |
-| `networks.lock` | 多进程写入锁 |
-| `networks.damaged-<UUID>.json` | 显式恢复前保留的异常原件 |
-| `desktop.json` | 独立的后台偏好 |
-| `updates.json` | 更新偏好、自动检查时间、服务端限流及候选版本 |
+| 文件                                    | 内容                                         |
+| --------------------------------------- | -------------------------------------------- |
+| `networks.json`、`networks.backup.json` | 当前配置与上一次有效配置                     |
+| `networks.lock`                         | 多进程写入锁                                 |
+| `networks.damaged-<UUID>.json`          | 显式恢复前保留的异常原件                     |
+| `desktop.json`                          | 独立的后台偏好                               |
+| `updates.json`                          | 更新偏好、自动检查时间、服务端限流及候选版本 |
 
 网络文档为 JSON v1，含 `revision / selectedId / networks`，记录分为 `client` 和 `config`。客户端信息与连接参数同次原子提交，保留未知字段；运行状态和流量不落盘。保存校验修订号，使用同目录临时文件替换，拒绝冲突、损坏、超限及不兼容版本；网络文档上限 4 MiB。
 

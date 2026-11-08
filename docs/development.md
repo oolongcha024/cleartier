@@ -11,26 +11,30 @@ pnpm dev
 
 开发服务及热更新使用 `http://10.126.179.2:5173`。独立浏览器入口不调用真实核心，原生能力通过适配层隔离。
 
-| 命令 | 用途 |
-| --- | --- |
-| `pnpm tauri dev` | 原生桌面调试；会启动前端服务，先停止独立运行的 `pnpm dev` |
-| `pnpm build` | 版本校验、类型检查及前端构建 |
-| `pnpm preview` | 在 `http://10.126.179.2:4174` 预览已有前端产物 |
-| `pnpm tauri build` | 本机桌面构建 |
-| `pnpm theme:generate` | 修改 `src/theme/palettes.ts` 后生成主题令牌 |
-| `pnpm icons:generate` | 修改标志或品牌配色后生成网页、桌面图标 |
+| 命令                  | 用途                                                      |
+| --------------------- | --------------------------------------------------------- |
+| `pnpm tauri dev`      | 原生桌面调试；会启动前端服务，先停止独立运行的 `pnpm dev` |
+| `pnpm build`          | 版本校验、类型检查及前端构建                              |
+| `pnpm preview`        | 在 `http://10.126.179.2:4174` 预览已有前端产物            |
+| `pnpm tauri build`    | 本机桌面构建                                              |
+| `pnpm theme:generate` | 修改 `src/theme/palettes.ts` 后生成主题令牌               |
+| `pnpm icons:generate` | 修改标志或品牌配色后生成网页、桌面图标                    |
 
 主题与图标生成结果随代码提交，普通构建不需要重新生成。开发端口被占用时先检查已有服务，不修改远程访问地址。
 
 ## 自动化检查
 
+使用 `pnpm format` 统一格式，`pnpm format:check` 只检查。Prettier 管理 TS／TSX、JS／MJS、CSS、JSON、YAML、Markdown 和 HTML，Rust 使用 rustfmt；TOML、PowerShell 和 NSIS 暂时保留原有格式。采用 LF 换行，前端缩进 2 空格、JS 单引号和分号、目标行宽 100；Markdown 保留段落换行。
+
+VS Code 按仓库推荐安装 Prettier 和 rust-analyzer 后，按语言保存时格式化。生成的主题／图标、锁文件、第三方资源及签名测试材料不参与 Prettier 格式化；修改生成逻辑后重新生成，不手工整理输出。普通 CI 和 Windows 构建在测试、编译前检查格式。
+
 在仓库根目录执行：
 
 ```sh
+pnpm format:check
 pnpm test
 pnpm typecheck
 pnpm build
-cargo fmt --manifest-path src-tauri/Cargo.toml --all --check
 cargo check --locked --manifest-path src-tauri/Cargo.toml --workspace
 cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-config -p cleartier-core -p cleartier-updates
 ```
@@ -62,13 +66,13 @@ gh run list --workflow windows-build.yml
 
 手动触发只生成 Actions Artifacts，支持选择产物类型。推送 `v*` 标签时固定构建 `all`，成功后自动上传至 Release 草稿，再发布。正常产物须通过测试、原生编译、图标／资源校验及打包程序检查；Artifacts 保留期限以工作流为准。
 
-| 内容 | 本机构建位置 |
-| --- | --- |
-| 免安装目录／ZIP | `artifacts/windows-x64/exe/`、`artifacts/windows-x64/cleartier-windows-x64.zip` |
-| NSIS 安装包 | `artifacts/windows-x64/nsis/` |
-| 签名更新清单 | `artifacts/windows-x64/latest.json` |
-| 版本、来源、工具链及 SHA-256 | `artifacts/windows-x64/build-info.json` |
-| 检查报告与失败诊断 | `artifacts/windows-x64/checks/` |
+| 内容                         | 本机构建位置                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------- |
+| 免安装目录／ZIP              | `artifacts/windows-x64/exe/`、`artifacts/windows-x64/cleartier-windows-x64.zip` |
+| NSIS 安装包                  | `artifacts/windows-x64/nsis/`                                                   |
+| 签名更新清单                 | `artifacts/windows-x64/latest.json`                                             |
+| 版本、来源、工具链及 SHA-256 | `artifacts/windows-x64/build-info.json`                                         |
+| 检查报告与失败诊断           | `artifacts/windows-x64/checks/`                                                 |
 
 构建入口为 [scripts/windows/build.mjs](../scripts/windows/build.mjs)。ZIP 和安装包均携带项目许可文本。`build-info.json` 和检查报告仅保留在本机构建目录及 Actions Artifacts，Release 附件只有 ZIP、NSIS 和 `latest.json`；签名嵌入更新清单，`.sig` 不单独发布。先查看检查报告和工具链错误，交付时核对提交及校验值。
 
@@ -76,14 +80,14 @@ gh run list --workflow windows-build.yml
 
 应用版本以 `package.json.version` 为准，由 [版本脚本](../scripts/version.mjs)同步 Rust 应用包及其锁文件；内部 crate 和 EasyTier 核心版本独立。开发与构建只校验，不自动升版。
 
-| 命令 | 作用 |
-| --- | --- |
-| `pnpm version:start minor alpha --dry-run` | 预览下一基础版本的 `alpha.1` |
-| `pnpm version:start patch` | 基础补丁号加一，默认从 `alpha.1` 开始；也支持 `minor / major` 及指定阶段 |
-| `pnpm version:next` | 当前预发布序号加一，如 `rc.1 → rc.2` |
-| `pnpm version:promote beta` | 推进到更晚阶段，也可指定 `rc / stable`；新阶段从 `.1` 开始 |
-| `pnpm version:set 0.2.0-beta.1` | 显式设置严格更高的版本 |
-| `pnpm version:check` | 检查格式、Rust 同步及 Tauri 版本引用 |
+| 命令                                       | 作用                                                                     |
+| ------------------------------------------ | ------------------------------------------------------------------------ |
+| `pnpm version:start minor alpha --dry-run` | 预览下一基础版本的 `alpha.1`                                             |
+| `pnpm version:start patch`                 | 基础补丁号加一，默认从 `alpha.1` 开始；也支持 `minor / major` 及指定阶段 |
+| `pnpm version:next`                        | 当前预发布序号加一，如 `rc.1 → rc.2`                                     |
+| `pnpm version:promote beta`                | 推进到更晚阶段，也可指定 `rc / stable`；新阶段从 `.1` 开始               |
+| `pnpm version:set 0.2.0-beta.1`            | 显式设置严格更高的版本                                                   |
+| `pnpm version:check`                       | 检查格式、Rust 同步及 Tauri 版本引用                                     |
 
 版本格式为 `X.Y.Z` 或 `X.Y.Z-(alpha|beta|rc).N`，`N ≥ 1`。阶段依次用于早期验证、功能测试、发布候选和正式交付；允许跳过阶段，禁止回退或重复。所有修改命令支持 `--dry-run`，不自动提交或创建标签。`start` 总会增加基础版本，同一目标应使用 `next / promote`。
 

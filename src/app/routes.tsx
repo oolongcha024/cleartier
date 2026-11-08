@@ -13,16 +13,19 @@ export const navigation = [
 ] as const;
 
 export function pageId(pathname: string) {
-  return pathname === '/settings/about' ? 'about'
-    : navigation.find((item) => item.path === pathname)?.id ?? 'settings';
+  return pathname === '/settings/about'
+    ? 'about'
+    : (navigation.find((item) => item.path === pathname)?.id ?? 'settings');
 }
 
 export function AppRoutes() {
-  return <Routes>
-    <Route path="/" element={<Dashboard />} />
-    <Route path="/networks" element={<NetworksPage />} />
-    <Route path="/settings" element={<SettingsPage />} />
-    <Route path="/settings/about" element={<AboutPage />} />
-    <Route path="*" element={<Navigate to="/" replace />} />
-  </Routes>;
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/networks" element={<NetworksPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/settings/about" element={<AboutPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 }

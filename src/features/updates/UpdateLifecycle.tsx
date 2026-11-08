@@ -12,7 +12,8 @@ export function UpdateLifecycle() {
   const version = snapshot?.candidate?.version;
   useEffect(() => {
     if (version && !notified.current.has(version)) {
-      notified.current.add(version); notify(t('updates.discovered', { version }));
+      notified.current.add(version);
+      notify(t('updates.discovered', { version }));
     }
   }, [version, notify, t]);
   return null;

@@ -24,31 +24,58 @@ const { argbFromHex, Hct, hexFromArgb, SchemeTonalSpot } = await loadColorUtilit
 // Generate at design time so the full color engine is not shipped to each client.
 const successSeed = '#386a38';
 const roles = [
-  'primary', 'onPrimary', 'primaryContainer', 'onPrimaryContainer',
-  'secondary', 'onSecondary', 'secondaryContainer', 'onSecondaryContainer',
-  'tertiary', 'onTertiary', 'tertiaryContainer', 'onTertiaryContainer',
-  'surface', 'onSurface', 'onSurfaceVariant', 'surfaceContainerLowest',
-  'surfaceContainerLow', 'surfaceContainer', 'surfaceContainerHigh', 'surfaceContainerHighest',
-  'outline', 'outlineVariant', 'error', 'onError', 'errorContainer', 'onErrorContainer',
-  'inverseSurface', 'inverseOnSurface',
+  'primary',
+  'onPrimary',
+  'primaryContainer',
+  'onPrimaryContainer',
+  'secondary',
+  'onSecondary',
+  'secondaryContainer',
+  'onSecondaryContainer',
+  'tertiary',
+  'onTertiary',
+  'tertiaryContainer',
+  'onTertiaryContainer',
+  'surface',
+  'onSurface',
+  'onSurfaceVariant',
+  'surfaceContainerLowest',
+  'surfaceContainerLow',
+  'surfaceContainer',
+  'surfaceContainerHigh',
+  'surfaceContainerHighest',
+  'outline',
+  'outlineVariant',
+  'error',
+  'onError',
+  'errorContainer',
+  'onErrorContainer',
+  'inverseSurface',
+  'inverseOnSurface',
 ];
 
-const themes = themeColors.flatMap(({ id, seed }) => [false, true].map((dark) => {
-  const scheme = new SchemeTonalSpot(Hct.fromInt(argbFromHex(seed)), dark, 0);
-  const success = new SchemeTonalSpot(Hct.fromInt(argbFromHex(successSeed)), dark, 0);
-  const properties = roles.map((role) => {
-    const name = role.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-    return `  --md-sys-color-${name}: ${hexFromArgb(scheme[role])};`;
-  });
-  for (const [name, role] of [['success', 'primary'], ['success-container', 'primaryContainer'], ['on-success-container', 'onPrimaryContainer']]) {
-    properties.push(`  --color-${name}: ${hexFromArgb(success[role])};`);
-  }
-  const mode = dark ? '[data-theme="dark"]' : ':not([data-theme="dark"])';
-  const selector = `:root[data-theme-color="${id}"]${mode}`;
-  const fallback = id === defaultThemeColor ? `:root:not([data-theme-color])${mode},\n` : '';
-  const swatch = `:root${mode} .theme-color-swatch[data-color="${id}"]`;
-  return `${fallback}${selector} {\n${properties.join('\n')}\n}\n\n${swatch} {\n  --theme-swatch: ${hexFromArgb(scheme.primary)};\n}`;
-}));
+const themes = themeColors.flatMap(({ id, seed }) =>
+  [false, true].map((dark) => {
+    const scheme = new SchemeTonalSpot(Hct.fromInt(argbFromHex(seed)), dark, 0);
+    const success = new SchemeTonalSpot(Hct.fromInt(argbFromHex(successSeed)), dark, 0);
+    const properties = roles.map((role) => {
+      const name = role.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+      return `  --md-sys-color-${name}: ${hexFromArgb(scheme[role])};`;
+    });
+    for (const [name, role] of [
+      ['success', 'primary'],
+      ['success-container', 'primaryContainer'],
+      ['on-success-container', 'onPrimaryContainer'],
+    ]) {
+      properties.push(`  --color-${name}: ${hexFromArgb(success[role])};`);
+    }
+    const mode = dark ? '[data-theme="dark"]' : ':not([data-theme="dark"])';
+    const selector = `:root[data-theme-color="${id}"]${mode}`;
+    const fallback = id === defaultThemeColor ? `:root:not([data-theme-color])${mode},\n` : '';
+    const swatch = `:root${mode} .theme-color-swatch[data-color="${id}"]`;
+    return `${fallback}${selector} {\n${properties.join('\n')}\n}\n\n${swatch} {\n  --theme-swatch: ${hexFromArgb(scheme.primary)};\n}`;
+  }),
+);
 
 const shared = `:root {
   --shape-small: 8px;

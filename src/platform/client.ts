@@ -18,7 +18,10 @@ export async function readHostEnvironment(): Promise<HostEnvironment> {
     const [hostname, platform] = await invoke<[string, string]>('host_environment');
     return {
       hostname,
-      platform: platform === 'windows' || platform === 'linux' || platform === 'macos' ? platform : 'unknown',
+      platform:
+        platform === 'windows' || platform === 'linux' || platform === 'macos'
+          ? platform
+          : 'unknown',
       preview: false,
     };
   } catch {

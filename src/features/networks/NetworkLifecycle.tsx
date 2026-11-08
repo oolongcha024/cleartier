@@ -7,10 +7,18 @@ export function NetworkLifecycle() {
   const refresh = useNetworkStore((state) => state.refreshRuntime);
   useEffect(() => {
     void initialize();
-    const timer = setInterval(() => { telemetry.expire(); void refresh(); }, 1000);
-    const focused = () => { void refresh(); };
+    const timer = setInterval(() => {
+      telemetry.expire();
+      void refresh();
+    }, 1000);
+    const focused = () => {
+      void refresh();
+    };
     window.addEventListener('focus', focused);
-    return () => { clearInterval(timer); window.removeEventListener('focus', focused); };
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', focused);
+    };
   }, [initialize, refresh]);
   return null;
 }

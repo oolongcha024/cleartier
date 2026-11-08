@@ -8,7 +8,9 @@
   const initiallyExpanded = toggle.getAttribute('aria-expanded') === 'true';
   const settle = async () => {
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    const animations = document.querySelector('.app-shell').getAnimations({ subtree: true })
+    const animations = document
+      .querySelector('.app-shell')
+      .getAnimations({ subtree: true })
       .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
     await Promise.all(animations.map((animation) => animation.finished.catch(() => {})));
   };
@@ -21,7 +23,9 @@
       const width = panel.clientWidth;
       const scrollWidth = panel.scrollWidth;
       if (scrollWidth > width) {
-        throw new Error(`Navigation has horizontal overflow (${expanded ? 'expanded' : 'collapsed'}): ${scrollWidth}px > ${width}px`);
+        throw new Error(
+          `Navigation has horizontal overflow (${expanded ? 'expanded' : 'collapsed'}): ${scrollWidth}px > ${width}px`,
+        );
       }
       results.push({ expanded, width, scrollWidth });
     }

@@ -14,17 +14,52 @@ export function useNetworkDeletion() {
   const [failed, setFailed] = useState(false);
   const confirm = async () => {
     if (!target || removing) return;
-    setRemoving(true); setFailed(false);
+    setRemoving(true);
+    setFailed(false);
     const saved = await remove(target.id);
     setRemoving(false);
-    if (completed(saved)) { setTarget(null); notify(t('networkConfig.deleted')); }
-    else setFailed(true);
+    if (completed(saved)) {
+      setTarget(null);
+      notify(t('networkConfig.deleted'));
+    } else setFailed(true);
   };
-  const deletion = <Dialog open={Boolean(target)} onOpenChange={(open) => { if (!open && !removing) setTarget(null); }}
-    title={t('networkConfig.deleteTitle')} description={t('networkConfig.deleteDescription', { alias: target?.alias, name: target?.savedConfig.name })}>
-    {failed && <p className="configuration-error-text" role="alert">{t('configuration.deleteFailed')}</p>}
-    <div className="network-editor-actions"><Button variant="text" disabled={removing} onClick={() => setTarget(null)}>{t('networkConfig.cancel')}</Button>
-      <Button disabled={removing} onClick={() => { void confirm(); }}>{t(removing ? 'networkConfig.deleting' : 'networkConfig.delete')}</Button></div>
-  </Dialog>;
-  return { requestDelete: (network: Network) => { setFailed(false); setTarget(network); }, deletion };
+  const deletion = (
+    <Dialog
+      open={Boolean(target)}
+      onOpenChange={(open) => {
+        if (!open && !removing) setTarget(null);
+      }}
+      title={t('networkConfig.deleteTitle')}
+      description={t('networkConfig.deleteDescription', {
+        alias: target?.alias,
+        name: target?.savedConfig.name,
+      })}
+    >
+      {failed && (
+        <p className="configuration-error-text" role="alert">
+          {t('configuration.deleteFailed')}
+        </p>
+      )}
+      <div className="network-editor-actions">
+        <Button variant="text" disabled={removing} onClick={() => setTarget(null)}>
+          {t('networkConfig.cancel')}
+        </Button>
+        <Button
+          disabled={removing}
+          onClick={() => {
+            void confirm();
+          }}
+        >
+          {t(removing ? 'networkConfig.deleting' : 'networkConfig.delete')}
+        </Button>
+      </div>
+    </Dialog>
+  );
+  return {
+    requestDelete: (network: Network) => {
+      setFailed(false);
+      setTarget(network);
+    },
+    deletion,
+  };
 }

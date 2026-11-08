@@ -20,5 +20,6 @@ test('rounding at a unit boundary promotes the display unit', () => {
 });
 
 test('invalid counters are not displayed as real traffic', () => {
-  for (const value of [-1, NaN, Infinity]) assert.deepEqual(formatBytes(value), { value: '—', unit: '' });
+  for (const value of [-1, NaN, Infinity])
+    assert.deepEqual(formatBytes(value), { value: '—', unit: '' });
 });

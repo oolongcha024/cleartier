@@ -1,16 +1,27 @@
 import type { TelemetrySnapshot } from './telemetry.ts';
 import type { CoreState, NetworkConfig } from './model.ts';
 
-export interface RuntimeFailure { code: string }
+export interface RuntimeFailure {
+  code: string;
+}
 export interface RecoverySnapshot {
   phase: 'waiting' | 'starting' | 'exhausted' | 'authorization' | 'stopped';
-  attempt: number; maxAttempts: number; retryInSeconds: number;
+  attempt: number;
+  maxAttempts: number;
+  retryInSeconds: number;
 }
 export interface RuntimeSnapshot {
-  id: string; revision: number; state: CoreState;
-  runningConfig: NetworkConfig | null; recoveryConfig: NetworkConfig | null;
-  recovery: RecoverySnapshot | null; telemetry: TelemetrySnapshot | null;
-  deviceName: string; virtualIp: string | null; peerCount: number; directPeerCount: number;
+  id: string;
+  revision: number;
+  state: CoreState;
+  runningConfig: NetworkConfig | null;
+  recoveryConfig: NetworkConfig | null;
+  recovery: RecoverySnapshot | null;
+  telemetry: TelemetrySnapshot | null;
+  deviceName: string;
+  virtualIp: string | null;
+  peerCount: number;
+  directPeerCount: number;
   error: RuntimeFailure | null;
 }
 export interface RuntimeFrame {

@@ -1,20 +1,32 @@
 import { create } from 'zustand';
-import { readDesktop, updateDesktop, watchDesktop, type DesktopStatus, type DesktopUpdate } from '../../platform/desktop';
+import {
+  readDesktop,
+  updateDesktop,
+  watchDesktop,
+  type DesktopStatus,
+  type DesktopUpdate,
+} from '../../platform/desktop';
 
 interface DesktopState {
-  status: DesktopStatus | null; error: string | null; saving: boolean;
+  status: DesktopStatus | null;
+  error: string | null;
+  saving: boolean;
   refresh: () => Promise<void>;
   update: (update: DesktopUpdate) => Promise<boolean>;
 }
 let generation = 0;
 export const useDesktopStore = create<DesktopState>((set, get) => ({
-  status: null, error: null, saving: false,
+  status: null,
+  error: null,
+  saving: false,
   refresh: async () => {
     const token = ++generation;
     try {
       const status = await readDesktop();
       if (token === generation) set({ status, error: null });
-    } catch { if (token === generation) set({ error: 'read' }); }
+    } catch {
+      if (token === generation) set({ error: 'read' });
+    }
   },
   update: async (update) => {
     if (get().saving) return false;
@@ -30,7 +42,9 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
       await get().refresh();
       set({ error: typeof error === 'string' ? error : 'save' });
       return false;
-    } finally { set({ saving: false }); }
+    } finally {
+      set({ saving: false });
+    }
   },
 }));
 
@@ -38,11 +52,22 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
 export function subscribeDesktop() {
   let disposed = false;
   let unlisten: (() => void) | undefined;
-  const refresh = () => { void useDesktopStore.getState().refresh(); };
-  void watchDesktop(refresh).then((stop) => { if (disposed) stop(); else unlisten = stop; }).catch(() => {
-    if (!disposed) useDesktopStore.setState({ error: 'read' });
-  });
+  const refresh = () => {
+    void useDesktopStore.getState().refresh();
+  };
+  void watchDesktop(refresh)
+    .then((stop) => {
+      if (disposed) stop();
+      else unlisten = stop;
+    })
+    .catch(() => {
+      if (!disposed) useDesktopStore.setState({ error: 'read' });
+    });
   refresh();
   window.addEventListener('focus', refresh);
-  return () => { disposed = true; unlisten?.(); window.removeEventListener('focus', refresh); };
+  return () => {
+    disposed = true;
+    unlisten?.();
+    window.removeEventListener('focus', refresh);
+  };
 }

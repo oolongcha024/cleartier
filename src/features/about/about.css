@@ -1,13 +1,61 @@
-.about-page { display: grid; gap: 20px; }
-.about-back { justify-self: start; margin: -8px 0 -4px -12px; }
-.about-brand { display: flex; align-items: center; gap: 16px; }
-.about-brand .brand-mark { width: 56px; height: 56px; border-radius: 18px; }
-.about-brand .brand-logo { width: 42px; height: 42px; }
-.about-brand h2 { font-size: 24px; font-weight: 550; letter-spacing: -.5px; }
-.about-brand > .button { margin-left: auto; }
-.about-info { margin: 24px 0 0; }
-.about-info > div { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; padding-block: 18px; border-top: 1px solid var(--md-sys-color-outline-variant); }
-.about-info dt { color: var(--md-sys-color-on-surface-variant); font-size: 13px; flex-shrink: 0; }
-.about-info dd { margin: 0; font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; }
-.about-info > div:last-child { padding-bottom: 0; }
-.about-copy { border: 0; resize: vertical; line-height: 1.8; }
+.about-page {
+  display: grid;
+  gap: 20px;
+}
+.about-back {
+  justify-self: start;
+  margin: -8px 0 -4px -12px;
+}
+.about-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.about-brand .brand-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+}
+.about-brand .brand-logo {
+  width: 42px;
+  height: 42px;
+}
+.about-brand h2 {
+  font-size: 24px;
+  font-weight: 550;
+  letter-spacing: -0.5px;
+}
+.about-brand > .button {
+  margin-left: auto;
+}
+.about-info {
+  margin: 24px 0 0;
+}
+.about-info > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding-block: 18px;
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+.about-info dt {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.about-info dd {
+  margin: 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.about-info > div:last-child {
+  padding-bottom: 0;
+}
+.about-copy {
+  border: 0;
+  resize: vertical;
+  line-height: 1.8;
+}

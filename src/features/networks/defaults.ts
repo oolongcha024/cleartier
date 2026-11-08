@@ -23,9 +23,26 @@ export function defaultTunName(id: string, reservedNames: string[] = []): string
   return candidate;
 }
 
-export function createNetworkConfig(id: string, identity: Pick<NetworkConfig, 'name' | 'secret' | 'servers'>): NetworkConfig {
-  return { ...identity, hostname: null, ipv4Mode: 'auto', ipv4Address: '', ipv4Prefix: 24,
-    tunName: defaultTunName(id), mtu: null, ipv6: true, p2pPolicy: 'auto', latencyFirst: false,
-    tcpHolePunching: true, udpHolePunching: true, upnp: true,
-    magicDns: false, dnsSuffix: 'et.net.', udpBroadcastRelay: false };
+export function createNetworkConfig(
+  id: string,
+  identity: Pick<NetworkConfig, 'name' | 'secret' | 'servers'>,
+): NetworkConfig {
+  return {
+    ...identity,
+    hostname: null,
+    ipv4Mode: 'auto',
+    ipv4Address: '',
+    ipv4Prefix: 24,
+    tunName: defaultTunName(id),
+    mtu: null,
+    ipv6: true,
+    p2pPolicy: 'auto',
+    latencyFirst: false,
+    tcpHolePunching: true,
+    udpHolePunching: true,
+    upnp: true,
+    magicDns: false,
+    dnsSuffix: 'et.net.',
+    udpBroadcastRelay: false,
+  };
 }

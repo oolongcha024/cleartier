@@ -21,6 +21,10 @@ test('generated TUN names are stable, short, unique between demo networks and ca
 });
 
 test('displayed IP always follows the actual observation rather than saved or desired parameters', () => {
-  const network = { virtualIp: '10.42.0.2', savedConfig: { ipv4Address: '10.88.0.9' }, runningConfig: { ipv4Address: '10.99.0.2' } };
+  const network = {
+    virtualIp: '10.42.0.2',
+    savedConfig: { ipv4Address: '10.88.0.9' },
+    runningConfig: { ipv4Address: '10.99.0.2' },
+  };
   assert.equal(activeVirtualIp(network), '10.42.0.2');
 });

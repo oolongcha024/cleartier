@@ -18,9 +18,7 @@
         "config": {
           "name": " exact office 办公 ",
           "secret": " exact key 密钥 ",
-          "servers": [
-            "tcp://example.com:11010"
-          ],
+          "servers": ["tcp://example.com:11010"],
           "hostname": null,
           "ipv4Mode": "auto",
           "ipv4Address": "",
@@ -56,9 +54,7 @@
         "runningConfig": {
           "name": " exact office 办公 ",
           "secret": " exact key 密钥 ",
-          "servers": [
-            "tcp://example.com:11010"
-          ],
+          "servers": ["tcp://example.com:11010"],
           "hostname": null,
           "ipv4Mode": "auto",
           "ipv4Address": "",

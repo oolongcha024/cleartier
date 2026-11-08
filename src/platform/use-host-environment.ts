@@ -8,8 +8,12 @@ export function useHostEnvironment(): HostEnvironment | null {
   useEffect(() => {
     let active = true;
     environmentRequest ??= readHostEnvironment();
-    void environmentRequest.then((value) => { if (active) setEnvironment(value); });
-    return () => { active = false; };
+    void environmentRequest.then((value) => {
+      if (active) setEnvironment(value);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
   return environment;
 }

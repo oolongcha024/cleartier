@@ -7,7 +7,10 @@ import { desktopConfigurationStorage, desktopNetworkRuntime } from '../../platfo
 
 const networkStore = isDesktop()
   ? createNetworkStore(desktopNetworkRuntime, { storage: desktopConfigurationStorage })
-  : (() => { const demo = createDemoEnvironment(); return createNetworkStore(demo.runtime, demo); })();
+  : (() => {
+      const demo = createDemoEnvironment();
+      return createNetworkStore(demo.runtime, demo);
+    })();
 export const telemetry = networkStore.telemetry;
 export function useNetworkStore<Value>(selector: (state: NetworkStore) => Value): Value {
   return useStore(networkStore, selector);

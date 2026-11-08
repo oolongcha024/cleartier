@@ -8,7 +8,7 @@ export const themeColors = [
   { id: 'rose', seed: '#a44872' },
 ] as const;
 
-export type ThemeColor = typeof themeColors[number]['id'];
+export type ThemeColor = (typeof themeColors)[number]['id'];
 export const defaultThemeColor: ThemeColor = 'blue';
 
 export function parseThemeColor(value: string | null): ThemeColor {

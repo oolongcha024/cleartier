@@ -19,7 +19,14 @@ export function useNetworkEditor() {
     setSession((current) => ({ id: '', open: true, revision: current.revision + 1 }));
   };
   const target = newNetwork ?? network;
-  const editor = target && <NetworkEditor key={session.revision} network={target} creating={Boolean(newNetwork)} open={session.open}
-    onOpenChange={(open) => setSession((current) => ({ ...current, open }))} />;
+  const editor = target && (
+    <NetworkEditor
+      key={session.revision}
+      network={target}
+      creating={Boolean(newNetwork)}
+      open={session.open}
+      onOpenChange={(open) => setSession((current) => ({ ...current, open }))}
+    />
+  );
   return { openEditor, openCreator, editor };
 }

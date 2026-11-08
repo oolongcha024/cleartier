@@ -4,7 +4,12 @@ import { verifyWindowsIcon } from '../scripts/verify-windows-icon.mjs';
 
 // A minimal PE resource tree follows the same type/name/language structure and
 // application group ID as Tauri's real Windows output. Image bytes stay opaque.
-function fixture({ image = 'current-icon', expected = 'current-icon', resourceId = 1, magic = 0x20b } = {}) {
+function fixture({
+  image = 'current-icon',
+  expected = 'current-icon',
+  resourceId = 1,
+  magic = 0x20b,
+} = {}) {
   const executable = Buffer.alloc(0x600);
   const u16 = (offset, value) => executable.writeUInt16LE(value, offset);
   const u32 = (offset, value) => executable.writeUInt32LE(value, offset);
@@ -27,7 +32,10 @@ function fixture({ image = 'current-icon', expected = 'current-icon', resourceId
       u32(0x200 + relative + 20 + index * 8, target);
     });
   };
-  directory(0, [[3, 0x80000030], [14, 0x80000050]]);
+  directory(0, [
+    [3, 0x80000030],
+    [14, 0x80000050],
+  ]);
   directory(0x30, [[1, 0x80000070]]);
   directory(0x50, [[32512, 0x80000090]]);
   directory(0x70, [[1033, 0xb0]]);

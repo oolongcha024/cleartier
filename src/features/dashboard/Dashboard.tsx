@@ -1,8 +1,27 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Chip, Dialog, Hint, Icon, IconButton, Select, Switch, useSnackbar } from '../../components/ui';
+import {
+  Button,
+  Card,
+  Chip,
+  Dialog,
+  Hint,
+  Icon,
+  IconButton,
+  Select,
+  Switch,
+  useSnackbar,
+} from '../../components/ui';
 import { copyText } from '../../lib/clipboard';
-import { activeVirtualIp, sessionConfig, isBusy, isConnected, statusKey, summaryKey, type Network } from '../networks/model';
+import {
+  activeVirtualIp,
+  sessionConfig,
+  isBusy,
+  isConnected,
+  statusKey,
+  summaryKey,
+  type Network,
+} from '../networks/model';
 import { useNetworkStore, useNodeHostname } from '../networks/store';
 import { NetworkStatus } from '../networks/NetworkStatus';
 import { useNetworkEditor } from '../networks/use-network-editor';
@@ -13,7 +32,13 @@ import { TrafficCard } from './TrafficCard';
 import { ConfigurationState } from '../networks/ConfigurationState';
 import { useShareInvitation } from '../invitations/use-share-invitation';
 
-function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value: string) => void }) {
+function ConnectionCard({
+  network,
+  onCopy,
+}: {
+  network: Network;
+  onCopy: (value: string) => void;
+}) {
   const { t } = useTranslation();
   const notify = useSnackbar();
   const connect = useNetworkStore((state) => state.connect);
@@ -28,57 +53,169 @@ function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value:
   const running = network.coreState === 'running' || sessionConfig(network) !== null;
   const restoring = network.recovery?.phase === 'starting';
   const name = (sessionConfig(network) ?? network.savedConfig).name;
-  const title = network.coreState === 'failed' ? 'failed' : network.coreState === 'unknown' ? 'unavailable' : network.coreState === 'stopped' ? 'disconnected'
-    : network.coreState === 'starting' ? 'starting'
-      : network.coreState === 'stopping' ? 'stopping' : connected ? 'connected' : 'waiting';
-  const detail = network.coreState === 'failed' ? t('connection.failedHint') : network.coreState === 'unknown' ? t('dashboard.unavailableHint') : network.coreState === 'stopped' ? t('dashboard.offlineHint')
-    : network.coreState === 'starting' ? t('dashboard.startingHint')
-      : network.coreState === 'stopping' ? t('dashboard.stoppingHint')
-        : connected ? t('dashboard.peers', { count: network.peerCount, direct: network.directPeerCount })
-          : t('dashboard.waitingHint');
+  const title =
+    network.coreState === 'failed'
+      ? 'failed'
+      : network.coreState === 'unknown'
+        ? 'unavailable'
+        : network.coreState === 'stopped'
+          ? 'disconnected'
+          : network.coreState === 'starting'
+            ? 'starting'
+            : network.coreState === 'stopping'
+              ? 'stopping'
+              : connected
+                ? 'connected'
+                : 'waiting';
+  const detail =
+    network.coreState === 'failed'
+      ? t('connection.failedHint')
+      : network.coreState === 'unknown'
+        ? t('dashboard.unavailableHint')
+        : network.coreState === 'stopped'
+          ? t('dashboard.offlineHint')
+          : network.coreState === 'starting'
+            ? t('dashboard.startingHint')
+            : network.coreState === 'stopping'
+              ? t('dashboard.stoppingHint')
+              : connected
+                ? t('dashboard.peers', {
+                    count: network.peerCount,
+                    direct: network.directPeerCount,
+                  })
+                : t('dashboard.waitingHint');
 
-  return <Card className={`connection-card ${connected ? 'connection-card--connected' : ''}`}>
-    <div className="network-heading"><div className={`network-avatar network-avatar--${network.icon}`}><Icon name={network.icon} /></div>
-      <div className="network-identity"><h2 title={network.alias}>{network.alias}</h2><span title={name}>{name}</span></div>
-      <div className="network-heading-status"><NetworkStatus network={network} />
-        {hasPendingConfig(network) && !busy && <Chip tone="primary">{t('networkConfig.pending')}</Chip>}
-      </div>
-    </div>
-    <div className="connection-state">
-      <div className={`connection-state-icon ${connected ? 'connection-state-icon--connected' : ''} ${busy ? 'is-spinning' : ''}`}>
-        <Icon name={busy ? 'progress_activity' : connected ? 'check' : 'power_settings_new'} />
-      </div>
-      <div className="connection-state-text" aria-live="polite"><h3>{t(restoring ? 'desktop.recoveryStarting' : network.recovery?.phase === 'waiting' ? 'desktop.recovering' : `dashboard.${title}`)}</h3><p>{network.recovery
-        ? t(`desktop.recovery.${network.recovery.phase}`, { count: network.recovery.maxAttempts, seconds: network.recovery.retryInSeconds }) : detail}</p></div>
-      <Button variant={running ? 'outlined' : 'filled'} icon={busy && !restoring ? undefined : network.coreState === 'unknown' ? 'refresh' : 'power_settings_new'} disabled={(busy && network.recovery?.phase !== 'starting') || (autoConnecting && !running)}
-        onClick={() => { void (network.coreState === 'unknown' ? refresh() : running ? disconnect(network.id) : connect(network.id)); }}>
-        {t(network.coreState === 'unknown' ? 'connection.refresh' : `dashboard.${busy && !restoring ? statusKey(network) : running ? 'disconnect' : 'connect'}`)}
-      </Button>
-    </div>
-    {network.connectionError && <p role="alert" className="connection-error">{t(`connection.errors.${network.connectionError.code}`, { defaultValue: t('connection.errors.operation_failed') })}</p>}
-    <div className="connection-facts">
-      <div className="connection-fact"><span className="fact-label">{t('dashboard.virtualIp')}</span>
-        <div className="fact-value ip-value"><span className="selectable-ip">{running ? activeVirtualIp(network) || '—' : '—'}</span>
-          {running && activeVirtualIp(network) && <IconButton icon="content_copy" label={t('dashboard.copyIp')} onClick={() => onCopy(activeVirtualIp(network))} />}
+  return (
+    <Card className={`connection-card ${connected ? 'connection-card--connected' : ''}`}>
+      <div className="network-heading">
+        <div className={`network-avatar network-avatar--${network.icon}`}>
+          <Icon name={network.icon} />
+        </div>
+        <div className="network-identity">
+          <h2 title={network.alias}>{network.alias}</h2>
+          <span title={name}>{name}</span>
+        </div>
+        <div className="network-heading-status">
+          <NetworkStatus network={network} />
+          {hasPendingConfig(network) && !busy && (
+            <Chip tone="primary">{t('networkConfig.pending')}</Chip>
+          )}
         </div>
       </div>
-      <div className="connection-fact"><span className="fact-label">{t('networkConfig.hostname')}</span>
-        <div className="fact-value node-hostname" title={running ? hostname : undefined}>{running ? hostname || '—' : '—'}</div>
+      <div className="connection-state">
+        <div
+          className={`connection-state-icon ${connected ? 'connection-state-icon--connected' : ''} ${busy ? 'is-spinning' : ''}`}
+        >
+          <Icon name={busy ? 'progress_activity' : connected ? 'check' : 'power_settings_new'} />
+        </div>
+        <div className="connection-state-text" aria-live="polite">
+          <h3>
+            {t(
+              restoring
+                ? 'desktop.recoveryStarting'
+                : network.recovery?.phase === 'waiting'
+                  ? 'desktop.recovering'
+                  : `dashboard.${title}`,
+            )}
+          </h3>
+          <p>
+            {network.recovery
+              ? t(`desktop.recovery.${network.recovery.phase}`, {
+                  count: network.recovery.maxAttempts,
+                  seconds: network.recovery.retryInSeconds,
+                })
+              : detail}
+          </p>
+        </div>
+        <Button
+          variant={running ? 'outlined' : 'filled'}
+          icon={
+            busy && !restoring
+              ? undefined
+              : network.coreState === 'unknown'
+                ? 'refresh'
+                : 'power_settings_new'
+          }
+          disabled={
+            (busy && network.recovery?.phase !== 'starting') || (autoConnecting && !running)
+          }
+          onClick={() => {
+            void (network.coreState === 'unknown'
+              ? refresh()
+              : running
+                ? disconnect(network.id)
+                : connect(network.id));
+          }}
+        >
+          {t(
+            network.coreState === 'unknown'
+              ? 'connection.refresh'
+              : `dashboard.${busy && !restoring ? statusKey(network) : running ? 'disconnect' : 'connect'}`,
+          )}
+        </Button>
       </div>
-      <div className="connection-fact"><span className="fact-label">{t('dashboard.autoConnect')}</span>
-        <div className="fact-value"><Switch checked={network.autoConnect} disabled={writing || !network.persisted} label={t('dashboard.autoConnectLabel', { name: network.alias })}
-          onChange={(enabled) => {
-            void setAutoConnect(network.id, enabled).then((saved) => {
-              if (completed(saved)) notify(t(enabled ? 'feedback.autoOn' : 'feedback.autoOff', { name: network.alias }));
-            });
-          }} /></div>
+      {network.connectionError && (
+        <p role="alert" className="connection-error">
+          {t(`connection.errors.${network.connectionError.code}`, {
+            defaultValue: t('connection.errors.operation_failed'),
+          })}
+        </p>
+      )}
+      <div className="connection-facts">
+        <div className="connection-fact">
+          <span className="fact-label">{t('dashboard.virtualIp')}</span>
+          <div className="fact-value ip-value">
+            <span className="selectable-ip">{running ? activeVirtualIp(network) || '—' : '—'}</span>
+            {running && activeVirtualIp(network) && (
+              <IconButton
+                icon="content_copy"
+                label={t('dashboard.copyIp')}
+                onClick={() => onCopy(activeVirtualIp(network))}
+              />
+            )}
+          </div>
+        </div>
+        <div className="connection-fact">
+          <span className="fact-label">{t('networkConfig.hostname')}</span>
+          <div className="fact-value node-hostname" title={running ? hostname : undefined}>
+            {running ? hostname || '—' : '—'}
+          </div>
+        </div>
+        <div className="connection-fact">
+          <span className="fact-label">{t('dashboard.autoConnect')}</span>
+          <div className="fact-value">
+            <Switch
+              checked={network.autoConnect}
+              disabled={writing || !network.persisted}
+              label={t('dashboard.autoConnectLabel', { name: network.alias })}
+              onChange={(enabled) => {
+                void setAutoConnect(network.id, enabled).then((saved) => {
+                  if (completed(saved))
+                    notify(
+                      t(enabled ? 'feedback.autoOn' : 'feedback.autoOff', { name: network.alias }),
+                    );
+                });
+              }}
+            />
+          </div>
+        </div>
       </div>
-    </div>
-  </Card>;
+    </Card>
+  );
 }
 
-function QuickActions({ network, onCopy, onEdit, onInvite, sharing }: {
-  network: Network; onCopy: (value: string) => void; onEdit: () => void; onInvite: () => void; sharing: boolean;
+function QuickActions({
+  network,
+  onCopy,
+  onEdit,
+  onInvite,
+  sharing,
+}: {
+  network: Network;
+  onCopy: (value: string) => void;
+  onEdit: () => void;
+  onInvite: () => void;
+  sharing: boolean;
 }) {
   const { t } = useTranslation();
   const notify = useSnackbar();
@@ -87,28 +224,66 @@ function QuickActions({ network, onCopy, onEdit, onInvite, sharing }: {
   const busy = isBusy(network);
   const handleReconnect = async () => {
     const restarting = reconnect(network.id);
-    notify(t(pending ? 'feedback.reconnectingApply' : 'feedback.reconnecting', { name: network.alias }));
-    notify(t(completed(await restarting) ? 'feedback.reconnected' : 'networkConfig.applyFailed', { name: network.alias }));
+    notify(
+      t(pending ? 'feedback.reconnectingApply' : 'feedback.reconnecting', { name: network.alias }),
+    );
+    notify(
+      t(completed(await restarting) ? 'feedback.reconnected' : 'networkConfig.applyFailed', {
+        name: network.alias,
+      }),
+    );
   };
-  return <Card className="quick-card"><h2>{t('dashboard.quickActions')}</h2>
-    <div className="quick-actions">
-      <button className="quick-action" disabled={busy || sharing} onClick={onInvite}>
-        <span className="quick-icon"><Icon name="person_add" /></span><span>{t('dashboard.invite')}</span>
-      </button>
-      <button className="quick-action" disabled={network.coreState !== 'running' || !activeVirtualIp(network)} onClick={() => onCopy(activeVirtualIp(network))}>
-        <span className="quick-icon"><Icon name="content_copy" /></span><span>{t('dashboard.copyIp')}</span>
-      </button>
-      <Hint label={t(pending ? 'dashboard.reconnectApplyHint' : 'dashboard.reconnectHint')}>
-        <button className="quick-action" disabled={busy || !['running', 'failed'].includes(network.coreState)} onClick={() => { void handleReconnect(); }}>
-          <span className="quick-icon"><Icon name={busy ? 'progress_activity' : 'restart_alt'} className={busy ? 'is-spinning' : ''} /></span>
-          <span>{t(pending ? 'dashboard.reconnectApply' : 'dashboard.reconnect')}</span>
+  return (
+    <Card className="quick-card">
+      <h2>{t('dashboard.quickActions')}</h2>
+      <div className="quick-actions">
+        <button className="quick-action" disabled={busy || sharing} onClick={onInvite}>
+          <span className="quick-icon">
+            <Icon name="person_add" />
+          </span>
+          <span>{t('dashboard.invite')}</span>
         </button>
-      </Hint>
-      <button className="quick-action" disabled={busy || !network.persisted} aria-label={t('networkConfig.editNamed', { name: network.alias })} onClick={onEdit}>
-        <span className="quick-icon"><Icon name="edit" /></span><span>{t('dashboard.editNetwork')}</span>
-      </button>
-    </div>
-  </Card>;
+        <button
+          className="quick-action"
+          disabled={network.coreState !== 'running' || !activeVirtualIp(network)}
+          onClick={() => onCopy(activeVirtualIp(network))}
+        >
+          <span className="quick-icon">
+            <Icon name="content_copy" />
+          </span>
+          <span>{t('dashboard.copyIp')}</span>
+        </button>
+        <Hint label={t(pending ? 'dashboard.reconnectApplyHint' : 'dashboard.reconnectHint')}>
+          <button
+            className="quick-action"
+            disabled={busy || !['running', 'failed'].includes(network.coreState)}
+            onClick={() => {
+              void handleReconnect();
+            }}
+          >
+            <span className="quick-icon">
+              <Icon
+                name={busy ? 'progress_activity' : 'restart_alt'}
+                className={busy ? 'is-spinning' : ''}
+              />
+            </span>
+            <span>{t(pending ? 'dashboard.reconnectApply' : 'dashboard.reconnect')}</span>
+          </button>
+        </Hint>
+        <button
+          className="quick-action"
+          disabled={busy || !network.persisted}
+          aria-label={t('networkConfig.editNamed', { name: network.alias })}
+          onClick={onEdit}
+        >
+          <span className="quick-icon">
+            <Icon name="edit" />
+          </span>
+          <span>{t('dashboard.editNetwork')}</span>
+        </button>
+      </div>
+    </Card>
+  );
 }
 
 export function Dashboard() {
@@ -127,30 +302,80 @@ export function Dashboard() {
     if (await copyText(value)) notify(t('feedback.copied', { value }));
     else setManualCopy(value);
   };
-  if (phase !== 'ready' || !network) return <><ConfigurationState onAdd={openCreator} />{editor}</>;
+  if (phase !== 'ready' || !network)
+    return (
+      <>
+        <ConfigurationState onAdd={openCreator} />
+        {editor}
+      </>
+    );
 
-  return <>
-    <div className="network-toolbar">
-      <Select value={selectedId} onChange={(id) => { void selectNetwork(id); }} label={t('dashboard.selectNetwork')} icon={network.icon} className="network-select" popupClassName="network-select-popup"
-        options={networks.map((item) => ({ value: item.id, label: item.alias, icon: item.icon,
-          suffix: <span className={`network-option-status ${isConnected(item) ? 'network-option-status--connected' : ''}`}>
-            <span className="status-dot" />{t(`dashboard.${statusKey(item)}`)}
-          </span> }))} />
-      <span className="toolbar-status"><span className={`status-dot ${connectedCount ? 'status-dot--success' : ''}`} />
-        {t(`dashboard.${summaryKey(networks)}`, { count: connectedCount })}</span>
-      <Button variant="tonal" icon="add" onClick={openCreator}>{t('dashboard.join')}</Button>
-    </div>
-    <div className="dashboard-grid">
-      <ConnectionCard network={network} onCopy={handleCopy} />
-      <QuickActions network={network} onCopy={handleCopy}
-        onEdit={() => openEditor(network.id)} onInvite={() => { void share(); }} sharing={sharing} />
-      <TrafficCard network={network} />
-      <DevicesCard network={network} onCopy={handleCopy} />
-    </div>
-    {editor}
-    {copyFallback}
-    <Dialog open={Boolean(manualCopy)} onOpenChange={(open) => { if (!open) setManualCopy(''); }} title={t('dashboard.copyIp')} description={t('feedback.copyFailed')}>
-      <input className="manual-copy" aria-label={t('dashboard.address')} readOnly value={manualCopy} onFocus={(event) => event.currentTarget.select()} />
-    </Dialog>
-  </>;
+  return (
+    <>
+      <div className="network-toolbar">
+        <Select
+          value={selectedId}
+          onChange={(id) => {
+            void selectNetwork(id);
+          }}
+          label={t('dashboard.selectNetwork')}
+          icon={network.icon}
+          className="network-select"
+          popupClassName="network-select-popup"
+          options={networks.map((item) => ({
+            value: item.id,
+            label: item.alias,
+            icon: item.icon,
+            suffix: (
+              <span
+                className={`network-option-status ${isConnected(item) ? 'network-option-status--connected' : ''}`}
+              >
+                <span className="status-dot" />
+                {t(`dashboard.${statusKey(item)}`)}
+              </span>
+            ),
+          }))}
+        />
+        <span className="toolbar-status">
+          <span className={`status-dot ${connectedCount ? 'status-dot--success' : ''}`} />
+          {t(`dashboard.${summaryKey(networks)}`, { count: connectedCount })}
+        </span>
+        <Button variant="tonal" icon="add" onClick={openCreator}>
+          {t('dashboard.join')}
+        </Button>
+      </div>
+      <div className="dashboard-grid">
+        <ConnectionCard network={network} onCopy={handleCopy} />
+        <QuickActions
+          network={network}
+          onCopy={handleCopy}
+          onEdit={() => openEditor(network.id)}
+          onInvite={() => {
+            void share();
+          }}
+          sharing={sharing}
+        />
+        <TrafficCard network={network} />
+        <DevicesCard network={network} onCopy={handleCopy} />
+      </div>
+      {editor}
+      {copyFallback}
+      <Dialog
+        open={Boolean(manualCopy)}
+        onOpenChange={(open) => {
+          if (!open) setManualCopy('');
+        }}
+        title={t('dashboard.copyIp')}
+        description={t('feedback.copyFailed')}
+      >
+        <input
+          className="manual-copy"
+          aria-label={t('dashboard.address')}
+          readOnly
+          value={manualCopy}
+          onFocus={(event) => event.currentTarget.select()}
+        />
+      </Dialog>
+    </>
+  );
 }

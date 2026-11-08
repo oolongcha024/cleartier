@@ -15,69 +15,163 @@ export function TrafficCard({ network }: { network: Network }) {
   const stale = freshness === 'stale' || network.coreState === 'unknown';
   const available = running && freshness === 'fresh';
   const rate = (value: number | null) => {
-    const formatted = formatBytes(available ? value ?? undefined : undefined);
+    const formatted = formatBytes(available ? (value ?? undefined) : undefined);
     return { ...formatted, unit: formatted.unit ? `${formatted.unit}/s` : '' };
   };
-  const download = rate(telemetry.download), upload = rate(telemetry.upload);
+  const download = rate(telemetry.download),
+    upload = rate(telemetry.upload);
   const totalDownload = formatBytes(snapshot ? Number(snapshot.downloadBytes) : undefined);
   const totalUpload = formatBytes(snapshot ? Number(snapshot.uploadBytes) : undefined);
   const chart = trafficChart(telemetry.points);
   const showHistory = running || stale;
-  const empty = stale ? 'dashboard.dataStale' : !running ? 'dashboard.trafficOffline' : 'dashboard.sampling';
+  const empty = stale
+    ? 'dashboard.dataStale'
+    : !running
+      ? 'dashboard.trafficOffline'
+      : 'dashboard.sampling';
 
-  return <Card className="traffic-card">
-    <div className="card-heading"><h2>{t('dashboard.traffic')}</h2>{stale && <span className="data-status" role="status">{t('dashboard.dataStale')}</span>}
-      {snapshot?.incomplete && <Hint label={t('dashboard.incompleteHint')}><span className="data-status">{t('dashboard.incomplete')}</span></Hint>}
-    </div>
-    <div className="traffic-body">
-      <div className="traffic-stats">
-        <div className="traffic-stat"><span className="metric-label"><Icon name="arrow_downward" />{t('dashboard.download')}</span>
-          <span className="metric-value">{download.value}<span>{download.unit}</span></span>
-          <dl className="traffic-total" aria-label={t('dashboard.totalDownload')}>
-            <dt><Hint label={t('dashboard.trafficTotalsHint')}><span>{t('dashboard.totalTraffic')}</span></Hint></dt>
-            <dd>{totalDownload.value}{totalDownload.unit && <span>{totalDownload.unit}</span>}</dd>
-          </dl>
+  return (
+    <Card className="traffic-card">
+      <div className="card-heading">
+        <h2>{t('dashboard.traffic')}</h2>
+        {stale && (
+          <span className="data-status" role="status">
+            {t('dashboard.dataStale')}
+          </span>
+        )}
+        {snapshot?.incomplete && (
+          <Hint label={t('dashboard.incompleteHint')}>
+            <span className="data-status">{t('dashboard.incomplete')}</span>
+          </Hint>
+        )}
+      </div>
+      <div className="traffic-body">
+        <div className="traffic-stats">
+          <div className="traffic-stat">
+            <span className="metric-label">
+              <Icon name="arrow_downward" />
+              {t('dashboard.download')}
+            </span>
+            <span className="metric-value">
+              {download.value}
+              <span>{download.unit}</span>
+            </span>
+            <dl className="traffic-total" aria-label={t('dashboard.totalDownload')}>
+              <dt>
+                <Hint label={t('dashboard.trafficTotalsHint')}>
+                  <span>{t('dashboard.totalTraffic')}</span>
+                </Hint>
+              </dt>
+              <dd>
+                {totalDownload.value}
+                {totalDownload.unit && <span>{totalDownload.unit}</span>}
+              </dd>
+            </dl>
+          </div>
+          <div className="traffic-stat traffic-stat--upload">
+            <span className="metric-label">
+              <Icon name="arrow_upward" />
+              {t('dashboard.upload')}
+            </span>
+            <span className="metric-value">
+              {upload.value}
+              <span>{upload.unit}</span>
+            </span>
+            <dl className="traffic-total" aria-label={t('dashboard.totalUpload')}>
+              <dt>
+                <Hint label={t('dashboard.trafficTotalsHint')}>
+                  <span>{t('dashboard.totalTraffic')}</span>
+                </Hint>
+              </dt>
+              <dd>
+                {totalUpload.value}
+                {totalUpload.unit && <span>{totalUpload.unit}</span>}
+              </dd>
+            </dl>
+          </div>
         </div>
-        <div className="traffic-stat traffic-stat--upload"><span className="metric-label"><Icon name="arrow_upward" />{t('dashboard.upload')}</span>
-          <span className="metric-value">{upload.value}<span>{upload.unit}</span></span>
-          <dl className="traffic-total" aria-label={t('dashboard.totalUpload')}>
-            <dt><Hint label={t('dashboard.trafficTotalsHint')}><span>{t('dashboard.totalTraffic')}</span></Hint></dt>
-            <dd>{totalUpload.value}{totalUpload.unit && <span>{totalUpload.unit}</span>}</dd>
-          </dl>
+        <div className="traffic-trend">
+          <div className="traffic-trend-heading">
+            <span className="chart-unit" aria-hidden="true">
+              {chart.axis.unit}
+            </span>
+            <span className="trend-period">{t('dashboard.lastMinute')}</span>
+            <div className="chart-legend">
+              <span>
+                <i />
+                {t('dashboard.download')}
+              </span>
+              <span>
+                <i />
+                {t('dashboard.upload')}
+              </span>
+            </div>
+          </div>
+          <div className={`traffic-chart ${available ? '' : 'traffic-chart--offline'}`}>
+            <div className="chart-scale" aria-hidden="true">
+              {chart.axis.ticks.map((tick, index) => (
+                <span key={index}>{tick}</span>
+              ))}
+            </div>
+            <svg
+              viewBox="0 0 600 144"
+              preserveAspectRatio="none"
+              role="img"
+              aria-label={t('dashboard.chartLabel', {
+                name: network.alias,
+                upload: `${upload.value} ${upload.unit}`,
+                download: `${download.value} ${download.unit}`,
+              })}
+            >
+              <defs>
+                <linearGradient id={`${gradientId}-download`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--md-sys-color-primary)" stopOpacity=".18" />
+                  <stop offset="100%" stopColor="var(--md-sys-color-primary)" stopOpacity=".01" />
+                </linearGradient>
+                <linearGradient id={`${gradientId}-upload`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--md-sys-color-tertiary)" stopOpacity=".10" />
+                  <stop offset="100%" stopColor="var(--md-sys-color-tertiary)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {showHistory && (
+                <g aria-hidden="true">
+                  {chart.areas.download.map((path, index) => (
+                    <path
+                      key={`download-${index}`}
+                      d={path}
+                      fill={`url(#${gradientId}-download)`}
+                    />
+                  ))}
+                  {chart.areas.upload.map((path, index) => (
+                    <path key={`upload-${index}`} d={path} fill={`url(#${gradientId}-upload)`} />
+                  ))}
+                </g>
+              )}
+              {[12, 74, 136].map((y) => (
+                <line key={y} x1="0" y1={y} x2="600" y2={y} className="chart-grid" />
+              ))}
+              {showHistory && (
+                <>
+                  {chart.download.map((path, index) => (
+                    <path key={index} d={path} className="chart-line chart-line--download" />
+                  ))}
+                  {chart.upload.map((path, index) => (
+                    <path key={index} d={path} className="chart-line chart-line--upload" />
+                  ))}
+                </>
+              )}
+            </svg>
+            {(!available || telemetry.download === null) && (
+              <span className="chart-empty">{t(empty)}</span>
+            )}
+          </div>
+          <div className="chart-time" aria-hidden="true">
+            <span>{t('dashboard.sixtyAgo')}</span>
+            <span>{t('dashboard.thirtyAgo')}</span>
+            <span>{t('dashboard.now')}</span>
+          </div>
         </div>
       </div>
-      <div className="traffic-trend">
-        <div className="traffic-trend-heading"><span className="chart-unit" aria-hidden="true">{chart.axis.unit}</span><span className="trend-period">{t('dashboard.lastMinute')}</span>
-          <div className="chart-legend"><span><i />{t('dashboard.download')}</span><span><i />{t('dashboard.upload')}</span></div>
-        </div>
-        <div className={`traffic-chart ${available ? '' : 'traffic-chart--offline'}`}>
-          <div className="chart-scale" aria-hidden="true">{chart.axis.ticks.map((tick, index) => <span key={index}>{tick}</span>)}</div>
-          <svg viewBox="0 0 600 144" preserveAspectRatio="none" role="img"
-            aria-label={t('dashboard.chartLabel', { name: network.alias, upload: `${upload.value} ${upload.unit}`, download: `${download.value} ${download.unit}` })}>
-            <defs>
-              <linearGradient id={`${gradientId}-download`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--md-sys-color-primary)" stopOpacity=".18" />
-                <stop offset="100%" stopColor="var(--md-sys-color-primary)" stopOpacity=".01" />
-              </linearGradient>
-              <linearGradient id={`${gradientId}-upload`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--md-sys-color-tertiary)" stopOpacity=".10" />
-                <stop offset="100%" stopColor="var(--md-sys-color-tertiary)" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            {showHistory && <g aria-hidden="true">
-              {chart.areas.download.map((path, index) => <path key={`download-${index}`} d={path} fill={`url(#${gradientId}-download)`} />)}
-              {chart.areas.upload.map((path, index) => <path key={`upload-${index}`} d={path} fill={`url(#${gradientId}-upload)`} />)}
-            </g>}
-            {[12, 74, 136].map((y) => <line key={y} x1="0" y1={y} x2="600" y2={y} className="chart-grid" />)}
-            {showHistory && <>
-              {chart.download.map((path, index) => <path key={index} d={path} className="chart-line chart-line--download" />)}
-              {chart.upload.map((path, index) => <path key={index} d={path} className="chart-line chart-line--upload" />)}
-            </>}
-          </svg>
-          {(!available || telemetry.download === null) && <span className="chart-empty">{t(empty)}</span>}
-        </div>
-        <div className="chart-time" aria-hidden="true"><span>{t('dashboard.sixtyAgo')}</span><span>{t('dashboard.thirtyAgo')}</span><span>{t('dashboard.now')}</span></div>
-      </div>
-    </div>
-  </Card>;
+    </Card>
+  );
 }
