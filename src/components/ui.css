@@ -33,6 +33,7 @@
 .switch-thumb .icon { font-size: 14px; animation: content-fade-in var(--motion-short); }
 .select-trigger { min-width: 160px; height: 44px; border-radius: var(--shape-medium); border: 1px solid var(--md-sys-color-outline); display: inline-flex; align-items: center; gap: 10px; background: transparent; padding: 0 14px; text-align: left; color: var(--md-sys-color-on-surface); transition: background var(--motion-short); }
 .select-trigger:hover { background: var(--state-hover); }
+.select-trigger:disabled { opacity: .38; cursor: default; background: transparent; }
 .select-leading, .select-option-leading { display: inline-flex; align-items: center; flex-shrink: 0; }
 .select-chevron { margin-left: auto; display: flex; }
 .select-chevron .icon { font-size: 20px; transition: transform var(--motion-short); }
@@ -70,7 +71,7 @@
 .text-field-control textarea { resize: vertical; min-height: 100px; max-height: 220px; }
 .text-field-control input::placeholder { color: var(--md-sys-color-on-surface-variant); opacity: .75; }
 .text-field-control:has(input:disabled) { opacity: .6; }
-.switch[data-disabled] { cursor: default; }
+.switch[data-disabled] { cursor: default; opacity: .38; }
 .text-field-trailing { display: flex; flex-shrink: 0; margin-right: 8px; }
 .text-field-support { margin: 6px 16px 0; font-size: 11px; line-height: 18px; color: var(--md-sys-color-on-surface-variant); }
 .text-field--error .text-field-control { border-color: var(--md-sys-color-error); box-shadow: inset 0 0 0 1px var(--md-sys-color-error); }

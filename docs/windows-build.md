@@ -80,7 +80,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\check-core.ps1 -Mode M
 
 `Tun` 模式要求控制端为普通用户，并验证 `guiElevated: false`、`coreElevated: true`。它使用随机 `ct-…` 名称创建两个临时网卡，配置 `198.18.0.1/32` 和 `198.18.0.2/32`；脚本先检查地址占用。测试会查询 Windows 网卡列表，检查停止其中一个不影响另一个，以及结束后临时网卡全部移除。核心沿用官方防火墙行为：接口规则随接口清理，应用级放行规则可能保留。无服务器的 TUN 测试不代表端到端组网已经通过。
 
-普通界面仍使用 `asInvoker`，打开应用和查看版本不会启动核心或弹出 UAC。当前阶段退出界面会关闭它拥有的核心及连接；后台保留连接按后续阶段实现。详细结构和错误约定见[核心运行基础](core-runtime.md)。
+普通界面仍使用 `asInvoker`，打开应用和查看版本不会启动核心或弹出 UAC；已开启逐网络自动连接时沿用该启动队列。阶段 7 默认关闭窗口隐藏到托盘并保持连接，明确退出才清理核心。详细结构和错误约定见[核心运行基础](core-runtime.md)；新包集中验收见[Windows 集中验收](windows-acceptance.md)。
 
 NSIS 安装包沿用 Tauri 的默认 WebView2 检查／安装流程，缺少运行时时需要联网下载。构建流程默认导出未签名产物，安装和功能验收应在 Windows 环境进行。
 

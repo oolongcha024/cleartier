@@ -46,7 +46,8 @@ function ConnectionCard({ network, onCopy }: { network: Network; onCopy: (value:
       <div className={`connection-state-icon ${connected ? 'connection-state-icon--connected' : ''} ${busy ? 'is-spinning' : ''}`}>
         <Icon name={busy ? 'progress_activity' : connected ? 'check' : 'power_settings_new'} />
       </div>
-      <div className="connection-state-text" aria-live="polite"><h3>{t(`dashboard.${title}`)}</h3><p>{detail}</p></div>
+      <div className="connection-state-text" aria-live="polite"><h3>{t(network.recovery?.phase === 'waiting' ? 'desktop.recovering' : `dashboard.${title}`)}</h3><p>{network.recovery
+        ? t(`desktop.recovery.${network.recovery.phase}`, { count: network.recovery.maxAttempts, seconds: network.recovery.retryInSeconds }) : detail}</p></div>
       <Button variant={running ? 'outlined' : 'filled'} icon={busy ? undefined : network.coreState === 'unknown' ? 'refresh' : 'power_settings_new'} disabled={busy || !connectionEnabled || (autoConnecting && !running)}
         onClick={() => { void (network.coreState === 'unknown' ? refresh() : toggleConnection(network.id)); }}>
         {t(network.coreState === 'unknown' ? 'connection.refresh' : `dashboard.${busy ? statusKey(network) : running ? 'disconnect' : 'connect'}`)}
@@ -97,7 +98,7 @@ function QuickActions({ network, onCopy, onEdit, onInvite, sharing }: {
         <span className="quick-icon"><Icon name="content_copy" /></span><span>{t('dashboard.copyIp')}</span>
       </button>
       <Hint label={t(pending ? 'dashboard.reconnectApplyHint' : 'dashboard.reconnectHint')}>
-        <button className="quick-action" disabled={!connectionEnabled || network.coreState !== 'running'} onClick={() => { void handleReconnect(); }}>
+        <button className="quick-action" disabled={!connectionEnabled || !['running', 'failed'].includes(network.coreState)} onClick={() => { void handleReconnect(); }}>
           <span className="quick-icon"><Icon name={busy ? 'progress_activity' : 'restart_alt'} className={busy ? 'is-spinning' : ''} /></span>
           <span>{t(pending ? 'dashboard.reconnectApply' : 'dashboard.reconnect')}</span>
         </button>

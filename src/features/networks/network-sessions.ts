@@ -25,6 +25,7 @@ export function createNetworkSessions(runtime: NetworkRuntime, access: {
       access.telemetry?.receive(network.id, snapshot?.telemetry, snapshot?.state ?? 'stopped');
       access.update(network.id, (current) => {
         const change = {
+          recovery: snapshot?.recovery ?? null,
           coreState: snapshot?.state ?? 'stopped', runningConfig: snapshot?.runningConfig ?? null,
           deviceName: snapshot?.deviceName ?? '', virtualIp: snapshot?.virtualIp ?? '',
           peerCount: snapshot?.peerCount ?? 0, directPeerCount: snapshot?.directPeerCount ?? 0,

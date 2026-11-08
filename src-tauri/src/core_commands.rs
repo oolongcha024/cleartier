@@ -31,9 +31,16 @@ pub fn core_status(core: State<'_, CoreController>) -> HostStatus {
 
 #[tauri::command]
 pub async fn core_start(
+    app: tauri::AppHandle,
     toml: String,
     core: State<'_, CoreController>,
 ) -> Result<String, CoreError> {
+    if app.state::<crate::desktop::Desktop>().rejects_connections() {
+        return Err(CoreError {
+            code: ErrorCode::CoreFailure,
+            message: "The client is shutting down".into(),
+        });
+    }
     core.start(toml).await.map(|id| id.to_string())
 }
 

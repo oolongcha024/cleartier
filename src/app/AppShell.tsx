@@ -10,12 +10,14 @@ import { version } from '../../package.json';
 import { isDesktop } from '../platform/client';
 import { ConfigurationNotice } from '../features/networks/ConfigurationState';
 import { ConnectionNotice } from '../features/networks/ConnectionNotice';
+import { useDesktopStore } from '../features/desktop/desktop-store';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const { dark, setPreference } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
+  const quitting = useDesktopStore((state) => state.status?.quitting ?? false);
   const networkCount = useNetworkStore((state) => state.networks.length);
   const connected = useNetworkStore((state) => state.networks.filter(isConnected).length);
   const summary = useNetworkStore((state) => summaryKey(state.networks));
@@ -31,7 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => { clearInterval(timer); window.removeEventListener('focus', refresh); };
   }, [refreshRuntime]);
 
-  return <div className={`app-shell ${collapsed ? 'app-shell--collapsed' : ''}`}>
+  return <div inert={quitting} className={`app-shell ${collapsed ? 'app-shell--collapsed' : ''}`}>
     <a href="#main-content" className="skip-link" onClick={(event) => {
       event.preventDefault();
       document.getElementById('main-content')?.focus();

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Icon, Select } from '../../components/ui';
 import { useTheme, type ThemePreference } from '../../theme/theme';
 import { themeColors, type ThemeColor } from '../../theme/palettes';
+import { BackgroundSettings } from './BackgroundSettings';
+import { DiagnosticSettings } from './DiagnosticSettings';
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -19,6 +21,8 @@ export function SettingsPage() {
           leading: <span className="theme-color-swatch" data-color={id} aria-hidden="true" /> }))} />
     </div>
   </section>
+    <BackgroundSettings />
+    <DiagnosticSettings />
     <Link to="/settings/about" className="card settings-about-link">
       <Icon name="info" /><span>{t('settings.about')}</span><Icon name="chevron_right" />
     </Link>

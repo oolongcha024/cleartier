@@ -6,6 +6,7 @@ export type RuntimeOperation =
   | { action: 'stop'; id: string };
 export interface RuntimeFailure { code: string }
 export interface RuntimeSnapshot {
+  recovery?: { phase: 'waiting' | 'exhausted' | 'authorization' | 'stopped'; attempt: number; maxAttempts: number; retryInSeconds: number } | null;
   telemetry?: TelemetrySnapshot | null;
   id: string; state: CoreState; runningConfig: NetworkConfig | null;
   deviceName: string; virtualIp: string | null; peerCount: number; directPeerCount: number;

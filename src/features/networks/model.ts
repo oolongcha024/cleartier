@@ -1,4 +1,5 @@
 import type { PeerIconPreferences } from './peer-icons.ts';
+import type { RuntimeSnapshot } from './runtime.ts';
 
 // Core lifecycle and connected peers are separate facts. A real adapter should
 // map EasyTier snapshots/events here, rather than equate `running` with connected.
@@ -24,6 +25,7 @@ export interface NetworkConfig {
   magicDns: boolean; dnsSuffix: string; udpBroadcastRelay: boolean;
 }
 export interface Network {
+  recovery?: RuntimeSnapshot['recovery'];
   connectionError?: { code: string } | null; deviceName?: string; peerCount?: number; directPeerCount?: number;
   id: string; alias: string; icon: NetworkIcon; peerIcons?: PeerIconPreferences;
   savedConfig: NetworkConfig;

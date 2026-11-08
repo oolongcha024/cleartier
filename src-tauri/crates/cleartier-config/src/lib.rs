@@ -3,8 +3,10 @@
 //! a revision check prevents another window from silently overwriting newer data.
 mod connection;
 mod model;
+mod preferences;
 pub use connection::ConnectionConfig;
 pub use model::{Document, NetworkRecord};
+pub use preferences::{CloseBehavior, DesktopPreferences, PreferencesRepository};
 
 use serde::Serialize;
 use std::{

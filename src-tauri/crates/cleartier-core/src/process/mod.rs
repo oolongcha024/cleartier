@@ -13,6 +13,14 @@ pub use controller::CoreController;
 pub use diagnostics::{ProcessCheckMode, ProcessCheckReport, run_process_check};
 pub use worker::run_worker;
 
+pub(crate) fn interface_present(name: &str) -> Option<bool> {
+    if name.is_empty() {
+        None
+    } else {
+        platform::tun_exists(name).ok()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {

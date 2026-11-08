@@ -163,3 +163,34 @@ test('network summaries distinguish waiting, unknown and failed from a stopped n
   assert.equal(summaryKey([{...network,coreState:'failed'}]),'networksFailed');
   assert.equal(summaryKey([{...network,coreState:'running',peerCount:1}]),'networksOnline');
 });
+
+test('native recovery keeps pending edits separate, and disconnect cancels its running intent', async () => {
+  const f = native(); const id = f.store.getState().networks[0].id;
+  await f.store.getState().toggleConnection(id);
+  const running = structuredClone(get(f.store, id).runningConfig);
+  await f.store.getState().saveConfiguration(id, { ...configurationDraft(get(f.store, id)), secret: 'pending-key' }, 'later');
+  const recovery = { phase: 'waiting', attempt: 0, maxAttempts: 3, retryInSeconds: 2 };
+  f.states([{ id, state: 'failed', runningConfig: running, deviceName: '', virtualIp: null,
+    peerCount: 0, directPeerCount: 0, error: { code: 'core_exited' }, recovery }]);
+  await f.store.getState().refreshRuntime();
+  assert.deepEqual(get(f.store, id).recovery, recovery);
+  assert.equal(get(f.store, id).savedConfig.secret, 'pending-key');
+  assert.deepEqual(get(f.store, id).runningConfig, running);
+  assert.equal(await f.store.getState().removeNetwork(id), false);
+  await f.store.getState().toggleConnection(id);
+  assert.equal(f.calls.at(-1).action, 'stop');
+  assert.equal(get(f.store, id).recovery, null);
+  assert.equal(get(f.store, id).savedConfig.secret, 'pending-key');
+});
+
+test('manual retry after exhausted recovery uses saved parameters and clears recovery feedback', async () => {
+  const f = native(); const id = f.store.getState().networks[0].id;
+  f.states([{ id, state: 'failed', runningConfig: null, deviceName: '', virtualIp: null,
+    peerCount: 0, directPeerCount: 0, error: { code: 'core_exited' },
+    recovery: { phase: 'exhausted', attempt: 3, maxAttempts: 3, retryInSeconds: 0 } }]);
+  await f.store.getState().refreshRuntime();
+  assert.equal(await f.store.getState().reconnect(id), true);
+  assert.equal(f.calls.at(-1).action, 'restart');
+  assert.equal(get(f.store, id).recovery, null);
+  assert.equal(get(f.store, id).coreState, 'running');
+});

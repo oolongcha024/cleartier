@@ -1,7 +1,25 @@
-.settings-row { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
+.settings-row { display: flex; justify-content: space-between; align-items: center; gap: 24px; min-height: 48px; margin-top: 16px; }
 .theme-color-swatch { display: inline-block; width: 18px; height: 18px; flex-shrink: 0; border-radius: 4px; background: var(--theme-swatch); }
 .settings-page { display: grid; gap: 20px; }
 .settings-about-link { display: flex; align-items: center; gap: 16px; min-height: 72px; font-weight: 500; transition: background-color var(--motion-short); }
 .settings-about-link > .icon { color: var(--md-sys-color-on-surface-variant); }
 .settings-about-link > .icon:last-child { margin-left: auto; }
 .settings-about-link:hover { background: var(--md-sys-color-surface-container); }
+.settings-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.settings-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.settings-footnote, .settings-preview-note { margin-top: 12px; color: var(--md-sys-color-on-surface-variant); font-size: 12px; line-height: 20px; }
+.settings-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; color: var(--md-sys-color-error); line-height: 20px; }
+.diagnostic-checks { display: grid; gap: 16px; margin-top: 20px; }
+.diagnostic-check { display: flex; align-items: center; gap: 12px; min-height: 24px; }
+.diagnostic-check > .icon { color: var(--md-sys-color-on-surface-variant); }
+.diagnostic-check--error > .icon { color: var(--md-sys-color-error); }
+.diagnostic-check > span:last-child { margin-left: auto; }
+.diagnostic-errors { margin-top: 24px; border-top: 1px solid var(--md-sys-color-outline-variant); padding-top: 20px; }
+.diagnostic-errors h3 { font-size: 14px; line-height: 20px; margin-bottom: 12px; }
+.diagnostic-errors ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.diagnostic-errors li { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 16px; line-height: 20px; }
+.diagnostic-errors time { color: var(--md-sys-color-on-surface-variant); font-size: 12px; }
+.desktop-dialog > .dialog-description { margin: 16px 0 24px; font-size: 14px; line-height: 20px; }
+.desktop-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.desktop-error { color: var(--md-sys-color-error); margin-bottom: 24px; line-height: 20px; }
+.desktop-exit-status { position: fixed; inset: 0; z-index: 300; display: flex; align-items: center; justify-content: center; gap: 16px; background: var(--md-sys-color-surface); }

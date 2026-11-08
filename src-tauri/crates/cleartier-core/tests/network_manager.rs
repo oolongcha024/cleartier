@@ -20,6 +20,9 @@ mod check {
     // only OS network side effects disabled by this test Adapter.
     struct Isolated(CoreController);
     impl Backend for Isolated {
+        async fn start_in_background(&self, toml: String) -> Result<Uuid> {
+            self.start(toml).await
+        }
         async fn start(&self, toml: String) -> Result<Uuid> {
             let config = TomlConfigLoader::new_from_str(&toml).unwrap();
             if config.get_inst_name() == "imported-instance" {

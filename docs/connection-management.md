@@ -11,7 +11,7 @@
 - 一旦进入重新启动，新配置失败后不恢复旧连接；已保存的新配置不丢失。错误展示以实际快照为准，不能假装旧连接仍正常。
 - 本地备注和图标不触发重连。未知状态先刷新，避免对可能仍在运行的实例盲目连接。
 - 启动时自动连接已启用的网络，单项失败继续其他项；取消 UAC 后停止本次队列，保留偏好，不反复弹窗，可主动手动重试。
-- 关闭当前应用仍会结束它拥有的核心及连接；托盘和关闭窗口后继续连接留到阶段 7。
+- 默认关闭窗口隐藏到托盘并保持连接，明确退出才结束所拥有的核心及网络；阶段 7 的[后台生命周期与恢复](desktop-lifecycle.md)已实现，待 Windows 实机验收。
 
 ## 代码组织
 
@@ -19,7 +19,7 @@
 | --- | --- |
 | `cleartier-config::ConnectionConfig` | 与存储共享现有表单的类型和校验 |
 | `cleartier-core/src/connections/config.rs` | 通过上游类型转换为核心 TOML，不插值密钥 |
-| `cleartier-core::connections::NetworkManager` | 操作排序、运行参数、互斥、就绪等待及错误；Interface 为 `operate / snapshot` |
+| `cleartier-core::connections::NetworkManager` | 操作排序、运行参数、互斥、就绪等待、有限恢复与退出协调；命令与读取仍共用实例状态 |
 | `cleartier-core/src/status.rs` | 类型化核心事件和快照，区分就绪、节点和局部错误 |
 | `src-tauri/src/network_commands.rs` | Tauri 的 `network_operation / network_snapshot` |
 | `features/networks/network-sessions.ts` | 前端命令、快照合并、迟到响应保护及启动队列 |
@@ -27,7 +27,7 @@
 
 Rust 后端保留实际提交运行的配置，前端以其与磁盘保存值比较待应用修改。运行快照不持久化。普通 GUI 通过既有私有 IPC 控制独立核心，TUN 仅按需提升核心权限。
 
-同一应用数据目录使用 `runtime-control.lock` 协调多个 GUI 进程。第一个发起连接的窗口保留控制权直到退出；其他窗口仍可管理文档，但连接查询及操作明确报告已有控制端，不报告虚假的空运行列表。
+阶段 7 在同一用户会话中通过单实例入口唤起已有窗口，不再主动创建多个 GUI。`runtime-control.lock` 仍保护同一用户数据目录的连接控制权，阻止旧版、其他会话或其他控制端错误接管连接，不报告虚假的空运行列表。
 
 ## 参数与冲突
 
@@ -69,4 +69,4 @@ Windows 构建入口增加核心 `--lib` 测试，并保留打包后的 Direct�
 7. 重开客户端只自动连接启用的网络；取消 UAC 后本次队列停止，偏好保留，手动重试可用。
 8. 测试名称或地址占用、错误参数和核心异常退出；界面反馈实际状态，不把单条连接失败当成整个网络不可用。
 
-安装、长期自动恢复、macOS／Linux 提权与后台生命周期继续按阶段 7 实机验收，不因 Windows 编译成功而视作已完成。
+阶段 7 的后台与恢复实现已完成本地验证；安装、长期运行、Windows TUN 异常清理及其他平台支持仍需实机验证。阶段 2–7 的统一步骤见[Windows 集中验收](windows-acceptance.md)，不因编译成功而视作验收通过。

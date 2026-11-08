@@ -129,6 +129,19 @@ impl CoreController {
     }
 
     pub async fn start(&self, toml: String) -> Result<Uuid> {
+        self.start_with_authorization(toml, true).await
+    }
+
+    /// Recovery may reuse existing privileges, but must never open a UAC prompt.
+    pub async fn start_in_background(&self, toml: String) -> Result<Uuid> {
+        self.start_with_authorization(toml, false).await
+    }
+
+    async fn start_with_authorization(
+        &self,
+        toml: String,
+        allow_authorization: bool,
+    ) -> Result<Uuid> {
         if toml.len() > 256 * 1024 {
             return Err(CoreError::new(
                 ErrorCode::InvalidConfig,
@@ -156,6 +169,17 @@ impl CoreController {
             }
         }
         let mut session = self.inner.session.lock().await;
+        if needs_elevation
+            && !allow_authorization
+            && !session.as_mut().is_some_and(|current| {
+                current.elevated && !current.process.as_mut().unwrap().exited().unwrap_or(true)
+            })
+        {
+            return Err(CoreError::new(
+                ErrorCode::ElevationRequired,
+                "Manual authorization is required to restore the core",
+            ));
+        }
         self.ensure_session(&mut session, needs_elevation).await?;
         match self
             .inner
@@ -470,5 +494,28 @@ impl Inner {
         {
             let _ = writeln!(file, "{record}");
         }
+    }
+}
+
+#[cfg(test)]
+mod background_tests {
+    use super::*;
+    #[tokio::test]
+    async fn restoring_a_tun_without_an_elevated_session_never_launches_a_process() {
+        let directory = tempfile::tempdir().unwrap();
+        let controller = CoreController::new(
+            std::env::current_exe().unwrap(),
+            CorePaths::new(
+                directory.path().join("config"),
+                directory.path().join("data"),
+            ),
+        )
+        .unwrap();
+        let id = Uuid::new_v4();
+        let name = format!("ct-{}", &id.to_string()[..8]);
+        let error = controller.start_in_background(format!("instance_id = '{id}'\n[network_identity]\nnetwork_name = 'background-check'\n[flags]\ndev_name = '{name}'\n")).await.unwrap_err();
+        assert_eq!(error.code, ErrorCode::ElevationRequired);
+        assert!(controller.status().pid.is_none());
+        assert!(!directory.path().join("data/runtime").exists());
     }
 }

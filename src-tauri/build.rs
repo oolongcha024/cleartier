@@ -3,6 +3,7 @@ fn main() {
     println!("cargo:rerun-if-changed=icons");
     println!("cargo:rerun-if-changed=resources/windows");
     println!("cargo:rerun-if-changed=windows-app.manifest");
+    println!("cargo:rerun-if-changed=windows/installer-hooks.nsh");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         // Upstream's Packet.lib search is guarded by the build host OS.
         let root = std::env::var("CARGO_MANIFEST_DIR").unwrap();

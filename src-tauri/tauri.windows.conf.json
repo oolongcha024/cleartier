@@ -1,5 +1,11 @@
 {
   "bundle": {
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerHooks": "windows/installer-hooks.nsh"
+      }
+    },
     "resources": {
       "resources/windows/wintun.dll": "wintun.dll",
       "resources/windows/Packet.dll": "Packet.dll",

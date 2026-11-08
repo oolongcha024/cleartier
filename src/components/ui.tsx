@@ -44,12 +44,12 @@ export function Switch({ checked, onChange, label, disabled = false }: { checked
   </BaseSwitch.Root>;
 }
 export interface SelectOption { value: string; label: string; icon?: string; leading?: ReactNode; suffix?: ReactNode }
-export function Select({ value, onChange, options, label, icon, className = '', popupClassName = '' }: {
+export function Select({ value, onChange, options, label, icon, className = '', popupClassName = '', disabled = false }: {
   value: string; onChange: (value: string) => void; options: SelectOption[];
-  label: string; icon?: string; className?: string; popupClassName?: string;
+  label: string; icon?: string; className?: string; popupClassName?: string; disabled?: boolean;
 }) {
   const leading = options.find((option) => option.value === value)?.leading;
-  return <BaseSelect.Root value={value} onValueChange={(next) => { if (next !== null) onChange(next); }} items={options}>
+  return <BaseSelect.Root disabled={disabled} value={value} onValueChange={(next) => { if (next !== null) onChange(next); }} items={options}>
     <BaseSelect.Trigger className={`select-trigger ${className}`} aria-label={label}>
       {leading && <span className="select-leading">{leading}</span>}
       {icon && <span className="select-leading"><Icon name={icon} /></span>}

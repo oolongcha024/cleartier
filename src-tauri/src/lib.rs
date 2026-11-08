@@ -1,5 +1,6 @@
 mod config_commands;
 mod core_commands;
+mod desktop;
 mod host_environment;
 mod invitation_commands;
 mod network_commands;
@@ -19,11 +20,35 @@ pub fn run() {
     if let Some(code) = cleartier_core::dispatch_headless() {
         std::process::exit(code);
     }
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(desktop::second_instance));
+    #[cfg(not(windows))]
+    let builder = builder.plugin(
+        tauri_plugin_autostart::Builder::new()
+            .app_name("ClearTier")
+            .arg("--background")
+            .build(),
+    );
+    builder
+        .plugin(
+            tauri_plugin_opener::Builder::new()
+                .open_js_links_on_click(false)
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .setup(core_commands::setup)
+        .setup(|app| {
+            core_commands::setup(app)?;
+            desktop::setup(app)
+        })
         .invoke_handler(tauri::generate_handler![
+            desktop::preferences::desktop_status,
+            desktop::preferences::desktop_update,
+            desktop::lifecycle::desktop_exit,
+            desktop::lifecycle::desktop_respond,
+            desktop::diagnostics::diagnostics_read,
+            desktop::diagnostics::diagnostics_export,
+            desktop::diagnostics::logs_open,
             host_environment,
             core_version,
             invitation_commands::invitation_parameters,
@@ -43,12 +68,5 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("failed to build ClearTier")
-        .run(|app, event| {
-            if matches!(event, tauri::RunEvent::Exit) {
-                use tauri::Manager;
-                if let Some(core) = app.try_state::<cleartier_core::process::CoreController>() {
-                    let _ = tauri::async_runtime::block_on(core.shutdown());
-                }
-            }
-        });
+        .run(desktop::event);
 }

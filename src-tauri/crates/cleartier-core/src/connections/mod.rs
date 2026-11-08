@@ -2,14 +2,16 @@
 //! Disk persistence stays outside this Module; restarting never restores an old
 //! connection after a failed new start.
 pub(crate) mod config;
+mod recovery;
 use crate::{
     InstanceSnapshot,
     process::{CoreController, CoreError, ErrorCode, Result},
 };
 use cleartier_config::ConnectionConfig;
+pub use recovery::RecoverySnapshot;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, VecDeque},
     fs::{File, OpenOptions},
     future::Future,
     path::PathBuf,
@@ -19,6 +21,7 @@ use uuid::Uuid;
 
 pub trait Backend: Send + Sync {
     fn start(&self, toml: String) -> impl Future<Output = Result<Uuid>> + Send;
+    fn start_in_background(&self, toml: String) -> impl Future<Output = Result<Uuid>> + Send;
     fn stop(&self, id: Uuid) -> impl Future<Output = Result<()>> + Send;
     fn snapshot(&self) -> impl Future<Output = Result<Vec<InstanceSnapshot>>> + Send;
 }
@@ -28,6 +31,9 @@ impl Backend for CoreController {
     }
     async fn stop(&self, id: Uuid) -> Result<()> {
         self.stop(id).await
+    }
+    async fn start_in_background(&self, toml: String) -> Result<Uuid> {
+        self.start_in_background(toml).await
     }
     async fn snapshot(&self) -> Result<Vec<InstanceSnapshot>> {
         let result = self.snapshot().await;
@@ -52,6 +58,7 @@ pub enum Operation {
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct NetworkSnapshot {
+    pub recovery: Option<RecoverySnapshot>,
     pub telemetry: Option<crate::TelemetrySnapshot>,
     pub id: Uuid,
     pub state: &'static str,
@@ -64,6 +71,10 @@ pub struct NetworkSnapshot {
 }
 #[derive(Default)]
 struct State {
+    recovery: recovery::Recovery,
+    closing: bool,
+    recent_errors: VecDeque<crate::support::RecentError>,
+    observed_errors: BTreeMap<Uuid, ErrorCode>,
     configs: BTreeMap<Uuid, ConnectionConfig>,
     measurements: BTreeMap<Uuid, crate::TelemetrySnapshot>,
     errors: BTreeMap<Uuid, CoreError>,
@@ -87,6 +98,12 @@ impl<B: Backend> NetworkManager<B> {
 
     pub async fn operate(&self, operation: Operation) -> Result<Vec<NetworkSnapshot>> {
         let mut state = self.state.lock().await;
+        if state.closing {
+            return Err(CoreError::new(
+                ErrorCode::CoreFailure,
+                "The client is shutting down",
+            ));
+        }
         if state.lease.is_none() {
             state.lease = Some(self.lease()?);
         }
@@ -95,8 +112,33 @@ impl<B: Backend> NetworkManager<B> {
             | Operation::Restart { id, .. }
             | Operation::Stop { id } => *id,
         };
-        let result = self.perform(&mut state, operation).await;
+        let stopping = matches!(&operation, Operation::Stop { .. });
+        state.recovery.cancel(id);
+        let result = self.perform(&mut state, operation, false).await;
+        if !stopping && result.is_ok() {
+            if let Some(config) = state.configs.get(&id).cloned() {
+                state.recovery.track(id, config);
+            }
+        }
+        if !stopping && result.is_err() {
+            // A validation failure can leave the previous instance untouched.
+            // Track only a currently verified healthy instance, never restart
+            // the old configuration after a failed stop/start sequence.
+            if let Some(config) = state.configs.get(&id).cloned() {
+                if self.backend.snapshot().await.is_ok_and(|snapshots| {
+                    snapshots.iter().any(|snapshot| {
+                        snapshot.id == id
+                            && snapshot.ready
+                            && snapshot.running == Some(true)
+                            && !snapshot.fatal
+                    })
+                }) {
+                    state.recovery.track(id, config);
+                }
+            }
+        }
         if let Err(error) = &result {
+            record_error(&mut state, id, error.code);
             state.errors.insert(id, error.clone());
         }
         result?;
@@ -115,7 +157,73 @@ impl<B: Backend> NetworkManager<B> {
         self.collect(&mut state).await
     }
 
-    async fn perform(&self, state: &mut State, operation: Operation) -> Result<()> {
+    /// Called by the native timer, including while the window is hidden.
+    pub async fn maintain(&self) -> Result<()> {
+        let mut state = self.state.lock().await;
+        if state.closing || state.lease.is_none() {
+            return Ok(());
+        }
+        self.collect(&mut state).await?;
+        let due = state.recovery.due();
+        if due.is_empty() {
+            return Ok(());
+        }
+        for (id, config) in due {
+            if let Err(error) = self
+                .perform(&mut state, Operation::Restart { id, config }, true)
+                .await
+            {
+                state.recovery.failed(id, &error);
+                state.errors.insert(id, error);
+            }
+        }
+        self.collect(&mut state).await?;
+        Ok(())
+    }
+
+    pub async fn set_recovery_enabled(&self, enabled: bool) {
+        let mut state = self.state.lock().await;
+        state.recovery.set_enabled(enabled);
+        if enabled && !state.closing {
+            if let Ok(snapshots) = self.backend.snapshot().await {
+                for snapshot in snapshots.iter().filter(|snapshot| {
+                    snapshot.ready && snapshot.running == Some(true) && !snapshot.fatal
+                }) {
+                    if let Some(config) = state.configs.get(&snapshot.id).cloned() {
+                        state.recovery.track(snapshot.id, config);
+                    }
+                }
+            }
+        }
+    }
+
+    pub async fn prepare_shutdown(&self) {
+        let mut state = self.state.lock().await;
+        state.closing = true;
+        state.recovery.clear();
+    }
+
+    pub async fn has_active_networks(&self) -> bool {
+        let state = self.state.lock().await;
+        !state.configs.is_empty() || state.recovery.pending()
+    }
+
+    pub async fn recent_errors(&self) -> Vec<crate::support::RecentError> {
+        self.state
+            .lock()
+            .await
+            .recent_errors
+            .iter()
+            .cloned()
+            .collect()
+    }
+
+    async fn perform(
+        &self,
+        state: &mut State,
+        operation: Operation,
+        background: bool,
+    ) -> Result<()> {
         let restarting = matches!(&operation, Operation::Restart { .. });
         let snapshots = match self.backend.snapshot().await {
             Ok(snapshots) => snapshots,
@@ -187,7 +295,11 @@ impl<B: Backend> NetworkManager<B> {
                     state.configs.remove(&id);
                 }
                 state.errors.remove(&id);
-                let started = self.backend.start(toml).await?;
+                let started = if background {
+                    self.backend.start_in_background(toml).await?
+                } else {
+                    self.backend.start(toml).await?
+                };
                 if started != id {
                     return Err(CoreError::new(
                         ErrorCode::ProtocolError,
@@ -290,6 +402,17 @@ impl<B: Backend> NetworkManager<B> {
             }
         }
         snapshots.retain(|snapshot| !removed.contains(&snapshot.id));
+        for id in state.configs.keys() {
+            if !snapshots.iter().any(|snapshot| snapshot.id == *id) {
+                state.errors.insert(
+                    *id,
+                    CoreError::new(
+                        ErrorCode::InstanceFailed,
+                        "The running instance disappeared",
+                    ),
+                );
+            }
+        }
         state.order.retain(|id| state.configs.contains_key(id));
         let mut result = Vec::new();
         for snapshot in &snapshots {
@@ -299,12 +422,18 @@ impl<B: Backend> NetworkManager<B> {
             let observed = snapshot
                 .issue
                 .map(|code| CoreError::new(code, "A network condition requires attention"));
-            let error = if snapshot.fatal {
-                observed.or_else(|| state.errors.get(&snapshot.id).cloned())
+            let error = if snapshot.fatal || snapshot.running == Some(false) {
+                observed.or_else(|| {
+                    Some(CoreError::new(
+                        ErrorCode::InstanceFailed,
+                        "The running instance failed",
+                    ))
+                })
             } else {
                 state.errors.get(&snapshot.id).cloned().or(observed)
             };
             result.push(NetworkSnapshot {
+                recovery: None,
                 telemetry: snapshot.telemetry.clone(),
                 id: snapshot.id,
                 state: if snapshot.fatal || snapshot.running == Some(false) {
@@ -327,6 +456,7 @@ impl<B: Backend> NetworkManager<B> {
         for (id, error) in &state.errors {
             if !snapshots.iter().any(|snapshot| snapshot.id == *id) {
                 result.push(NetworkSnapshot {
+                    recovery: None,
                     telemetry: state.measurements.get(id).cloned(),
                     id: *id,
                     state: "failed",
@@ -342,6 +472,7 @@ impl<B: Backend> NetworkManager<B> {
         for (id, telemetry) in &state.measurements {
             if !result.iter().any(|snapshot| snapshot.id == *id) {
                 result.push(NetworkSnapshot {
+                    recovery: None,
                     id: *id,
                     state: "stopped",
                     running_config: None,
@@ -357,6 +488,20 @@ impl<B: Backend> NetworkManager<B> {
         state
             .configs
             .retain(|id, _| snapshots.iter().any(|snapshot| snapshot.id == *id));
+        state.recovery.observe(&result);
+        for snapshot in &result {
+            if let Some(error) = &snapshot.error {
+                record_error(state, snapshot.id, error.code);
+            } else {
+                state.observed_errors.remove(&snapshot.id);
+            }
+        }
+        for snapshot in &mut result {
+            snapshot.recovery = state.recovery.snapshot(snapshot.id);
+            if snapshot.running_config.is_none() {
+                snapshot.running_config = state.recovery.waiting_config(snapshot.id);
+            }
+        }
         Ok(result)
     }
 
@@ -377,6 +522,17 @@ impl<B: Backend> NetworkManager<B> {
             )
         })?;
         Ok(file)
+    }
+}
+
+fn record_error(state: &mut State, id: Uuid, code: ErrorCode) {
+    if state.observed_errors.insert(id, code) != Some(code) {
+        state
+            .recent_errors
+            .push_back(crate::support::RecentError::new(code));
+        while state.recent_errors.len() > 50 {
+            state.recent_errors.pop_front();
+        }
     }
 }
 
