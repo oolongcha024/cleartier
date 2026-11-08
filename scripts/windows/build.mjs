@@ -39,6 +39,7 @@ function stageProgram(executable) {
     copyFileSync(join(resources, name), join(stage, name));
   }
   cpSync(join(resources, 'licenses'), join(stage, 'licenses'), { recursive: true });
+  copyFileSync(join(root, 'LICENSE'), join(stage, 'LICENSE'));
   copyFileSync(join(root, 'scripts/check-core.ps1'), join(stage, 'check-core.ps1'));
 }
 

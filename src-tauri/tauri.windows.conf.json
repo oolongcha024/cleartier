@@ -7,6 +7,7 @@
       }
     },
     "resources": {
+      "../LICENSE": "LICENSE",
       "resources/windows/wintun.dll": "wintun.dll",
       "resources/windows/Packet.dll": "Packet.dll",
       "resources/windows/WinDivert64.sys": "WinDivert64.sys",

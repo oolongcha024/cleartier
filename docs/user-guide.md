@@ -4,7 +4,7 @@ ClearTier 连接已经部署好的 EasyTier 网络，内置兼容核心，无需
 
 ## 安装与加入网络
 
-Windows 测试包从同一次成功构建的 Actions Artifacts 获取，构建方法见[开发指南](development.md#windows-构建)。免安装 ZIP 需完整解压并保留旁边的运行资源；NSIS 使用当前用户安装。直接运行需要 Microsoft Edge WebView2 Runtime，安装包可按需下载。界面最小尺寸为 900×600。
+Windows 发布包从 [Releases](https://github.com/oolongcha024/cleartier/releases) 获取，手动测试包从同次成功构建的 Actions Artifacts 获取，方法见[开发指南](development.md#windows-构建)。免安装 ZIP 需完整解压并保留旁边的运行资源；NSIS 使用当前用户安装。直接运行需要 Microsoft Edge WebView2 Runtime，安装包可按需下载。界面最小尺寸为 900×600。
 
 1. 在仪表盘或网络配置页添加网络，填写网络名称、密钥和服务器地址；服务器需自行准备。
 2. 保存后手动连接。新网络默认不自动连接；需要 TUN 时 Windows 仅对核心请求 UAC，取消授权会保留配置。

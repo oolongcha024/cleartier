@@ -26,7 +26,7 @@ ClearTier 面向异地组网、远程办公和游戏联机，将多网络连接�
 
 项目处于预发布测试阶段，当前优先验证 Windows，完整实机验收仍在进行。macOS、Linux 的安装、权限和后台行为待分别验证，非 Windows 自动 TUN 提权尚未实现。
 
-Windows 测试包由 [Build Windows 工作流](https://github.com/oolongcha024/cleartier/actions/workflows/windows-build.yml)手动构建，提供完整免安装 ZIP 和 NSIS 安装包；获取及构建方法见[开发指南](docs/development.md#windows-构建)。免安装包需完整解压，保留随包运行资源。
+推送版本标签后，[Build Windows 工作流](https://github.com/oolongcha024/cleartier/actions/workflows/windows-build.yml)自动构建完整免安装 ZIP 和 NSIS 安装包，上传到草稿后发布至 [Releases](https://github.com/oolongcha024/cleartier/releases)。手动测试构建仍通过 Actions Artifacts 获取；操作见[开发指南](docs/development.md#windows-构建)。免安装包需完整解压，保留随包运行资源。
 
 连接已有网络、邀请加入与配置迁移的操作见[使用指南](docs/user-guide.md)。
 

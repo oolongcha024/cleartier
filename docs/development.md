@@ -60,7 +60,7 @@ gh workflow run windows-build.yml --ref main -f bundle=all
 gh run list --workflow windows-build.yml
 ```
 
-工作流仅手动触发，产物通过 Actions Artifacts 提供，不自动创建 Release。正常产物须通过测试、原生编译、图标／资源校验及打包程序检查；Artifacts 保留期限以工作流为准。
+手动触发只生成 Actions Artifacts，支持选择产物类型。推送 `v*` 标签时固定构建 `all`，成功后自动上传至 Release 草稿，再发布。正常产物须通过测试、原生编译、图标／资源校验及打包程序检查；Artifacts 保留期限以工作流为准。
 
 | 内容 | 本机构建位置 |
 | --- | --- |
@@ -69,7 +69,7 @@ gh run list --workflow windows-build.yml
 | 版本、来源、工具链及 SHA-256 | `artifacts/windows-x64/build-info.json` |
 | 检查报告与失败诊断 | `artifacts/windows-x64/checks/` |
 
-构建入口为 [scripts/windows/build.mjs](../scripts/windows/build.mjs)。先查看检查报告和工具链错误，避免用旧包替代失败构建；交付时核对 `build-info.json` 的提交及校验值。
+构建入口为 [scripts/windows/build.mjs](../scripts/windows/build.mjs)。ZIP 和安装包均携带项目许可文本。`build-info.json` 和检查报告仅保留在本机构建目录及 Actions Artifacts，Release 附件只有 ZIP 和 NSIS。先查看检查报告和工具链错误，交付时核对提交及校验值。
 
 ## 版本管理
 
@@ -92,14 +92,20 @@ gh run list --workflow windows-build.yml
 
 升版与构建不要同时进行。脚本中断后，先确认没有更新进程，检查并恢复三个版本文件的一致状态、清理遗留临时文件和 `.version.lock`，再运行版本检查。
 
-## 发布前检查
+## 发布
 
-完成[实机验收](testing.md)，提交代码及版本，确认工作区干净。为该提交创建 `v` 加完整版本的标签，然后执行，例如：
+先手动构建并完成[实机验收](testing.md)，提交并推送包含工作流、实现及版本的代码，确认工作区干净。为该提交创建 `v` 加完整版本的标签，例如：
 
 ```sh
+git tag -a v0.1.0-rc.1 -m "ClearTier 0.1.0-rc.1"
 pnpm version:check --release v0.1.0-rc.1
+git push origin v0.1.0-rc.1
 ```
 
-标签必须与应用版本一致并指向 HEAD；从标签触发 Windows 构建时自动校验。普通分支测试包允许沿用当前版本。已发布标签不移动或复用，仓库维护者需配置标签保护；历史标签可在原提交重新构建。
+标签必须与应用版本一致并指向 HEAD。推送后按顺序执行：Windows 构建及检查 → 创建或复用草稿 → 上传 ZIP／NSIS 并核对远端 SHA-256 → 发布。此顺序兼容 [GitHub 不可变发布](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)，无需预先在网页点击发布。
 
-核对同次构建的 ZIP、NSIS、SHA-256 和验收记录，再手动发布。GitHub Release 中的 alpha／beta／rc 标为预发布，正式版附变更及兼容性说明。当前没有自动更新器，不能依赖 Windows 数字文件版本比较预发布顺序。
+alpha／beta／rc 自动标为预发布；正式版按 GitHub 的版本规则决定 Latest。新草稿自动生成发布说明，已有草稿保留标题与正文，可提前编辑说明再推送标签。编译任务只读仓库，独立发布任务才持有写权限，使用内置 `GITHUB_TOKEN`，无需另配 PAT。
+
+构建失败不创建 Release，上传或校验失败保留草稿；在 Actions 重跑失败任务可继续上传。已发布的相同附件可安全重跑，不会覆盖不同内容；重新构建产生不同文件时应推进新版本。标签被移动或附件不匹配会中止发布。
+
+普通分支测试包允许沿用当前版本，手动构建标签也不会发布。已发布标签不移动或复用，仓库维护者需配置标签保护；当前没有自动更新器，不能依赖 Windows 数字文件版本比较预发布顺序。
