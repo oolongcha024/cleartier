@@ -79,9 +79,6 @@ impl Drop for Session {
 impl CoreController {
     /// Construct inside a Tokio runtime. This does not launch a process or request UAC.
     pub fn new(executable: PathBuf, paths: CorePaths) -> Result<Self> {
-        std::fs::create_dir_all(&paths.config_dir)?;
-        std::fs::create_dir_all(paths.data_dir.join("runtime"))?;
-        std::fs::create_dir_all(paths.data_dir.join("logs"))?;
         let inner = Arc::new(Inner {
             executable,
             session: Mutex::new(None),
@@ -269,7 +266,12 @@ impl CoreController {
     }
 
     async fn launch(&self, elevate: bool) -> Result<Session> {
-        let directory = self.status().paths.data_dir.join("runtime");
+        // A storage problem must be reportable inside the UI, rather than make
+        // constructing the application fail before its configuration page opens.
+        let paths = self.status().paths;
+        let directory = paths.data_dir.join("runtime");
+        std::fs::create_dir_all(&directory)?;
+        std::fs::create_dir_all(paths.data_dir.join("logs"))?;
         let mut listener = platform::Listener::create(&directory)?;
         let resources = platform::lock_resources(&self.inner.executable)?;
         let (mut process, resources) = platform::spawn(
@@ -323,6 +325,26 @@ impl CoreController {
             sequence: 0,
             resources,
         })
+    }
+}
+
+#[cfg(test)]
+mod construction_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn unavailable_storage_does_not_prevent_opening_the_application() {
+        let directory = tempfile::tempdir().unwrap();
+        let blocked = directory.path().join("file");
+        std::fs::write(&blocked, b"not a directory").unwrap();
+        let controller = CoreController::new(
+            std::env::current_exe().unwrap(),
+            CorePaths::new(blocked.clone(), blocked),
+        )
+        .unwrap();
+        assert_eq!(controller.status().state, HostState::Stopped);
+        assert!(controller.snapshot().await.unwrap().is_empty());
+        controller.shutdown().await.unwrap();
     }
 }
 

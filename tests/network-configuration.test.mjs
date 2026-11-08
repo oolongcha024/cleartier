@@ -49,9 +49,9 @@ test('server summaries omit credentials and URL query tokens', () => {
   assert.equal(serverSummary('wss://user:password@relay.example:443/path?token=private#secret'), 'wss://relay.example');
 });
 
-test('alias-only saves update immediately without changing the active session or traffic', () => {
+test('alias-only saves update immediately without changing the active session or traffic', async () => {
   const original = structuredClone(network());
-  assert.equal(networkStore.getState().saveConfiguration('office', { ...configurationDraft(original), alias: '工作' }, 'later').status, 'saved');
+  assert.equal((await networkStore.getState().saveConfiguration('office', { ...configurationDraft(original), alias: '工作' }, 'later')).status, 'saved');
   assert.equal(network().alias, '工作');
   assert.equal(network().coreState, 'running');
   assert.equal(hasPendingConfig(network()), false);
@@ -59,18 +59,18 @@ test('alias-only saves update immediately without changing the active session or
   assert.deepEqual(network().trafficTotals, original.trafficTotals);
 });
 
-test('save for later preserves active parameters, counters, and other networks; reverting clears pending', () => {
+test('save for later preserves active parameters, counters, and other networks; reverting clears pending', async () => {
   const original = structuredClone(network());
   const gaming = structuredClone(network('gaming'));
   const store = networkStore.getState();
-  store.saveConfiguration('office', { ...configurationDraft(original), name: 'new-name', secret: 'new-key' }, 'later');
+  await store.saveConfiguration('office', { ...configurationDraft(original), name: 'new-name', secret: 'new-key' }, 'later');
   assert.equal(network().savedConfig.name, 'new-name');
   assert.deepEqual(network().runningConfig, original.runningConfig);
   assert.deepEqual(network().trafficTotals, original.trafficTotals);
   assert.equal(network().coreState, 'running');
   assert.equal(hasPendingConfig(network()), true);
   assert.deepEqual(network('gaming'), gaming);
-  store.saveConfiguration('office', configurationDraft(original), 'later');
+  await store.saveConfiguration('office', configurationDraft(original), 'later');
   assert.equal(hasPendingConfig(network()), false);
 });
 
@@ -78,13 +78,13 @@ test('apply reconnects only the edited network, clears pending and resets only i
   const store = networkStore.getState();
   const gaming = structuredClone(network('gaming'));
   const home = structuredClone(network('home'));
-  store.saveConfiguration('office', { ...configurationDraft(network()), name: 'new-name' }, 'later');
-  const applying = store.saveConfiguration('office', configurationDraft(network()), 'now');
+  await store.saveConfiguration('office', { ...configurationDraft(network()), name: 'new-name' }, 'later');
+  const applying = await store.saveConfiguration('office', configurationDraft(network()), 'now');
   assert.equal(applying.status, 'applying');
   assert.equal(network().coreState, 'starting');
   assert.equal(network().runningConfig.name, 'studio-work');
-  assert.equal(store.saveConfiguration('office', configurationDraft(network()), 'later').status, 'busy');
-  assert.equal(store.saveConfiguration('office', configurationDraft(network()), 'now').status, 'busy');
+  assert.equal((await store.saveConfiguration('office', configurationDraft(network()), 'later')).status, 'busy');
+  assert.equal((await store.saveConfiguration('office', configurationDraft(network()), 'now')).status, 'busy');
   await store.toggleConnection('office');
   assert.equal(network().coreState, 'starting');
   assert.equal(await finish(applying.completion), true);
@@ -98,12 +98,12 @@ test('apply reconnects only the edited network, clears pending and resets only i
 
 test('offline saves do not connect; next connection uses saved parameters', async () => {
   const store = networkStore.getState();
-  store.saveConfiguration('home', { ...configurationDraft(network('home')), alias: '', name: 'new-home' }, 'later');
+  await store.saveConfiguration('home', { ...configurationDraft(network('home')), alias: '', name: 'new-home' }, 'later');
   assert.equal(network('home').alias, 'new-home');
   assert.equal(network('home').coreState, 'stopped');
   assert.equal(network('home').runningConfig, null);
   assert.equal(hasPendingConfig(network('home')), false);
-  assert.equal(store.saveConfiguration('home', configurationDraft(network('home')), 'now').status, 'saved');
+  assert.equal((await store.saveConfiguration('home', configurationDraft(network('home')), 'now')).status, 'saved');
   await finish(store.toggleConnection('home'));
   assert.equal(network('home').runningConfig.name, 'new-home');
   assert.equal(network('home').coreState, 'running');
@@ -111,7 +111,7 @@ test('offline saves do not connect; next connection uses saved parameters', asyn
 
 test('disconnect keeps saved edits, and reconnect applies pending configuration', async () => {
   const store = networkStore.getState();
-  store.saveConfiguration('office', { ...configurationDraft(network()), secret: 'next-key' }, 'later');
+  await store.saveConfiguration('office', { ...configurationDraft(network()), secret: 'next-key' }, 'later');
   const totals = structuredClone(network().trafficTotals);
   await finish(store.toggleConnection('office'));
   assert.equal(network().runningConfig, null);
@@ -122,9 +122,9 @@ test('disconnect keeps saved edits, and reconnect applies pending configuration'
   assert.equal(hasPendingConfig(network()), false);
 });
 
-test('invalid saves leave the store untouched', () => {
+test('invalid saves leave the store untouched', async () => {
   const original = structuredClone(networkStore.getState().networks);
-  assert.equal(networkStore.getState().saveConfiguration('office', { ...configurationDraft(network()), name: '' }, 'later').status, 'invalid');
+  assert.equal((await networkStore.getState().saveConfiguration('office', { ...configurationDraft(network()), name: '' }, 'later')).status, 'invalid');
   assert.deepEqual(networkStore.getState().networks, original);
 });
 
@@ -147,9 +147,9 @@ test('quick reconnect works without edits and only restarts its target session',
 
 test('quick reconnect applies pending parameters to the captured target even after selection changes', async () => {
   const store = networkStore.getState();
-  store.saveConfiguration('office', { ...configurationDraft(network()), name: 'pending-office' }, 'later');
+  await store.saveConfiguration('office', { ...configurationDraft(network()), name: 'pending-office' }, 'later');
   const reconnecting = store.reconnect('office');
-  store.selectNetwork('gaming');
+  await store.selectNetwork('gaming');
   assert.equal(await finish(reconnecting), true);
   assert.equal(network().runningConfig.name, 'pending-office');
   assert.equal(hasPendingConfig(network()), false);
@@ -170,10 +170,10 @@ test('quick reconnect never starts offline networks or interrupts a disconnect',
   assert.equal(network().coreState, 'stopped');
 });
 
-test('icon-only saves update local presentation without reconnecting or changing session data', () => {
+test('icon-only saves update local presentation without reconnecting or changing session data', async () => {
   const original = structuredClone(network());
   const others = structuredClone(networkStore.getState().networks.filter((item) => item.id !== 'office'));
-  assert.equal(networkStore.getState().saveConfiguration('office', { ...configurationDraft(original), icon: 'dns' }, 'later').status, 'saved');
+  assert.equal((await networkStore.getState().saveConfiguration('office', { ...configurationDraft(original), icon: 'dns' }, 'later')).status, 'saved');
   assert.equal(network().icon, 'dns');
   assert.equal(network().coreState, 'running');
   assert.equal(hasPendingConfig(network()), false);
@@ -183,12 +183,12 @@ test('icon-only saves update local presentation without reconnecting or changing
   assert.deepEqual(networkStore.getState().networks.filter((item) => item.id !== 'office'), others);
 });
 
-test('icon edits preserve pending connection parameters without applying them', () => {
+test('icon edits preserve pending connection parameters without applying them', async () => {
   const store = networkStore.getState();
-  store.saveConfiguration('office', { ...configurationDraft(network()), name: 'next-network' }, 'later');
+  await store.saveConfiguration('office', { ...configurationDraft(network()), name: 'next-network' }, 'later');
   const active = structuredClone(network().runningConfig);
   const totals = structuredClone(network().trafficTotals);
-  store.saveConfiguration('office', { ...configurationDraft(network()), icon: 'public' }, 'later');
+  await store.saveConfiguration('office', { ...configurationDraft(network()), icon: 'public' }, 'later');
   assert.equal(network().icon, 'public');
   assert.equal(hasPendingConfig(network()), true);
   assert.equal(network().savedConfig.name, 'next-network');
@@ -196,11 +196,11 @@ test('icon edits preserve pending connection parameters without applying them', 
   assert.deepEqual(network().trafficTotals, totals);
 });
 
-test('unsupported icons are rejected without mutating a network', () => {
+test('unsupported icons are rejected without mutating a network', async () => {
   const original = structuredClone(network());
   const draft = { ...configurationDraft(original), icon: 'not-a-network-icon' };
   assert.equal(validateDraft(draft).icon, 'iconInvalid');
-  assert.equal(networkStore.getState().saveConfiguration('office', draft, 'later').status, 'invalid');
+  assert.equal((await networkStore.getState().saveConfiguration('office', draft, 'later')).status, 'invalid');
   assert.deepEqual(network(), original);
 });
 
@@ -211,13 +211,13 @@ test('advanced edits participate in pending comparison and are retained through 
     ipv4Address: '10.88.0.9', ipv4Prefix: '24', mtu: '1300', ipv6: false,
     p2pPolicy: 'disabled', tcpHolePunching: false, udpHolePunching: false, upnp: false,
     magicDns: true, dnsSuffix: 'office.lan.', latencyFirst: true, udpBroadcastRelay: true };
-  assert.equal(store.saveConfiguration('office', draft, 'later').status, 'saved');
+  assert.equal((await store.saveConfiguration('office', draft, 'later')).status, 'saved');
   assert.equal(hasPendingConfig(network()), true);
   assert.deepEqual(network().runningConfig, original.runningConfig);
   assert.equal(network().savedConfig.hostname, 'office-pc');
   assert.equal(network().savedConfig.mtu, 1300);
   assert.equal(network().savedConfig.p2pPolicy, 'disabled');
-  const applying = store.saveConfiguration('office', configurationDraft(network()), 'now');
+  const applying = await store.saveConfiguration('office', configurationDraft(network()), 'now');
   assert.equal(applying.status, 'applying');
   assert.equal(await finish(applying.completion), true);
   assert.equal(hasPendingConfig(network()), false);
@@ -255,12 +255,12 @@ test('manual addresses, hostname, MTU and DNS have meaningful validation', () =>
   assert.equal(validateDraft({ ...draft, p2pPolicy: 'forced-relay' }).p2pPolicy, 'p2pInvalid');
 });
 
-test('manual TUN names are validated and cannot duplicate another saved network', () => {
+test('manual TUN names are validated and cannot duplicate another saved network', async () => {
   const draft = configurationDraft(network());
   for (const tunName of ['', 'too-long-interface', 'ct name', '中文名称']) assert.equal(validateDraft({ ...draft, tunName }).tunName, 'tunInvalid');
   const otherName = network('home').savedConfig.tunName.toUpperCase();
   assert.equal(validateDraft({ ...draft, tunName: otherName }, [network('home').savedConfig.tunName]).tunName, 'tunDuplicate');
-  assert.equal(networkStore.getState().saveConfiguration('office', { ...draft, tunName: otherName }, 'later').status, 'invalid');
+  assert.equal((await networkStore.getState().saveConfiguration('office', { ...draft, tunName: otherName }, 'later')).status, 'invalid');
 });
 
 test('automatic hostname/MTU can be restored and local fields never leak into core config', () => {
@@ -273,9 +273,9 @@ test('automatic hostname/MTU can be restored and local fields never leak into co
   assert.equal(draftConfig({ ...draft, p2pPolicy: 'only', latencyFirst: true }, config).latencyFirst, false);
 });
 
-test('online core edits require confirmation without changing saved data or starting the runtime', () => {
+test('online core edits require confirmation without changing saved data or starting the runtime', async () => {
   const before = structuredClone(network());
-  const result = networkStore.getState().saveConfiguration('office', { ...configurationDraft(before), name: 'next' });
+  const result = await networkStore.getState().saveConfiguration('office', { ...configurationDraft(before), name: 'next' });
   assert.deepEqual(result, { status: 'confirmation-required' });
   assert.deepEqual(network(), before);
   assert.equal(pending.length, 0);
@@ -283,7 +283,7 @@ test('online core edits require confirmation without changing saved data or star
 
 test('confirming apply saves and starts exactly the target with the submitted parameters', async () => {
   const draft = { ...configurationDraft(network()), hostname: 'new-host', name: 'new-network' };
-  const result = networkStore.getState().saveConfiguration('office', draft, 'now');
+  const result = await networkStore.getState().saveConfiguration('office', draft, 'now');
   assert.equal(result.status, 'applying');
   assert.equal(network().savedConfig.hostname, 'new-host');
   assert.equal(network().runningConfig.hostname, null);
@@ -295,10 +295,10 @@ test('confirming apply saves and starts exactly the target with the submitted pa
   assert.equal(hasPendingConfig(network()), false);
 });
 
-test('local-only edits preserve pending parameters and never request confirmation or restart', () => {
+test('local-only edits preserve pending parameters and never request confirmation or restart', async () => {
   const store = networkStore.getState();
-  store.saveConfiguration('office', { ...configurationDraft(network()), name: 'next' }, 'later');
-  const result = store.saveConfiguration('office', { ...configurationDraft(network()), icon: 'public' });
+  await store.saveConfiguration('office', { ...configurationDraft(network()), name: 'next' }, 'later');
+  const result = await store.saveConfiguration('office', { ...configurationDraft(network()), icon: 'public' });
   assert.deepEqual(result, { status: 'saved', pending: true });
   assert.equal(network().icon, 'public');
   assert.equal(network().runningConfig.name, 'studio-work');
@@ -308,11 +308,11 @@ test('local-only edits preserve pending parameters and never request confirmatio
 test('save results distinguish invalid, missing and busy targets', async () => {
   const store = networkStore.getState();
   const draft = configurationDraft(network());
-  const invalid = store.saveConfiguration('office', { ...draft, name: '' });
+  const invalid = await store.saveConfiguration('office', { ...draft, name: '' });
   assert.deepEqual(invalid, { status: 'invalid', errors: { name: 'nameRequired' } });
-  assert.deepEqual(store.saveConfiguration('missing', draft), { status: 'missing' });
+  assert.deepEqual((await store.saveConfiguration('missing', draft)), { status: 'missing' });
   const restarting = store.reconnect('office');
-  assert.deepEqual(store.saveConfiguration('office', draft), { status: 'busy' });
+  assert.deepEqual((await store.saveConfiguration('office', draft)), { status: 'busy' });
   await finish(restarting);
 });
 
@@ -320,9 +320,9 @@ test('runtime rejection restores session state while preserving saved edits and 
   const store = networkStore.getState();
   const before = structuredClone(network());
   const others = structuredClone(store.networks.filter((item) => item.id !== 'office'));
-  const result = store.saveConfiguration('office', { ...configurationDraft(before), name: 'next' }, 'now');
+  const result = await store.saveConfiguration('office', { ...configurationDraft(before), name: 'next' }, 'now');
   assert.equal(result.status, 'applying');
-  store.setAutoConnect('office', false);
+  await store.setAutoConnect('office', false);
   pending.shift().reject(new Error('runtime unavailable'));
   assert.equal(await result.completion, false);
   assert.equal(network().coreState, 'running');
@@ -334,10 +334,10 @@ test('runtime rejection restores session state while preserving saved edits and 
   assert.deepEqual(networkStore.getState().networks.filter((item) => item.id !== 'office'), others);
 });
 
-test('store instances never share configuration, selection or runtime state', () => {
+test('store instances never share configuration, selection or runtime state', async () => {
   const other = createNetworkStore(demoNetworks, async () => {});
-  networkStore.getState().saveConfiguration('office', { ...configurationDraft(network()), alias: 'local' });
-  networkStore.getState().selectNetwork('gaming');
+  await networkStore.getState().saveConfiguration('office', { ...configurationDraft(network()), alias: 'local' });
+  await networkStore.getState().selectNetwork('gaming');
   assert.equal(other.getState().selectedId, 'office');
   assert.equal(other.getState().networks[0].alias, '远程办公室');
   assert.equal(demoNetworks[0].alias, '远程办公室');

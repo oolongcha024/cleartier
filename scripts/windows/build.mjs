@@ -113,6 +113,7 @@ export function main(args = process.argv.slice(2).filter(arg => arg !== '--')) {
   rmSync(join(output, 'exe'), { recursive: true, force: true });
   run('pnpm', ['typecheck']);
   run('pnpm', ['test']);
+  run('cargo', ['test', '--locked', '--manifest-path', join(root, 'src-tauri/Cargo.toml'), '-p', 'cleartier-config']);
   run(process.execPath, [join(root, 'scripts/prepare-core-resources.mjs')]);
   const metadata = JSON.parse(capture('cargo', ['metadata', '--locked', '--no-deps', '--format-version', '1',
     '--manifest-path', join(root, 'src-tauri/Cargo.toml')]));

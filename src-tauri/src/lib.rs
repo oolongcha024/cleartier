@@ -1,3 +1,4 @@
+mod config_commands;
 mod core_commands;
 mod host_environment;
 
@@ -20,6 +21,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             host_environment,
             core_version,
+            config_commands::config_load,
+            config_commands::config_save,
+            config_commands::config_restore,
             core_commands::core_status,
             core_commands::core_start,
             core_commands::core_stop,

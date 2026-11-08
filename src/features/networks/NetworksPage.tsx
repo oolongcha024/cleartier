@@ -1,17 +1,24 @@
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Chip, Icon } from '../../components/ui';
+import { Button, Card, Chip, Icon, IconButton } from '../../components/ui';
 import { hasPendingConfig, serverSummary } from './configuration';
 import { isBusy } from './model';
 import { useNetworkEditor } from './use-network-editor';
 import { useNetworkStore } from './store';
+import { ConfigurationState } from './ConfigurationState';
+import { useNetworkDeletion } from './use-network-deletion';
 
 export function NetworksPage() {
   const { t } = useTranslation();
   const networks = useNetworkStore((state) => state.networks);
-  const { openEditor, editor } = useNetworkEditor();
+  const { openEditor, openCreator, editor } = useNetworkEditor();
+  const phase = useNetworkStore((state) => state.phase);
+  const writing = useNetworkStore((state) => state.writing);
+  const { requestDelete, deletion } = useNetworkDeletion();
+  if (phase !== 'ready' || !networks.length) return <><ConfigurationState onAdd={openCreator} />{editor}</>;
 
   return <div className="networks-page">
-    <div className="networks-page-summary"><span>{t('networkConfig.savedCount', { count: networks.length })}</span></div>
+    <div className="networks-page-summary"><span>{t('networkConfig.savedCount', { count: networks.length })}</span>
+      <Button variant="tonal" icon="add" onClick={openCreator}>{t('dashboard.join')}</Button></div>
     <Card className="network-config-card"><ul className="network-config-list">
       {networks.map((network) => {
         const summary = network.savedConfig.servers.map(serverSummary).join(' · ');
@@ -31,10 +38,13 @@ export function NetworksPage() {
               onClick={() => openEditor(network.id)}>
               {t(isBusy(network) ? 'networkConfig.busyShort' : 'networkConfig.edit')}
             </Button>
+            <IconButton icon="delete" label={t('networkConfig.deleteNamed', { name: network.alias })}
+              disabled={writing || network.coreState !== 'stopped'} onClick={() => requestDelete(network)} />
           </div>
         </li>;
       })}
     </ul></Card>
     {editor}
+    {deletion}
   </div>;
 }

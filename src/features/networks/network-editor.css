@@ -2,6 +2,8 @@
 .network-editor--form { height: min(752px, calc(100dvh - 48px)); }
 .network-editor > .dialog-heading { flex-shrink: 0; }
 .network-editor-form { display: flex; flex: 1; flex-direction: column; min-height: 0; margin-top: 24px; }
+.network-editor-fields { border: 0; min-inline-size: 0; }
+.network-editor-actions > .configuration-error-text { flex: 1; margin-right: auto; }
 /* Height changes belong to the disclosure, not the browser's scroll anchor. */
 .network-editor-fields { display: grid; flex: 1; align-content: start; gap: 20px; min-height: 0; overflow-y: auto; overflow-anchor: none; padding: 10px 8px 8px; margin-inline: -8px; scrollbar-gutter: stable; overscroll-behavior-y: contain; }
 .network-editor-form > .network-editor-actions { padding-top: 20px; flex-shrink: 0; }

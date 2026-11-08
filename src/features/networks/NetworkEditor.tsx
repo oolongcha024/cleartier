@@ -9,8 +9,8 @@ import { useNetworkStore } from './store';
 import { NetworkAdvancedFields } from './NetworkAdvancedFields';
 import { useNetworkDraft } from './use-network-draft';
 
-export function NetworkEditor({ network, open, onOpenChange }: {
-  network: Network; open: boolean; onOpenChange: (open: boolean) => void;
+export function NetworkEditor({ network, open, onOpenChange, creating = false }: {
+  network: Network; open: boolean; onOpenChange: (open: boolean) => void; creating?: boolean;
 }) {
   const { t } = useTranslation();
   const networks = useNetworkStore((state) => state.networks);
@@ -20,15 +20,26 @@ export function NetworkEditor({ network, open, onOpenChange }: {
   const aliasInput = useRef<HTMLInputElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const iconLabelId = useId();
-  const { draft, errors, update, save, choosing, setChoosing, advancedOpen, setAdvancedOpen, busy, canSave } = useNetworkDraft(
-    network, () => onOpenChange(false),
+  const { draft, errors, update, save, choosing, setChoosing, duplicate, setDuplicate, discarding, setDiscarding,
+    requestClose, saving, saveError, advancedOpen, setAdvancedOpen, busy, canSave } = useNetworkDraft(
+    network, creating, () => onOpenChange(false),
     () => requestAnimationFrame(() => form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()),
   );
   const errorText = (field: keyof NetworkDraft) => errors[field] ? t(`networkConfig.${errors[field]}`) : undefined;
-  return <Dialog open={open} onOpenChange={onOpenChange} className={`network-editor ${choosing ? '' : 'network-editor--form'}`} initialFocus={aliasInput}
-    title={t(choosing ? 'networkConfig.applyTitle' : 'networkConfig.editTitle')}
+  const connectionEnabled = useNetworkStore((state) => state.connectionEnabled);
+  const choice = choosing || duplicate || discarding;
+  return <Dialog open={open} onOpenChange={(next) => { if (!next) requestClose(); }} className={`network-editor ${choice ? '' : 'network-editor--form'}`} initialFocus={choice ? undefined : aliasInput}
+    title={t(discarding ? 'networkConfig.discardTitle' : duplicate ? 'networkConfig.duplicateTitle' : choosing ? 'networkConfig.applyTitle' : creating ? 'networkConfig.addTitle' : 'networkConfig.editTitle')}
     description={choosing ? t('networkConfig.applyDescription', { name: draft.alias.trim() || draft.name }) : undefined}>
-    {choosing ? <div className="network-apply-choice">
+    {discarding ? <div className="network-apply-choice">
+      <p>{t('networkConfig.discardDescription')}</p>
+      <div className="network-editor-actions"><Button variant="text" onClick={() => setDiscarding(false)}>{t('networkConfig.keepEditing')}</Button>
+        <Button onClick={() => onOpenChange(false)}>{t('networkConfig.discard')}</Button></div>
+    </div> : duplicate ? <div className="network-apply-choice">
+      <p>{t('networkConfig.duplicateDescription', { name: duplicate.alias })}</p>
+      <div className="network-editor-actions"><Button variant="text" disabled={saving} onClick={() => setDuplicate(null)}>{t('networkConfig.back')}</Button>
+        <Button disabled={saving} onClick={() => { void save('confirm', true); }}>{t('networkConfig.addAnyway')}</Button></div>
+    </div> : choosing ? <div className="network-apply-choice">
       <div className="network-apply-note"><Icon name="restart_alt" /><p>{t('networkConfig.applyNote')}</p></div>
       <div className="network-editor-actions">
         <Button variant="text" onClick={() => {
@@ -37,10 +48,10 @@ export function NetworkEditor({ network, open, onOpenChange }: {
         }}>{t('networkConfig.back')}</Button>
         <span className="network-editor-actions-spacer" />
         <Button variant="outlined" disabled={busy} autoFocus onClick={() => save('later')}>{t('networkConfig.later')}</Button>
-        <Button disabled={busy} onClick={() => save('now')}>{t('networkConfig.applyNow')}</Button>
+        <Button disabled={busy || !connectionEnabled} onClick={() => save('now')}>{t('networkConfig.applyNow')}</Button>
       </div>
     </div> : <form ref={form} className="network-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); save(); }}>
-      <div className="network-editor-fields">
+      <fieldset className="network-editor-fields" disabled={saving}>
       <div className="network-icon-field">
         <span id={iconLabelId}>{t('networkConfig.icon')}</span>
         <div className="network-icon-options" role="radiogroup" aria-labelledby={iconLabelId}>
@@ -80,10 +91,11 @@ export function NetworkEditor({ network, open, onOpenChange }: {
             otherTunNames={otherTunNames} environment={environment} />
         </Collapsible.Panel>
       </Collapsible.Root>
-      </div>
+      </fieldset>
       <div className="network-editor-actions">
-        <Button variant="text" onClick={() => onOpenChange(false)}>{t('networkConfig.cancel')}</Button>
-        <Button type="submit" disabled={busy || !canSave}>{t('networkConfig.save')}</Button>
+        {saveError && <p className="configuration-error-text" role="alert">{t('configuration.saveFailed')}</p>}
+        <Button variant="text" disabled={saving} onClick={requestClose}>{t('networkConfig.cancel')}</Button>
+        <Button type="submit" disabled={busy || !canSave}>{t(saving ? 'networkConfig.saving' : creating ? 'networkConfig.addTitle' : 'networkConfig.save')}</Button>
       </div>
     </form>}
   </Dialog>;

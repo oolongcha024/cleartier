@@ -1,89 +1,166 @@
 import { createStore } from 'zustand/vanilla';
 import { configsEqual, draftConfig, hasPendingConfig, validateDraft, type DraftErrors, type NetworkDraft } from './configuration.ts';
+import { createNetworkConfig, defaultTunName, newNetworkId } from './defaults.ts';
 import { isBusy, type Network } from './model.ts';
+import { documentFromNetworks, emptyDocument, networksFromDocument, offlineNetwork, storageFailure, type ConfigurationStorage, type StorageFailure } from './persistence.ts';
 import type { NetworkRuntime } from './runtime.ts';
 
 export type SaveMode = 'confirm' | 'later' | 'now';
 export type SaveResult =
-  | { status: 'missing' }
-  | { status: 'busy' }
-  | { status: 'confirmation-required' }
+  | { status: 'missing' | 'busy' | 'confirmation-required' | 'storage-error' | 'unsupported' }
   | { status: 'invalid'; errors: DraftErrors }
   | { status: 'saved'; pending: boolean }
   | { status: 'applying'; completion: Promise<boolean> };
 
 export interface NetworkStore {
-  networks: Network[];
-  selectedId: string;
-  selectNetwork: (id: string) => void;
-  setAutoConnect: (id: string, enabled: boolean) => void;
+  networks: Network[]; selectedId: string;
+  phase: 'loading' | 'ready' | 'error'; writing: boolean;
+  storageError: StorageFailure | null; connectionEnabled: boolean;
+  initialize: (restore?: boolean) => Promise<void>;
+  clearStorageError: () => void;
+  selectNetwork: (id: string) => Promise<boolean>;
+  setAutoConnect: (id: string, enabled: boolean) => Promise<boolean>;
   toggleConnection: (id: string) => Promise<boolean>;
   reconnect: (id: string) => Promise<boolean>;
-  saveConfiguration: (id: string, draft: NetworkDraft, mode?: SaveMode) => SaveResult;
+  saveConfiguration: (id: string, draft: NetworkDraft, mode?: SaveMode, creating?: boolean) => Promise<SaveResult>;
+  removeNetwork: (id: string) => Promise<boolean>;
 }
 
-// Each instance owns its snapshots and runtime; tests never reset the live store.
-export function createNetworkStore(initialNetworks: Network[], runtime: NetworkRuntime) {
+export function createNetworkStore(initialNetworks: Network[], runtime: NetworkRuntime, options: {
+  storage?: ConfigurationStorage; connectionEnabled?: boolean;
+  snapshot?: () => Promise<{ id: string; running: boolean | null }[]>;
+} = {}) {
   return createStore<NetworkStore>()((set, get) => {
+    let document = emptyDocument();
+    let queue = Promise.resolve();
+    let initialization: Promise<void> | undefined;
     const updateNetwork = (id: string, update: (network: Network) => Network) => {
       set((state) => ({ networks: state.networks.map((network) => network.id === id ? update(network) : network) }));
     };
+    // Serialize durable mutations. Build the next snapshot only when its turn
+    // begins; delayed writes must not revert another saved network or selection.
+    const commit = (change: () => { networks: Network[]; selectedId: string } | null): Promise<boolean> => {
+      const operation = queue.then(async () => {
+        if (get().phase !== 'ready') return false;
+        const next = change();
+        if (!next) return false;
+        set({ writing: true });
+        try {
+          if (options.storage) {
+            document = await options.storage.save(documentFromNetworks(document, next.networks, next.selectedId), document.revision);
+          }
+          set((state) => ({ selectedId: next.selectedId, storageError: null,
+            networks: next.networks.map((network) => {
+              const latest = state.networks.find((item) => item.id === network.id);
+              return latest ? { ...latest, alias: network.alias, icon: network.icon, savedConfig: network.savedConfig,
+                autoConnect: network.autoConnect } : network;
+            }) }));
+          return true;
+        } catch (error) {
+          set({ storageError: storageFailure(error) });
+          return false;
+        } finally { set({ writing: false }); }
+      });
+      queue = operation.then(() => {});
+      return operation;
+    };
     const transition = async (id: string, restart = false): Promise<boolean> => {
       const network = get().networks.find((item) => item.id === id);
-      if (!network || isBusy(network) || (restart && network.coreState !== 'running')) return false;
+      if (!get().connectionEnabled || !network || isBusy(network) || (restart && network.coreState !== 'running')) return false;
       const connecting = restart || network.coreState === 'stopped';
       const config = structuredClone(network.savedConfig);
-      updateNetwork(id, (item) => ({
-        ...item,
-        coreState: connecting ? 'starting' : 'stopping',
-        trafficTotals: connecting ? { downloadBytes: 0, uploadBytes: 0 } : item.trafficTotals,
-      }));
+      updateNetwork(id, (item) => ({ ...item, coreState: connecting ? 'starting' : 'stopping',
+        trafficTotals: connecting ? { downloadBytes: 0, uploadBytes: 0 } : item.trafficTotals }));
       try {
         await runtime(connecting ? { action: restart ? 'restart' : 'start', id, config } : { action: 'stop', id });
-        updateNetwork(id, (item) => ({
-          ...item,
-          coreState: connecting ? 'running' : 'stopped',
-          runningConfig: connecting ? config : null,
-        }));
+        updateNetwork(id, (item) => ({ ...item, coreState: connecting ? 'running' : 'stopped', runningConfig: connecting ? config : null }));
         return true;
       } catch {
-        // Restore only session state: concurrent local preferences stay intact.
-        updateNetwork(id, (item) => ({
-          ...item, coreState: network.coreState,
-          runningConfig: network.runningConfig, trafficTotals: network.trafficTotals,
-        }));
+        updateNetwork(id, (item) => ({ ...item, coreState: network.coreState,
+          runningConfig: network.runningConfig, trafficTotals: network.trafficTotals }));
         return false;
       }
     };
-
     return {
       networks: structuredClone(initialNetworks), selectedId: initialNetworks[0]?.id ?? '',
-      selectNetwork: (id) => {
-        if (get().networks.some((network) => network.id === id)) set({ selectedId: id });
+      phase: options.storage ? 'loading' : 'ready', writing: false, storageError: null,
+      connectionEnabled: options.connectionEnabled ?? true,
+      initialize: (restore = false) => {
+        if (!options.storage) return Promise.resolve();
+        if (initialization) return initialization;
+        initialization = (async () => {
+          await queue;
+          set({ phase: 'loading', storageError: null });
+          try {
+            document = await (restore ? options.storage!.restore() : options.storage!.load());
+            const networks = networksFromDocument(document);
+            if (options.snapshot) {
+              try {
+                const snapshots = await options.snapshot();
+                for (const network of networks) {
+                  const snapshot = snapshots.find((snapshot) => snapshot.id === network.id);
+                  network.coreState = !snapshot || snapshot.running === false ? 'stopped' : snapshot.running === true ? 'running' : 'unknown';
+                }
+              } catch { networks.forEach((network) => { network.coreState = 'unknown'; }); }
+            }
+            const selectedId = networks.some((network) => network.id === document.selectedId) ? document.selectedId : networks[0]?.id ?? '';
+            set({ networks, selectedId, phase: 'ready' });
+          } catch (error) { set({ phase: 'error', storageError: storageFailure(error) }); }
+        })().finally(() => { initialization = undefined; });
+        return initialization;
       },
-      setAutoConnect: (id, autoConnect) => updateNetwork(id, (network) => ({ ...network, autoConnect })),
-      toggleConnection: (id) => transition(id),
-      reconnect: (id) => transition(id, true),
-      saveConfiguration: (id, draft, mode = 'confirm') => {
+      clearStorageError: () => set({ storageError: null }),
+      selectNetwork: (id) => commit(() => get().networks.some((network) => network.id === id) ? { networks: get().networks, selectedId: id } : null),
+      setAutoConnect: (id, autoConnect) => commit(() => get().networks.some((network) => network.id === id) ? {
+        networks: get().networks.map((network) => network.id === id ? { ...network, autoConnect } : network), selectedId: get().selectedId,
+      } : null),
+      toggleConnection: (id) => transition(id), reconnect: (id) => transition(id, true),
+      removeNetwork: (id) => commit(() => {
+        const network = get().networks.find((network) => network.id === id);
+        if (!network || network.coreState !== 'stopped') return null;
+        const networks = get().networks.filter((network) => network.id !== id);
+        return { networks, selectedId: get().selectedId === id ? networks[0]?.id ?? '' : get().selectedId };
+      }),
+      saveConfiguration: async (id, draft, mode = 'confirm', creating = false) => {
         const network = get().networks.find((item) => item.id === id);
-        if (!network) return { status: 'missing' };
-        if (isBusy(network)) return { status: 'busy' };
+        if (!network && !creating) return { status: 'missing' };
+        if (network && (creating || isBusy(network))) return { status: 'busy' };
         const otherTunNames = get().networks.filter((item) => item.id !== id).map((item) => item.savedConfig.tunName);
         const errors = validateDraft(draft, otherTunNames);
         if (Object.keys(errors).length) return { status: 'invalid', errors };
-
-        const config = draftConfig(draft, network.savedConfig);
-        const localChanged = draft.alias !== network.alias || draft.icon !== network.icon;
+        const previousConfig = network?.savedConfig;
+        const config = draftConfig(draft, previousConfig ?? createNetworkConfig(id, { name: draft.name, secret: draft.secret, servers: [] }));
+        const localChanged = network && (draft.alias !== network.alias || draft.icon !== network.icon);
         const localOnly = localChanged && configsEqual(config, network.savedConfig);
-        const requiresReconnect = network.coreState === 'running' && network.runningConfig !== null
+        const requiresReconnect = network?.coreState === 'running' && network.runningConfig !== null
           && !localOnly && !configsEqual(config, network.runningConfig);
         if (mode === 'confirm' && requiresReconnect) return { status: 'confirmation-required' };
-
-        const saved = { ...network, alias: draft.alias.trim() || draft.name, icon: draft.icon, savedConfig: config };
-        updateNetwork(id, () => saved);
+        if (mode === 'now' && requiresReconnect && !get().connectionEnabled) return { status: 'unsupported' };
+        let stale = false;
+        const saved = await commit(() => {
+          const current = get().networks.find((item) => item.id === id);
+          if ((creating && current) || (!creating && (!current || isBusy(current) || !configsEqual(current.savedConfig, previousConfig!)))) {
+            stale = true; return null;
+          }
+          // Recheck uniqueness after queued additions, without changing user input.
+          if (get().networks.some((item) => item.id !== id && item.savedConfig.tunName.toLowerCase() === config.tunName.toLowerCase())) {
+            stale = true; return null;
+          }
+          const updated = current ? { ...current, alias: draft.alias.trim() || draft.name, icon: draft.icon, savedConfig: config }
+            : { ...offlineNetwork(id, config), alias: draft.alias.trim() || draft.name, icon: draft.icon };
+          return { networks: creating ? [...get().networks, updated] : get().networks.map((item) => item.id === id ? updated : item),
+            selectedId: creating ? id : get().selectedId };
+        });
+        if (!saved) return { status: stale ? 'busy' : 'storage-error' };
         if (mode === 'now' && requiresReconnect) return { status: 'applying', completion: get().reconnect(id) };
-        return { status: 'saved', pending: hasPendingConfig(saved) };
+        return { status: 'saved', pending: hasPendingConfig(get().networks.find((item) => item.id === id)!) };
       },
     };
   });
+}
+
+export function newNetworkDraft(networks: Network[], id = newNetworkId()): Network {
+  const network = offlineNetwork(id);
+  network.savedConfig.tunName = defaultTunName(id, networks.map((network) => network.savedConfig.tunName));
+  return network;
 }

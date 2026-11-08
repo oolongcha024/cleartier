@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Chip, Icon, IconButton } from '../components/ui';
@@ -7,6 +7,8 @@ import { isConnected } from '../features/networks/model';
 import { useTheme } from '../theme/theme';
 import { navigation, pageId } from './routes';
 import { version } from '../../package.json';
+import { isDesktop } from '../platform/client';
+import { ConfigurationNotice } from '../features/networks/ConfigurationState';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
@@ -16,6 +18,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const networkCount = useNetworkStore((state) => state.networks.length);
   const connected = useNetworkStore((state) => state.networks.filter(isConnected).length);
   const currentPage = pageId(pathname);
+  const initialize = useNetworkStore((state) => state.initialize);
+  useEffect(() => { void initialize(); }, [initialize]);
 
   return <div className={`app-shell ${collapsed ? 'app-shell--collapsed' : ''}`}>
     <a href="#main-content" className="skip-link" onClick={(event) => {
@@ -52,12 +56,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     </aside>
     <main className="main-content" id="main-content" tabIndex={-1}>
       <header className="page-header"><h1 key={currentPage} className="page-title">{t(`nav.${currentPage}`)}</h1>
-        <div className="header-actions"><Chip dot>{t('app.demo')}</Chip>
+        <div className="header-actions">{!isDesktop() && <Chip dot>{t('app.demo')}</Chip>}
           <IconButton icon={dark ? 'light_mode' : 'dark_mode'} label={t('app.theme')} onClick={() => setPreference(dark ? 'light' : 'dark')} />
         </div>
       </header>
+      <ConfigurationNotice />
       <div key={pathname} className="page-view">{children}</div>
-      <footer className="page-footer"><Icon name="science" /><span>{t('app.demoDescription')}</span></footer>
+      <footer className="page-footer"><Icon name={isDesktop() ? 'info' : 'science'} /><span>{t(isDesktop() ? 'configuration.connectionUnavailable' : 'app.demoDescription')}</span></footer>
     </main>
   </div>;
 }

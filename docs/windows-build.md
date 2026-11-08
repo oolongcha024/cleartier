@@ -21,7 +21,7 @@ gh workflow run windows-build.yml --ref main -f bundle=all
 gh run list --workflow windows-build.yml
 ```
 
-前端类型检查、测试、原生构建、exe 图标与资源校验，以及实际程序的 Direct／Process／Recovery／MissingResource 检查全部通过后，才上传正常下载包。失败时只保留已有诊断报告。Actions Artifacts 保留 14 天，包含所选产物、检查报告和记录提交、工具链、来源及 SHA-256 的 `build-info.json`。
+前端类型检查与测试、Rust 配置存储测试、原生构建、exe 图标与资源校验，以及实际程序的 Direct／Process／Recovery／MissingResource 检查全部通过后，才上传正常下载包。失败时只保留已有诊断报告。Actions Artifacts 保留 14 天，包含所选产物、检查报告和记录提交、工具链、来源及 SHA-256 的 `build-info.json`。
 
 ## Windows 本机构建
 
@@ -53,7 +53,7 @@ pnpm build:windows all
 
 直接程序需要目标机器已安装 Microsoft Edge WebView2 Runtime。它包含打包后的前端，不需要运行 Vite 或访问远程开发服务器。
 
-当前测试包已链接真实核心，关于页读取实际内核版本；仪表盘及网络编辑流程仍使用演示数据，按 [PLAN.md](../PLAN.md) 后续阶段接入。
+阶段 2 源码已实现本机配置存储，连接管理暂时禁用；对应新产物的配置验收见[网络配置存储](network-configuration.md)。此前通过验收的阶段 1 产物仍使用演示网络，不能代替本次改动的 Windows 验收。
 
 免安装目录包含 `check-core.ps1`。在该目录打开**普通权限**的 PowerShell，按顺序执行：
 

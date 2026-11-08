@@ -5,6 +5,9 @@ use cleartier_core::{
 use tauri::{Manager, State};
 
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    app.manage(cleartier_config::Repository::new(
+        app.path().app_config_dir()?,
+    ));
     let paths = CorePaths::new(
         app.path().app_config_dir()?,
         app.path().app_local_data_dir()?,

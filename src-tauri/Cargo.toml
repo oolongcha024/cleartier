@@ -10,7 +10,7 @@ name = "cleartier_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [workspace]
-members = ["crates/cleartier-core"]
+members = ["crates/cleartier-core", "crates/cleartier-config"]
 resolver = "3"
 
 [build-dependencies]
@@ -19,3 +19,4 @@ tauri-build = { version = "2.7.4", features = [] }
 [dependencies]
 tauri = { version = "2.12.5", features = [] }
 cleartier-core = { path = "crates/cleartier-core" }
+cleartier-config = { path = "crates/cleartier-config" }

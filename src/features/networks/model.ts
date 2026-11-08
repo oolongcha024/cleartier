@@ -1,6 +1,6 @@
 // Core lifecycle and connected peers are separate facts. A real adapter should
 // map EasyTier snapshots/events here, rather than equate `running` with connected.
-export type CoreState = 'stopped' | 'starting' | 'running' | 'stopping';
+export type CoreState = 'stopped' | 'starting' | 'running' | 'stopping' | 'unknown';
 export const networkIcons = ['work', 'sports_esports', 'home', 'hub', 'dns', 'public'] as const;
 export type NetworkIcon = typeof networkIcons[number];
 export const p2pPolicies = ['auto', 'lazy', 'disabled', 'only'] as const;
@@ -37,6 +37,7 @@ export const activePeers = (network: Network) => network.coreState === 'running'
 export const activeVirtualIp = (network: Network) => network.runningConfig?.ipv4Mode === 'manual'
   ? network.runningConfig.ipv4Address : network.virtualIp;
 export function statusKey(network: Network) {
+  if (network.coreState === 'unknown') return 'unavailable';
   if (network.coreState === 'stopped') return 'idle';
   if (network.coreState === 'starting') return 'startingShort';
   if (network.coreState === 'stopping') return 'stoppingShort';
