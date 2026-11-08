@@ -93,6 +93,14 @@
   await waitFor(() => window.__telemetryTest.operations.at(-1) === 'stop' && document.querySelector('.connection-state h3')?.textContent === '网络已断开', 'waiting recovery not cancellable');
   button('连接网络', document.querySelector('.connection-card')).click();
   await waitFor(() => window.__telemetryTest.operations.at(-1) === 'start' && document.querySelector('.connection-state h3')?.textContent !== '正在启动连接', 'manual start failed');
+  test.recovery = { phase: 'starting', attempt: 1, maxAttempts: 3, retryInSeconds: 0 };
+  window.dispatchEvent(new Event('focus'));
+  await waitFor(() => document.querySelector('.connection-state h3')?.textContent === '正在恢复连接', 'in-flight recovery state missing');
+  check(!button('断开连接', document.querySelector('.connection-card'))?.disabled, 'in-flight recovery cannot be cancelled');
+  button('断开连接', document.querySelector('.connection-card')).click();
+  await waitFor(() => document.querySelector('.connection-state h3')?.textContent === '网络已断开', 'in-flight recovery did not stop');
+  button('连接网络', document.querySelector('.connection-card')).click();
+  await waitFor(() => document.querySelector('.connection-state h3')?.textContent === '已连接到网络节点', 'manual start after cancellation failed');
   test.recovery = { phase: 'authorization', attempt: 1, maxAttempts: 3, retryInSeconds: 0 };
   window.dispatchEvent(new Event('focus'));
   await waitFor(() => document.querySelector('.connection-state-text p')?.textContent.includes('重新授权'), 'authorization feedback missing');

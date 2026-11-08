@@ -26,7 +26,7 @@ function ImportPreview({ preview, close }: { preview: ConfigurationPreview; clos
     setSaving(true); setError('');
     try {
       const result = await importConfiguration(preview.id, config, alias);
-      if (result !== 'saved') { setError(result === 'conflict' ? 'toml.importConflict' : 'configuration.saveFailed'); return; }
+      if (result.status !== 'completed') { setError(result.status === 'conflict' ? 'toml.importConflict' : 'configuration.saveFailed'); return; }
       close(); notify(t('toml.imported'));
     } finally { setSaving(false); }
   };

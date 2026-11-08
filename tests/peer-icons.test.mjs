@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { peerIcon, peerIconChoice, peerIconKey } from '../src/features/networks/peer-icons.ts';
 import { createNetworkStore, newNetworkDraft } from '../src/features/networks/network-store.ts';
+import { scriptedRuntime } from './helpers/networks.mjs';
 import { documentFromNetworks, emptyDocument } from '../src/features/networks/persistence.ts';
 
 const identity = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
@@ -16,10 +17,11 @@ function fixture() {
   let document = documentFromNetworks(emptyDocument(), profiles, profiles[0].id);
   document.networks[0].client.futurePreference = 'keep';
   let failure = false, writes = 0;
-  const calls = [];
+  const native = scriptedRuntime();
+  const calls = native.calls;
   const storage = { load: async () => structuredClone(document), restore: async () => structuredClone(document),
     save: async (next) => { if (failure) throw { code: 'io' }; writes++; document = structuredClone(next); document.revision = crypto.randomUUID(); return structuredClone(document); } };
-  const create = () => createNetworkStore([], async (operation) => { calls.push(operation); }, { storage });
+  const create = () => createNetworkStore(native.runtime, { storage });
   return { create, profiles, calls, saved: () => structuredClone(document), fail: (value) => { failure = value; }, writes: () => writes };
 }
 
@@ -40,8 +42,8 @@ test('icon preferences persist only under client metadata and stay independent a
   const f = fixture(); const store = f.create(); await store.getState().initialize();
   const [a, b] = f.profiles.map((network) => network.id);
   const configs = f.saved().networks.map((record) => record.config);
-  assert.equal(await store.getState().setPeerIcon(a, identity, 'server'), true);
-  assert.equal(await store.getState().setPeerIcon(b, identity, 'phone'), true);
+  assert.equal((await store.getState().setPeerIcon(a, identity, 'server')).status, 'completed');
+  assert.equal((await store.getState().setPeerIcon(b, identity, 'phone')).status, 'completed');
   const reopened = f.create(); await reopened.getState().initialize();
   const [office, game] = reopened.getState().networks;
   assert.equal(peerIcon(peer, office.peerIcons), 'dns'); assert.equal(peerIcon(peer, game.peerIcons), 'smartphone');
@@ -54,7 +56,7 @@ test('restoring auto removes the saved override and keeps other network choices 
   const [a, b] = f.profiles.map((network) => network.id);
   await store.getState().setPeerIcon(a, identity, 'laptop');
   await store.getState().setPeerIcon(b, identity, 'router');
-  assert.equal(await store.getState().setPeerIcon(a, identity, 'auto'), true);
+  assert.equal((await store.getState().setPeerIcon(a, identity, 'auto')).status, 'completed');
   const reopened = f.create(); await reopened.getState().initialize();
   assert.equal(peerIcon({ ...peer, publicServer: true }, reopened.getState().networks[0].peerIcons), 'dns');
   assert.equal(peerIcon(peer, reopened.getState().networks[1].peerIcons), 'router');
@@ -65,12 +67,12 @@ test('failed writes retain the previous selection and invalid identifiers or cho
   const id = f.profiles[0].id;
   await store.getState().setPeerIcon(id, identity, 'computer');
   const before = f.saved(); f.fail(true);
-  assert.equal(await store.getState().setPeerIcon(id, identity, 'phone'), false);
+  assert.equal((await store.getState().setPeerIcon(id, identity, 'phone')).status, 'storage-error');
   assert.equal(peerIcon(peer, store.getState().networks[0].peerIcons), 'computer');
   assert.equal(store.getState().storageError.code, 'io'); assert.deepEqual(f.saved(), before);
   f.fail(false); const count = f.writes();
-  assert.equal(await store.getState().setPeerIcon(id, 'temporary-peer-id', 'server'), false);
-  assert.equal(await store.getState().setPeerIcon(id, identity, 'windows'), false);
+  assert.equal((await store.getState().setPeerIcon(id, 'temporary-peer-id', 'server')).status, 'missing');
+  assert.equal((await store.getState().setPeerIcon(id, identity, 'windows')).status, 'missing');
   assert.equal(f.writes(), count);
 });
 test('queued icon, network preference and selection writes preserve each other', async () => {

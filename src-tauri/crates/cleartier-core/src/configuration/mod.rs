@@ -1,6 +1,7 @@
 //! Official TOML compatibility: one preservation base, an editable projection,
 //! and one validation path shared by preview and actual launch. Never return
 //! upstream parse errors: they may embed credentials or the entire document.
+mod editor;
 mod projection;
 mod validation;
 
@@ -68,7 +69,7 @@ pub fn export(id: Uuid, config: &ConnectionConfig) -> Result<String> {
         table.insert("instance_id".into(), toml::Value::String(id.to_string()));
         encode(&table)
     } else {
-        crate::connections::config::editor_toml(id, config)
+        editor::editor_toml(id, config)
     }
 }
 

@@ -43,8 +43,8 @@
     if (command === 'network_operation') test.recovery = null;
     const result = await original(command, args);
     if (command === 'network_snapshot' && test.recovery) {
-      result[0] = { ...result[0], state: 'failed', runningConfig: test.recovery.phase === 'waiting' ? result[0].runningConfig : null,
-        recovery: test.recovery, error: { code: 'core_exited' } };
+      result.networks[0] = { ...result.networks[0], state: test.recovery.phase === 'starting' ? 'starting' : 'failed', runningConfig: null,
+        recoveryConfig: result.networks[0].runningConfig, recovery: test.recovery, error: { code: 'core_exited' } };
     }
     return result;
   };

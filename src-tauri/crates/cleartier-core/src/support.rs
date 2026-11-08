@@ -206,6 +206,8 @@ mod tests {
         let config = crate::configuration::import(id, "hostname = 'PRIVATE_HOST'\n[network_identity]\nnetwork_name = 'PRIVATE_NETWORK'\nnetwork_secret = 'PRIVATE_SECRET'\n").unwrap().config;
         let snapshot = NetworkSnapshot {
             id,
+            revision: 1,
+            recovery_config: None,
             state: "running",
             running_config: Some(config),
             device_name: "PRIVATE_DEVICE".into(),

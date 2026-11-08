@@ -1,5 +1,5 @@
 import { configsEqual, type NetworkDraft } from '../networks/configuration.ts';
-import type { Network, NetworkConfig } from '../networks/model.ts';
+import { sessionConfig, type Network, type NetworkConfig } from '../networks/model.ts';
 
 export interface JoinParameters { name: string; secret: string; servers: string[] }
 export interface Invitation extends JoinParameters { displayName?: string }
@@ -79,7 +79,7 @@ export function invitationSource(network: Network): InvitationSource {
     if (!network.runningConfig) return fail('unavailable');
     return { config: network.runningConfig, pending: !configsEqual(network.savedConfig, network.runningConfig) };
   }
-  if ((network.coreState === 'stopped' || network.coreState === 'failed') && network.runningConfig === null) {
+  if ((network.coreState === 'stopped' || network.coreState === 'failed') && sessionConfig(network) === null) {
     return { config: network.savedConfig, pending: false };
   }
   return fail('unavailable');

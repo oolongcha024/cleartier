@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { encodeInvitation, decodeInvitation, fillInvitation, invitationSource, InvitationError, maxInvitationInput } from '../src/features/invitations/invitation.ts';
 import { shareInvitation } from '../src/features/invitations/share-invitation.ts';
-import { demoNetworks } from '../src/features/networks/demo.ts';
+import { fixture, profile } from './helpers/networks.mjs';
+const demoNetwork = profile('office');
+demoNetwork.coreState = 'running'; demoNetwork.runningConfig = structuredClone(demoNetwork.savedConfig);
 import { configurationDraft } from '../src/features/networks/configuration.ts';
 import { createNetworkStore, newNetworkDraft } from '../src/features/networks/network-store.ts';
 
@@ -53,7 +55,7 @@ test('invitations require remote-capable endpoints and never initiate URL reques
 });
 
 test('running parameters win over unapplied saved edits; offline profiles share saved parameters', () => {
-  const network = structuredClone(demoNetworks[0]);
+  const network = structuredClone(demoNetwork);
   network.savedConfig = { ...network.savedConfig, secret: 'pending-new-secret' };
   assert.equal(invitationSource(network).config.secret, network.runningConfig.secret);
   assert.equal(invitationSource(network).pending, true);
@@ -69,7 +71,7 @@ test('running parameters win over unapplied saved edits; offline profiles share 
 });
 
 test('sharing does not alter profiles, operate the core, or silently copy a stale source', async () => {
-  let network = structuredClone(demoNetworks[0]);
+  let network = structuredClone(demoNetwork);
   network.savedConfig = { ...network.savedConfig, secret: 'pending-secret' };
   const before = structuredClone(network);
   let clipboard;
@@ -95,7 +97,7 @@ test('sharing does not alter profiles, operate the core, or silently copy a stal
 });
 
 test('clipboard failure retains a valid manual-copy invitation without claiming success', async () => {
-  const network = structuredClone(demoNetworks[0]);
+  const network = structuredClone(demoNetwork);
   const result = await shareInvitation(() => network, { parameters, copy: async () => { throw new Error('clipboard denied'); } });
   assert.equal(result.copied, false);
   assert.equal(decodeInvitation(result.text).name, network.runningConfig.name);
@@ -115,11 +117,11 @@ test('autofill preserves receiver settings and manual alias, replaces only membe
 });
 
 test('adding an invitation uses a new local identity, only persists once, and remains manually connected', async () => {
-  const operations = [];
-  const store = createNetworkStore([], async operation => { operations.push(operation); });
+  const f = fixture([]); const store = f.store; const operations = f.calls;
+  await store.getState().initialize();
   const candidate = newNetworkDraft(store.getState().networks);
   const draft = fillInvitation(configurationDraft(candidate), decodeInvitation(encodeInvitation(details)));
-  assert.equal((await store.getState().saveConfiguration(candidate.id, draft, 'confirm', true)).status, 'saved');
+  assert.equal((await store.getState().create(candidate.id, draft)).status, 'saved');
   const network = store.getState().networks[0];
   assert.equal(network.savedConfig.name, details.name);
   assert.equal(network.savedConfig.secret, details.secret);
@@ -133,4 +135,11 @@ test('adding an invitation uses a new local identity, only persists once, and re
   assert.equal(network.autoConnect, false);
   assert.equal(store.getState().selectedId, candidate.id);
   assert.deepEqual(operations, []);
+});
+
+test('a failed network with recovery intent cannot share unapplied saved credentials as an offline profile', () => {
+  const network = structuredClone(demoNetwork);
+  network.coreState = 'failed'; network.recoveryConfig = network.runningConfig; network.runningConfig = null;
+  network.savedConfig.secret = 'pending';
+  assert.throws(() => invitationSource(network), error('unavailable'));
 });

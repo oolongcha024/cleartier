@@ -25,30 +25,26 @@ export interface NetworkConfig {
   magicDns: boolean; dnsSuffix: string; udpBroadcastRelay: boolean;
 }
 export interface Network {
-  recovery?: RuntimeSnapshot['recovery'];
-  connectionError?: { code: string } | null; deviceName?: string; peerCount?: number; directPeerCount?: number;
-  id: string; alias: string; icon: NetworkIcon; peerIcons?: PeerIconPreferences;
-  savedConfig: NetworkConfig;
-  // A saved edit must not masquerade as the configuration of a live session.
-  runningConfig: NetworkConfig | null;
-  coreState: CoreState; autoConnect: boolean; virtualIp: string;
-  peers: Peer[]; download: number; upload: number;
-  traffic: { download: number[]; upload: number[] };
-  // Byte counters for this machine in this network; null means no session recorded.
-  // Browser fixture values; native measurements live in the telemetry Module.
-  trafficTotals: { downloadBytes: number; uploadBytes: number } | null;
+  id: string; alias: string; icon: NetworkIcon; peerIcons: PeerIconPreferences;
+  savedConfig: NetworkConfig; editRevision: number; persisted: boolean;
+  runningConfig: NetworkConfig | null; recoveryConfig: NetworkConfig | null;
+  recovery: RuntimeSnapshot['recovery']; connectionError: { code: string } | null;
+  coreState: CoreState; operation: 'saving' | 'removing' | 'connecting' | 'disconnecting' | 'reconnecting' | null;
+  autoConnect: boolean; virtualIp: string; deviceName: string; peerCount: number; directPeerCount: number;
 }
-export const isConnected = (network: Network) => network.coreState === 'running' && (network.peerCount ?? network.peers.length) > 0;
-export const isBusy = (network: Network) => network.coreState === 'starting' || network.coreState === 'stopping';
-export const activeVirtualIp = (network: Network) => network.runningConfig?.ipv4Mode === 'manual'
-  && network.peerCount === undefined ? network.runningConfig.ipv4Address : network.virtualIp;
+export const isConnected = (network: Network) => network.coreState === 'running' && network.peerCount > 0;
+export const isBusy = (network: Network) => network.operation !== null || network.coreState === 'starting' || network.coreState === 'stopping';
+export const activeVirtualIp = (network: Network) => network.virtualIp;
+export const sessionConfig = (network: Network) => network.runningConfig ?? network.recoveryConfig;
+export const canRemove = (network: Network) => !isBusy(network) && ['stopped', 'failed'].includes(network.coreState)
+  && network.runningConfig === null && network.recoveryConfig === null;
 export function statusKey(network: Network) {
   if (network.coreState === 'failed') return 'failed';
   if (network.coreState === 'unknown') return 'unavailable';
   if (network.coreState === 'stopped') return 'idle';
   if (network.coreState === 'starting') return 'startingShort';
   if (network.coreState === 'stopping') return 'stoppingShort';
-  return (network.peerCount ?? network.peers.length) > 0 ? 'connectedShort' : 'running';
+  return network.peerCount > 0 ? 'connectedShort' : 'running';
 }
 
 export function summaryKey(networks: Network[]) {

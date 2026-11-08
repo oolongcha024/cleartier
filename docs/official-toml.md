@@ -15,7 +15,7 @@
 
 ## 转换与存储
 
-`cleartier-core::configuration` 是 TOML 兼容 Module，其 Interface 是 `import / inspect / export`。导入通过固定核心校验，先检查 flags 类型，防止上游对非法类型的 unwrap；再用官方类型往返比对发现被忽略的根字段、嵌套字段与数组字段。预览和真正启动共用相同校验。
+`cleartier-core::configuration` 拥有表单生成、TOML 投影、覆盖与兼容校验。外部 Interface 是 `import / inspect / export`，连接管理通过内部 `for_connection` 消费经过校验的结果；普通表单生成放在 `configuration/editor.rs`，不存在返回连接 module 的转换调用。导入通过固定核心校验，先检查 flags 类型，防止上游对非法类型的 unwrap；再用官方类型往返比对发现被忽略的根字段、嵌套字段与数组字段。预览和真正启动共用相同校验。
 
 原始 TOML 保存在 `ConnectionConfig.officialToml`。这是可选的 v1 已知字段；既有配置继续有效。存储允许保留已解析但暂不能运行的导入内容，继续使用原子替换、备份和修订检查。实际连接仍需要通过核心校验。
 

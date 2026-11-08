@@ -92,9 +92,9 @@ src/
 
 `app/routes.tsx` 统一声明页面与导航。仪表盘、网络配置、设置和关于页均静态导入，随应用启动准备好；常用页面切换不额外请求页面代码或展示整页加载占位，保留轻量过渡。主机信息、版本等异步结果由各功能在页面内展示自己的读取状态。
 
-网络编辑的两个入口共用 `useNetworkEditor`，页面只负责打开目标网络，编辑会话负责草稿重建与弹窗关闭过渡。`useNetworkDraft` 处理表单交互；`network-store.ts` 的 `saveConfiguration` 统一校验、重连确认、保存与立即应用，并返回明确结果。`savedConfig` 和 `runningConfig` 分别表示已保存和当前会话的参数，修改本地名称或图标不会应用待生效的连接参数。
+网络编辑的两个入口共用 `useNetworkEditor`，页面只负责打开目标网络，编辑会话负责草稿重建与弹窗关闭过渡。`useNetworkDraft` 处理表单交互；`network-store.ts` 的 `create / save / connect / disconnect / reconnect / remove` 统一校验、持久化及操作协调。草稿携带编辑基线版本；同一网络在首次异步等待前预留操作，删除额外等待 Rust 确认没有实例、资源及恢复任务。`savedConfig`、`runningConfig`、`recoveryConfig` 分别表示已保存参数、实际实例参数与恢复目标参数，本地名称或图标不应用待生效的连接参数。
 
-`createNetworkStore` 创建独立状态实例，接收配置存储与运行 Adapter。`features/networks/store.ts` 为桌面组装真实存储与运行控制，为浏览器组装演示数据及模拟运行；测试通过同一 Interface 验证持久化、错误、并发和运行隔离。阶段 3 的运行 Adapter 调用独立的连接管理 Module，以核心快照和事件更新状态，浏览器继续保留模拟运行。
+`createNetworkStore` 接收必需的配置存储与运行 Adapter，两种环境通过相同 Interface 返回运行观察；页面不根据字段缺失判断演示环境。`features/networks/store.ts` 完成一次性组装，`NetworkLifecycle` 在应用启动处管理前端缓存读取及过期检查。Rust 的 `NetworkManager` 使用逐网络调度、资源预留和短时间状态锁，实际采样与恢复由原生后台执行；前端读取带代次、逐网络版本和新鲜度的缓存。迟到结果不能撤销新操作，重复缓存不能延长遥测有效期。
 
 主机信息和客户端版本的原生调用集中在 `platform/client.ts`，浏览器预览会回退到演示环境与前端版本，页面不直接调用 Tauri。`src/lib/i18n.ts` 集中维护中文文案。
 
@@ -120,7 +120,7 @@ pnpm theme:generate
 pnpm dev
 ```
 
-在浏览器中访问终端输出的服务地址，支持热更新。
+在浏览器中访问 `http://10.126.179.2:5173`，支持热更新。
 
 单元测试、前端类型检查、构建和构建产物预览：
 
@@ -131,8 +131,9 @@ pnpm build
 pnpm preview
 ```
 
-`tests/browser/` 提供可通过 agent-browser 执行的交互回归检查：`route-transitions.js` 检查首次及重复导航不出现整页加载或新增代码请求，`navigation-overflow.js` 检查侧栏溢出，`advanced-disclosure.js` 检查高级选项展开／收起时的位置，`network-editor-session.js` 检查两个编辑入口的草稿重置、保存、确认与应用。各文件顶部说明所需页面状态；路由检查需要从刚加载的仪表盘开始，也适用于构建产物预览。编辑流程检查会修改内存演示数据，刷新后恢复。窗口大小、浅色／深色与减少动态效果应分别检查。
+`pnpm test:browser` 使用 agent-browser 0.38.0 执行 `tests/browser/` 中全部交互回归，自动启动或复用 `http://10.126.179.2:5173`，为每个场景建立独立浏览器会话，按顺序加载原生 fixture，并清理会话；失败截图在 `.cache/browser/`。先安装 `agent-browser@0.38.0` 并运行 `agent-browser install`。可以追加场景名，例如 `pnpm test:browser network-editor-session desktop-lifecycle`。通过 `BROWSER_WIDTH / BROWSER_HEIGHT / BROWSER_COLOR_SCHEME / BROWSER_REDUCED_MOTION` 可检查最小窗口、深色与减少动态效果。
 
+PR 检查位于 `.github/workflows/check.yml`，覆盖前端测试和构建、Rust 格式及完整工程编译、配置与核心测试和浏览器回归。`tests/fixtures/network-contract.json` 同时被 TS 工作流、Rust 配置存储与运行快照测试消费，约束字段保留和跨语言序列化。
 运行 `pnpm preview` 后，访问终端输出的预览地址。
 
 具备桌面系统依赖和图形环境时，可以运行原生窗口或打包：
@@ -146,9 +147,9 @@ Tauri 与浏览器预览共用前端入口。`tauri dev` 会自行启动开发�
 
 原生桌面构建需要满足 [Tauri 系统依赖要求](https://v2.tauri.app/start/prerequisites/)。仅使用浏览器预览时，无需桌面系统开发库。
 
-## 下一步
+## 验证与发布
 
-实现邀请流程与配置持久化，再通过适配层接入 EasyTier 核心，替换模拟状态。
+配置、核心、邀请和后台生命周期均已接通。本次工作流与调度重构完成后，继续按 `docs/windows-acceptance.md` 验证 Windows UAC、TUN、双机通信、托盘及安装行为；自动化检查不能替代实机验收。
 
 阶段 5 的 `tests/browser/official-configuration.js` 配合 `fixtures/native-telemetry.js` 和 `fixtures/native-configuration.js` 检查导入／编辑／导出流程；这些仅模拟系统文件对话框和原生通信，实际 TOML 转换由 Rust 测试覆盖。
 

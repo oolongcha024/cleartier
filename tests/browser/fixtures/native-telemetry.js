@@ -4,6 +4,7 @@
   window.isTauri = true;
   window.__telemetryTest = { fail: false, failSave: false, noStableId: false, operations: [] };
   let epoch = 0;
+  let revision = 0;
   const profile = (id, name, ip) => ({ id, client: { alias: name, icon: 'work', autoConnect: false }, config: {
     name, secret: 'test-only', servers: ['tcp://example.com:11010'], hostname: 'actual-test-node',
     ipv4Mode: 'auto', ipv4Address: '', ipv4Prefix: 24, tunName: `ct-${name}`, mtu: null, ipv6: true,
@@ -26,10 +27,11 @@
       ],
     };
     session.last = telemetry;
-    return { id: record.id, state: session.stopped ? 'stopped' : 'running', runningConfig: session.stopped ? null : record.config,
+    return { id: record.id, revision: ++revision, recoveryConfig: null, recovery: null, state: session.stopped ? 'stopped' : 'running', runningConfig: session.stopped ? null : record.config,
       deviceName: record.config.tunName, virtualIp: session.stopped ? null : record.ip,
       peerCount: session.stopped ? 0 : 2, directPeerCount: session.stopped ? 0 : 1, error: null, telemetry };
   });
+  const frame = () => ({ epoch: 'native-fixture', health: 'ready', error: null, networks: snapshot() });
   window.__TAURI_INTERNALS__ = { invoke: async (command, args = {}) => {
     if (command === 'config_load') return structuredClone(document);
     if (command === 'config_save') {
@@ -40,14 +42,22 @@
     }
     if (command === 'network_snapshot') {
       if (window.__telemetryTest.fail) throw { code: 'request_timeout' };
-      return snapshot();
+      return frame();
     }
     if (command === 'network_operation') {
       const operation = args.operation;
       window.__telemetryTest.operations.push(operation.action);
+      if (operation.action === 'release') {
+        if (!sessions.get(operation.id)?.stopped) throw { code: 'instance_running' };
+        return frame();
+      }
       if (operation.action === 'stop') sessions.get(operation.id).stopped = true;
-      else sessions.set(operation.id, { started: performance.now(), session: `new-${++epoch}`, base: 0, stopped: false });
-      return snapshot();
+      else {
+        const profile = profiles.find((record) => record.id === operation.id);
+        if (profile) profile.config = structuredClone(operation.config);
+        sessions.set(operation.id, { started: performance.now(), session: `new-${++epoch}`, base: 0, stopped: false });
+      }
+      return frame();
     }
     if (command === 'host_environment') return ['actual-test-node', 'windows'];
     if (command === 'plugin:app|version') return '0.1.0';

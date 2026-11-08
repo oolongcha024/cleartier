@@ -40,11 +40,11 @@
 | `cleartier-core::connections::NetworkManager` | 携带统计快照，停止后保留最后的会话累计 |
 | `features/networks/peer-icons.ts` | 自动角色映射、稳定偏好键及手动覆盖规则 |
 | `features/networks/telemetry.ts` | 单独的前端订阅、速率、60 秒时间窗、过期及恢复；Interface 为 receive / stale / expire / remove |
-| `features/networks/network-sessions.ts` | 在现有操作代次保护内分发快照，不让迟到响应污染新会话 |
+| `features/networks/network-store.ts` | 按逐网络版本及操作代次分发统一运行观察，不让迟到响应污染新会话 |
 | `features/dashboard/traffic-chart.ts` | 以真实时间定位曲线、共用双向刻度、缺失值分段 |
-| `features/dashboard/use-dashboard-telemetry.ts` | 桌面数据与浏览器演示的展示适配 |
+| `features/networks/demo.ts` | 演示运行 Adapter 及历史采样；通过同一遥测 Interface 提供设备和流量 |
 
-沿用每秒一次查询和焦点恢复刷新，查询不重叠。三秒未取得新数据标记过期；超过三秒的采样间隔不冒充瞬时速率，恢复后先建立基线再计算。图表保留最近 60 秒，缺失值留下缺口，零值保留为真实基线。
+Rust 每秒采样，前端每秒读取缓存并在焦点恢复时刷新，前端读取不重叠；布局不拥有采样任务。三秒未取得新采样标记过期，反复返回同一缓存样本不会刷新采样时间；超过三秒的采样间隔不冒充瞬时速率，恢复后先建立基线再计算。图表保留最近 60 秒，缺失值留下缺口，零值保留为真实基线。
 
 连接／配置状态与高频统计分开订阅。只变更字节或质量指标不会通知配置和连接 store 的订阅者，侧栏、编辑器、连接按钮不会被每秒采样整体重绘。本机节点名称另有窄订阅。私有核心 IPC 协议为 v4，控制端与核心随同一程序更新。
 

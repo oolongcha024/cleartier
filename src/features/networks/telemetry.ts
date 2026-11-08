@@ -44,7 +44,11 @@ export function createTelemetryStore(now = () => performance.now()) {
       // An old command response may contain an earlier sample from the same
       // session. It must not move totals backwards or produce negative rates.
       if (same && snapshot.elapsedMs < previous.elapsedMs) return;
-      if (same && snapshot.elapsedMs === previous.elapsedMs && current.freshness === 'stopped' && (state === 'stopped' || state === 'failed')) return;
+      const duplicate = same && snapshot.elapsedMs === previous.elapsedMs;
+      if (duplicate) {
+        if ((state === 'stopped' || state === 'failed') && current.freshness !== 'stopped') put(id, { ...current, freshness: 'stopped', download: null, upload: null });
+        return;
+      }
       let download: number | null = null, upload: number | null = null;
       const elapsed = previous && same ? snapshot.elapsedMs - previous.elapsedMs : 0;
       if (same && current.freshness === 'fresh' && elapsed > 0 && elapsed <= 3000) {
@@ -57,13 +61,8 @@ export function createTelemetryStore(now = () => performance.now()) {
       const stopped = state === 'stopped' || state === 'failed';
       if (stopped) { download = null; upload = null; }
       const points = same ? current.points.filter((point) => point.at >= at - 60_000) : [];
-      // Fast focus/command reads update freshness but do not append duplicate
-      // time samples or erase a useful rate from the preceding interval.
-      const duplicate = same && elapsed === 0;
-      put(id, { snapshot, freshness: stopped ? 'stopped' : 'fresh', updatedAt: at,
-        download: duplicate && !stopped && current.freshness === 'fresh' ? current.download : download,
-        upload: duplicate && !stopped && current.freshness === 'fresh' ? current.upload : upload,
-        points: duplicate ? points : [...points, { at, download, upload }].slice(-121) });
+      put(id, { snapshot, freshness: stopped ? 'stopped' : 'fresh', updatedAt: at, download, upload,
+        points: [...points, { at, download, upload }].slice(-121) });
     },
     stale,
     expire() {

@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Dialog, useSnackbar } from '../../components/ui';
+import { completed } from './network-store';
 import type { Network } from './model';
 import { useNetworkStore } from './store';
 
 export function useNetworkDeletion() {
   const { t } = useTranslation();
   const notify = useSnackbar();
-  const remove = useNetworkStore((state) => state.removeNetwork);
+  const remove = useNetworkStore((state) => state.remove);
   const [target, setTarget] = useState<Network | null>(null);
   const [removing, setRemoving] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -16,7 +17,7 @@ export function useNetworkDeletion() {
     setRemoving(true); setFailed(false);
     const saved = await remove(target.id);
     setRemoving(false);
-    if (saved) { setTarget(null); notify(t('networkConfig.deleted')); }
+    if (completed(saved)) { setTarget(null); notify(t('networkConfig.deleted')); }
     else setFailed(true);
   };
   const deletion = <Dialog open={Boolean(target)} onOpenChange={(open) => { if (!open && !removing) setTarget(null); }}

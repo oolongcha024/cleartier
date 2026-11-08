@@ -1,72 +1,62 @@
 # 连接管理
 
-阶段 3 接通桌面端真实核心；浏览器继续提供独立的演示 Adapter。当前实现已通过本地自动化，Windows 构建、真实 TUN 和跨设备通信仍需实机验收。
+更新日期：2026-11-09。桌面和浏览器演示共享运行 Interface；Windows UAC、真实 TUN 和跨设备行为仍按[集中验收](windows-acceptance.md)验证。
 
-## 已确认的行为
+## Module 与 Seam
 
-- 同时运行不同网络，连接、断开、重连和应用修改只操作目标实例。
-- 相同名称和密钥的多套配置同时只允许一套运行；提示先断开已有配置，不自动替换另一套。
-- 启动成功表示核心及 TUN 就绪，不表示已发现节点，更不证明目标服务可访问。没有远端节点时显示等待节点。
-- 稍后应用只保存参数；立即应用先保存再重建目标实例。新参数的格式和逻辑冲突检查发生在停止旧实例之前。
-- 一旦进入重新启动，新配置失败后不恢复旧连接；已保存的新配置不丢失。错误展示以实际快照为准，不能假装旧连接仍正常。
-- 本地备注和图标不触发重连。未知状态先刷新，避免对可能仍在运行的实例盲目连接。
-- 启动时自动连接已启用的网络，单项失败继续其他项；取消 UAC 后停止本次队列，保留偏好，不反复弹窗，可主动手动重试。
-- 默认关闭窗口隐藏到托盘并保持连接，明确退出才结束所拥有的核心及网络；阶段 7 的[后台生命周期与恢复](desktop-lifecycle.md)已实现，待 Windows 实机验收。
-
-## 代码组织
-
-| Module | 职责 |
+| Module | Interface 与 Implementation |
 | --- | --- |
-| `cleartier-config::ConnectionConfig` | 与存储共享现有表单的类型和校验 |
-| `cleartier-core/src/connections/config.rs` | 通过上游类型转换为核心 TOML，不插值密钥 |
-| `cleartier-core::connections::NetworkManager` | 操作排序、运行参数、互斥、就绪等待、有限恢复与退出协调；命令与读取仍共用实例状态 |
-| `cleartier-core/src/status.rs` | 类型化核心事件和快照，区分就绪、节点和局部错误 |
-| `src-tauri/src/network_commands.rs` | Tauri 的 `network_operation / network_snapshot` |
-| `features/networks/network-sessions.ts` | 前端命令、快照合并、迟到响应保护及启动队列 |
-| `platform/configuration.ts` | 桌面存储与运行 Adapter |
+| `features/networks/network-store.ts` | `initialize/reload/restore/create/save/connect/disconnect/reconnect/remove`；内部拥有持久化顺序、目标预留、草稿基线、快照归并及一次性启动队列 |
+| `features/networks/runtime.ts` | 必需的 snapshot/start/stop/restart/confirmQuiescent；桌面与演示 Adapter 使用相同数据与完成语义 |
+| `platform/configuration.ts` | Tauri 存储与运行 Adapter，不在原生失败后退回演示成功 |
+| `features/networks/demo.ts` | 内存运行 Adapter、资源预留、演示会话与历史采样 |
+| `features/networks/NetworkLifecycle.tsx` | 应用级前端缓存读取、焦点刷新及遥测过期检查，不属于布局或路由生命周期 |
+| `cleartier-core::configuration` | 普通配置生成、TOML 投影／覆盖与运行前校验，隐藏固定上游版本的映射知识 |
+| `cleartier-core::connections::NetworkManager` | 原生运行意图、逐网络调度、资源预留、就绪确认、恢复、取消及缓存发布 |
+| `connections/operations.rs` | 任务准入、逐网络执行与迟到启动清理；耗时操作在状态锁外执行 |
+| `process::CoreController` | 独立核心进程所有权、授权、本地通信及清理；独占并串行配对 worker 请求与响应 |
 
-Rust 后端保留实际提交运行的配置，前端以其与磁盘保存值比较待应用修改。运行快照不持久化。普通 GUI 通过既有私有 IPC 控制独立核心，TUN 仅按需提升核心权限。
+## 工作流顺序
 
-阶段 7 在同一用户会话中通过单实例入口唤起已有窗口，不再主动创建多个 GUI。`runtime-control.lock` 仍保护同一用户数据目录的连接控制权，阻止旧版、其他会话或其他控制端错误接管连接，不报告虚假的空运行列表。
+同一网络的配置修改、删除、连接和重连在首次异步等待前取得预留，冲突请求返回 busy。不同网络独立推进，磁盘写入通过同一队列提交，选择、自动连接与设备图标按最新状态合并字段。重新加载和恢复备份不能穿插正在进行的任务。
 
-## 参数与冲突
+编辑草稿携带 baseRevision，配置／本地名称／图标发生其他修改后拒绝旧草稿；遥测、选择及其他偏好不会使草稿失效。保存完成后才更新 savedConfig。立即应用捕获本次参数，持有预留直到重连完成；保存失败不启动核心。结果分别表达校验失败、目标忙、基线过期、磁盘冲突、保存失败、已保存和正在应用。应用完成结果区分成功和运行失败。
 
-现有节点名称、地址分配、TUN 名称、MTU、IPv6、P2P 策略、延迟优先、打洞、UPnP、Magic DNS 与广播中继均映射到固定的官方核心版本。macOS 的接口名继续由系统分配，广播中继限制为 Windows。未知扩展字段可以保存，但当前版本不能识别时拒绝启动，避免静默忽略。
+仅修改本地名称或图标直接生效，不应用待生效参数。普通连接使用已保存参数，主动重连使用本次捕获的已保存参数；显式重建失败后不重新启动旧配置。配置不合法或逻辑冲突在停止旧实例前拒绝。
 
-网络身份及密钥保持原样；自动地址模式使用核心 DHCP，手动地址使用指定 IPv4 和前缀。监听使用系统分配的 TCP／UDP 端口，启用 IPv6 时增加 IPv6 监听，不让所有网络争用固定端口。
+删除仍要求用户先断开。前端预留目标后，Rust 的 release 操作检查没有实例、启动／停止任务、未释放资源或等待恢复，再取消残留恢复意图并返回确认，最后才提交磁盘删除。观察不可用时拒绝删除。写盘失败保留配置，之后可手动连接；删除不会隐式断开活动网络。
 
-启动前检查已使用的 TUN 名称、已分配的本机 IPv4，以及同一控制端的网络身份和地址占用。核心监听失败、TUN 失败及 DHCP 地址冲突经事件反馈。若较新网络在就绪后取得与较早网络相同的虚拟地址，只停止较新实例并提示冲突。此实现不等同于自动解决所有跨网络子网／路由重叠，仍需实机验证实际路由行为。
+初始化只执行一次启动队列，冷缓存等待第一次可信运行观察。单项失败继续其他自动连接项，取消授权停止本次队列。reload/restore 合并磁盘与运行事实，不重跑启动队列。配置被外部移除但实例仍运行时保留断开入口，该临时记录不重新写入磁盘。
 
-启动确认等待真实 TUN-ready 事件及实例信息，最多 12 秒，超时清理目标实例。等待发现节点不设成连接失败；单个入口连接失败显示局部错误，核心继续尝试。错误类别与配置正文分开，页面不展示可能包含凭据的底层错误文本。
+## 运行观察
 
-## 同步与数据范围
+Tauri 的 network_snapshot 只读取缓存，返回 `{epoch, health, error, networks}`。health 为 initializing、ready 或 stale；冷缓存不能推导全部停止。每个网络包含 revision、state、runningConfig、recoveryConfig、recovery、telemetry、实际网卡／地址及节点数量。未知测量显式为空；零节点的就绪实例仍是 running。
 
-页面每秒同步一次，窗口重新获得焦点时额外刷新，同一时刻只保留一次前端查询。命令有逐网络代次保护，迟到查询不覆盖更新的操作；查询失败显示未知，核心已失去控制时显示失败，允许手动重试。
+runningConfig 表达实际实例使用的参数；recoveryConfig 表达旧会话的恢复目标。待应用比较集中在配置 module，恢复使用旧目标而不读取已保存的新值。两者与磁盘参数分开，运行快照从不持久化。
 
-阶段 3 提供实际虚拟 IP、实际网卡名和节点数量。阶段 4 已接通设备详情、可用的直连隧道质量及流量采样，高频数据通过独立订阅展示；未知值不生成模拟指标。统计口径与验收见[仪表盘真实数据](dashboard-telemetry.md)。
+前端按逐网络版本、操作代次和遥测会话归并结果；不通过一个全局版本丢弃其他网络的有效结果。命令完成时已经发布对应的运行观察。迟到读取既不能撤销新操作，也不能重新创建已删除的记录。采样期间发现的其他运行实例不会被随后完成的配置写入丢弃。
+
+Rust 每秒查询核心和调度维护；前端每秒读取缓存，焦点恢复时额外读取，读请求不重叠。三秒没有新观察的原生缓存过期；重复返回同一遥测样本不会更新前端采样时间。查询失败保留最近设备、累计及参数，显示未知／过期。具体统计见[仪表盘真实数据](dashboard-telemetry.md)。
+
+## 资源、恢复与退出
+
+短时间锁内预留网络身份、TUN 名称和手动 IPv4，预留包含正在启动的配置。重建期间旧资源保留至停止确认，新资源保留至失败清理确认。实际 DHCP 地址冲突由原生维护调度停止较新实例，读取缓存没有停止副作用。尚不自动解决跨网络子网或路由重叠。
+
+实例就绪要求真实 TUN-ready 事件与运行信息，最多等待 12 秒；等待在状态锁外，其他网络可继续读状态和操作。worker 帧仍由 CoreController 串行配对，不并行读写同一条通信流。
+
+恢复使用断线前配置、2／5／15 秒退避及三次预算；连续稳定一分钟后重置。手动断开、禁用恢复或退出使旧任务失效。取消不放弃一半 IPC 响应：已经发出的启动结束通信后，迟到实例先被停止，才确认断开完成。后台恢复不触发 UAC；需要授权时等待手动重连。退出关闭新任务准入，等待目标任务及核心清理确认。详见[后台运行、恢复与诊断](desktop-lifecycle.md)。
 
 ## 验证
-
-本地检查：
 
 ```bash
 pnpm test
 pnpm build
-cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-config
-cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-core
+pnpm test:browser
+cargo fmt --manifest-path src-tauri/Cargo.toml --all --check
+cargo check --locked --manifest-path src-tauri/Cargo.toml --workspace
+cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-config -p cleartier-core
 ```
 
-核心完整进程测试在 Linux 隔离容器完成，不需宿主机安装 WebKitGTK。新增自定义集成 harness 使用同一测试可执行文件承担控制端和工作进程，保持真实进程身份验证；测试 Adapter 只关闭 TUN、外部 peers 和监听等系统副作用。另有无 TUN 的回环节点测试验证实际发现、隧道协议及非零流量；同进程节点可能由核心优化成 ring 隧道。
+工作流测试使用延迟存储及可控运行 Adapter，通过同一 Interface 覆盖并发、失败、重载和运行隔离。Rust 测试覆盖慢就绪、共享资源预留、恢复预算、在途恢复取消、迟到启动清理、冷缓存与过期；真实独立进程测试验证通信和多网络独立重连。`tests/fixtures/network-contract.json` 同时约束 TS 消费、Rust 存储与快照序列化。
 
-Windows 构建入口增加核心 `--lib` 测试，并保留打包后的 Direct／Process／Recovery／MissingResource 检查。这些都不能替代以下实机验收：
-
-1. 先确认阶段 2 的配置保存和退出重开；使用自有测试网络，不必向开发者发送凭据。
-2. 普通权限打开客户端，连接网络时仅核心请求 UAC；另一台设备可使用官方客户端。
-3. 同时连接两个不同网络，检查实际网卡与虚拟 IP；分别测试可达的设备和应用。
-4. 断开、重连或立即应用其中一个网络，另一网络的数据传输保持运行。
-5. 保存后稍后应用不改变现有连接；立即应用失败明确反馈，已保存值保留，不重新启动旧配置。
-6. 相同身份的另一套配置被拦截；断开原配置后可以使用另一套。
-7. 重开客户端只自动连接启用的网络；取消 UAC 后本次队列停止，偏好保留，手动重试可用。
-8. 测试名称或地址占用、错误参数和核心异常退出；界面反馈实际状态，不把单条连接失败当成整个网络不可用。
-
-阶段 7 的后台与恢复实现已完成本地验证；安装、长期运行、Windows TUN 异常清理及其他平台支持仍需实机验证。阶段 2–7 的统一步骤见[Windows 集中验收](windows-acceptance.md)，不因编译成功而视作验收通过。
+浏览器回归使用独立会话、测试专用 Tauri fixture，不创建实际网卡。PR 自动检查完整工程；原生 Windows 构建仍运行核心库测试及打包后的 Direct／Process／Recovery／MissingResource 检查。它们不能替代 Windows 授权、真实网卡清理、后台运行及双机通信验收。

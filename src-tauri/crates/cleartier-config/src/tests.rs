@@ -265,3 +265,23 @@ fn imported_toml_survives_disk_round_trip_even_with_unsupported_values() {
         "invalid"
     );
 }
+
+#[test]
+fn shared_document_contract_round_trips_without_losing_extensions_or_exact_credentials() {
+    let contract: serde_json::Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../tests/fixtures/network-contract.json"
+    )))
+    .unwrap();
+    let document: Document = serde_json::from_value(contract["document"].clone()).unwrap();
+    document.validate().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let repository = Repository::new(root.path().into());
+    let mut first = document;
+    first.revision.clear();
+    let saved = repository.save(first, "").unwrap();
+    let mut actual = serde_json::to_value(repository.load().unwrap()).unwrap();
+    actual["revision"] = contract["document"]["revision"].clone();
+    assert_eq!(actual, contract["document"]);
+    assert!(!saved.revision.is_empty());
+}

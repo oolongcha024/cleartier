@@ -1,8 +1,8 @@
-//! The connection Interface owns ordering, running configurations and failures.
-//! Disk persistence stays outside this Module; restarting never restores an old
-//! connection after a failed new start.
-pub(crate) mod config;
+//! Owned network intentions and observations. State locks never cover process
+//! I/O or readiness waits; the controller alone owns serialized worker frames.
+mod operations;
 mod recovery;
+
 use crate::{
     InstanceSnapshot,
     process::{CoreController, CoreError, ErrorCode, Result},
@@ -11,29 +11,31 @@ use cleartier_config::ConnectionConfig;
 pub use recovery::RecoverySnapshot;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     fs::{File, OpenOptions},
     future::Future,
     path::PathBuf,
+    sync::Arc,
 };
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-pub trait Backend: Send + Sync {
+pub trait Backend: Send + Sync + 'static {
     fn start(&self, toml: String) -> impl Future<Output = Result<Uuid>> + Send;
     fn start_in_background(&self, toml: String) -> impl Future<Output = Result<Uuid>> + Send;
     fn stop(&self, id: Uuid) -> impl Future<Output = Result<()>> + Send;
     fn snapshot(&self) -> impl Future<Output = Result<Vec<InstanceSnapshot>>> + Send;
+    fn shutdown(&self) -> impl Future<Output = Result<()>> + Send;
 }
 impl Backend for CoreController {
     async fn start(&self, toml: String) -> Result<Uuid> {
         self.start(toml).await
     }
-    async fn stop(&self, id: Uuid) -> Result<()> {
-        self.stop(id).await
-    }
     async fn start_in_background(&self, toml: String) -> Result<Uuid> {
         self.start_in_background(toml).await
+    }
+    async fn stop(&self, id: Uuid) -> Result<()> {
+        self.stop(id).await
     }
     async fn snapshot(&self) -> Result<Vec<InstanceSnapshot>> {
         let result = self.snapshot().await;
@@ -46,6 +48,9 @@ impl Backend for CoreController {
             result
         }
     }
+    async fn shutdown(&self) -> Result<()> {
+        self.shutdown().await
+    }
 }
 
 #[derive(Deserialize)]
@@ -54,25 +59,67 @@ pub enum Operation {
     Start { id: Uuid, config: ConnectionConfig },
     Restart { id: Uuid, config: ConnectionConfig },
     Stop { id: Uuid },
+    Release { id: Uuid },
+}
+impl Operation {
+    fn id(&self) -> Uuid {
+        match self {
+            Self::Start { id, .. }
+            | Self::Restart { id, .. }
+            | Self::Stop { id }
+            | Self::Release { id } => *id,
+        }
+    }
+    fn config(&self) -> Option<&ConnectionConfig> {
+        match self {
+            Self::Start { config, .. } | Self::Restart { config, .. } => Some(config),
+            _ => None,
+        }
+    }
 }
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct NetworkSnapshot {
-    pub recovery: Option<RecoverySnapshot>,
-    pub telemetry: Option<crate::TelemetrySnapshot>,
     pub id: Uuid,
+    pub revision: u64,
     pub state: &'static str,
     pub running_config: Option<ConnectionConfig>,
+    pub recovery_config: Option<ConnectionConfig>,
+    pub recovery: Option<RecoverySnapshot>,
+    pub telemetry: Option<crate::TelemetrySnapshot>,
     pub device_name: String,
     pub virtual_ip: Option<String>,
     pub peer_count: usize,
     pub direct_peer_count: usize,
     pub error: Option<CoreError>,
 }
-#[derive(Default)]
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeFrame {
+    pub epoch: Uuid,
+    pub health: &'static str,
+    pub error: Option<CoreError>,
+    pub networks: Vec<NetworkSnapshot>,
+}
+struct Active {
+    generation: u64,
+    kind: &'static str,
+    background: bool,
+}
 struct State {
+    epoch: Uuid,
+    sequence: u64,
+    health: &'static str,
+    observation_error: Option<CoreError>,
+    last_observed: Option<tokio::time::Instant>,
     recovery: recovery::Recovery,
     closing: bool,
+    generations: BTreeMap<Uuid, u64>,
+    active: BTreeMap<Uuid, Active>,
+    lanes: BTreeMap<Uuid, Arc<Mutex<()>>>,
+    candidates: BTreeMap<Uuid, ConnectionConfig>,
+    observations: BTreeMap<Uuid, InstanceSnapshot>,
+    frames: BTreeMap<Uuid, NetworkSnapshot>,
     recent_errors: VecDeque<crate::support::RecentError>,
     observed_errors: BTreeMap<Uuid, ErrorCode>,
     configs: BTreeMap<Uuid, ConnectionConfig>,
@@ -81,135 +128,172 @@ struct State {
     lease: Option<File>,
     order: Vec<Uuid>,
 }
-
-pub struct NetworkManager<B = CoreController> {
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            epoch: Uuid::new_v4(),
+            sequence: 0,
+            health: "initializing",
+            observation_error: None,
+            last_observed: None,
+            recovery: Default::default(),
+            closing: false,
+            generations: BTreeMap::new(),
+            active: BTreeMap::new(),
+            lanes: BTreeMap::new(),
+            candidates: BTreeMap::new(),
+            observations: BTreeMap::new(),
+            frames: BTreeMap::new(),
+            recent_errors: VecDeque::new(),
+            observed_errors: BTreeMap::new(),
+            configs: BTreeMap::new(),
+            measurements: BTreeMap::new(),
+            errors: BTreeMap::new(),
+            lease: None,
+            order: vec![],
+        }
+    }
+}
+struct Inner<B> {
     backend: B,
     state: Mutex<State>,
+    sampling: Mutex<()>,
     lease_path: PathBuf,
+}
+pub struct NetworkManager<B = CoreController> {
+    inner: Arc<Inner<B>>,
+}
+impl<B> Clone for NetworkManager<B> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
 }
 impl<B: Backend> NetworkManager<B> {
     pub fn new(backend: B, lease_path: PathBuf) -> Self {
         Self {
-            backend,
-            state: Mutex::new(State::default()),
-            lease_path,
+            inner: Arc::new(Inner {
+                backend,
+                state: Mutex::new(State::default()),
+                sampling: Mutex::new(()),
+                lease_path,
+            }),
         }
     }
 
-    pub async fn operate(&self, operation: Operation) -> Result<Vec<NetworkSnapshot>> {
-        let mut state = self.state.lock().await;
-        if state.closing {
-            return Err(CoreError::new(
-                ErrorCode::CoreFailure,
-                "The client is shutting down",
-            ));
-        }
-        if state.lease.is_none() {
-            state.lease = Some(self.lease()?);
-        }
-        let id = match &operation {
-            Operation::Start { id, .. }
-            | Operation::Restart { id, .. }
-            | Operation::Stop { id } => *id,
-        };
-        let stopping = matches!(&operation, Operation::Stop { .. });
-        state.recovery.cancel(id);
-        let result = self.perform(&mut state, operation, false).await;
-        if !stopping && result.is_ok() {
-            if let Some(config) = state.configs.get(&id).cloned() {
-                state.recovery.track(id, config);
-            }
-        }
-        if !stopping && result.is_err() {
-            // A validation failure can leave the previous instance untouched.
-            // Track only a currently verified healthy instance, never restart
-            // the old configuration after a failed stop/start sequence.
-            if let Some(config) = state.configs.get(&id).cloned() {
-                if self.backend.snapshot().await.is_ok_and(|snapshots| {
-                    snapshots.iter().any(|snapshot| {
-                        snapshot.id == id
-                            && snapshot.ready
-                            && snapshot.running == Some(true)
-                            && !snapshot.fatal
-                    })
-                }) {
-                    state.recovery.track(id, config);
-                }
-            }
-        }
-        if let Err(error) = &result {
-            record_error(&mut state, id, error.code);
-            state.errors.insert(id, error.clone());
-        }
-        result?;
-        self.collect(&mut state).await
-    }
-
-    pub async fn snapshot(&self) -> Result<Vec<NetworkSnapshot>> {
-        let mut state = self.state.lock().await;
-        // Another GUI may edit the same documents, but may not claim ownership
-        // of this application's networks or report them as stopped.
+    /// Cached observations only. Cold/stale caches cannot authorize an action.
+    pub async fn snapshot(&self) -> Result<RuntimeFrame> {
+        let state = self.inner.state.lock().await;
         let _probe = if state.lease.is_none() {
             Some(self.lease()?)
         } else {
             None
         };
-        self.collect(&mut state).await
+        Ok(frame(&state))
     }
 
-    /// Called by the native timer, including while the window is hidden.
+    /// One native sampling owner, independent of the WebView/window lifetime.
     pub async fn maintain(&self) -> Result<()> {
-        let mut state = self.state.lock().await;
-        if state.closing || state.lease.is_none() {
+        if self.inner.state.lock().await.closing {
             return Ok(());
         }
-        self.collect(&mut state).await?;
-        let due = state.recovery.due();
-        if due.is_empty() {
-            return Ok(());
-        }
-        for (id, config) in due {
-            if let Err(error) = self
-                .perform(&mut state, Operation::Restart { id, config }, true)
-                .await
-            {
-                state.recovery.failed(id, &error);
-                state.errors.insert(id, error);
+        self.synchronize().await?;
+        let (recoveries, conflicts) = {
+            let mut state = self.inner.state.lock().await;
+            if state.closing {
+                return Ok(());
             }
+            let conflicts = collisions(&state);
+            let due = state.recovery.due();
+            let mut recoveries = vec![];
+            for (id, config) in due {
+                if state.active.contains_key(&id) {
+                    continue;
+                }
+                match admit(
+                    &mut state,
+                    &Operation::Restart {
+                        id,
+                        config: config.clone(),
+                    },
+                    true,
+                ) {
+                    Ok(ticket) => recoveries.push((ticket, Operation::Restart { id, config })),
+                    Err(error) => {
+                        state.recovery.failed(id, &error);
+                        state.errors.insert(id, error);
+                    }
+                }
+            }
+            publish(&mut state);
+            (recoveries, conflicts)
+        };
+        for (ticket, operation) in recoveries {
+            let manager = self.clone();
+            tokio::spawn(async move {
+                let _ = manager.execute(ticket, operation).await;
+            });
         }
-        self.collect(&mut state).await?;
+        for (id, generation) in conflicts {
+            let manager = self.clone();
+            tokio::spawn(async move {
+                let _ = manager.stop_collision(id, generation).await;
+            });
+        }
         Ok(())
     }
 
     pub async fn set_recovery_enabled(&self, enabled: bool) {
-        let mut state = self.state.lock().await;
+        let mut state = self.inner.state.lock().await;
         state.recovery.set_enabled(enabled);
         if enabled && !state.closing {
-            if let Ok(snapshots) = self.backend.snapshot().await {
-                for snapshot in snapshots.iter().filter(|snapshot| {
+            let healthy: Vec<_> = state
+                .observations
+                .values()
+                .filter(|snapshot| {
                     snapshot.ready && snapshot.running == Some(true) && !snapshot.fatal
-                }) {
-                    if let Some(config) = state.configs.get(&snapshot.id).cloned() {
-                        state.recovery.track(snapshot.id, config);
-                    }
+                })
+                .filter_map(|snapshot| {
+                    state
+                        .configs
+                        .get(&snapshot.id)
+                        .cloned()
+                        .map(|config| (snapshot.id, config))
+                })
+                .collect();
+            for (id, config) in healthy {
+                if !state.active.contains_key(&id) {
+                    state.recovery.track(id, config);
                 }
             }
+        } else if !enabled {
+            let ids: Vec<_> = state
+                .active
+                .iter()
+                .filter(|(_, operation)| operation.background)
+                .map(|(id, _)| *id)
+                .collect();
+            for id in ids {
+                *state.generations.entry(id).or_default() += 1;
+            }
         }
-    }
-
-    pub async fn prepare_shutdown(&self) {
-        let mut state = self.state.lock().await;
-        state.closing = true;
-        state.recovery.clear();
+        publish(&mut state);
     }
 
     pub async fn has_active_networks(&self) -> bool {
-        let state = self.state.lock().await;
-        !state.configs.is_empty() || state.recovery.pending()
+        let state = self.inner.state.lock().await;
+        !state.configs.is_empty()
+            || !state.active.is_empty()
+            || state.recovery.pending()
+            || state
+                .observations
+                .values()
+                .any(|snapshot| snapshot.running != Some(false))
     }
-
     pub async fn recent_errors(&self) -> Vec<crate::support::RecentError> {
-        self.state
+        self.inner
+            .state
             .lock()
             .await
             .recent_errors
@@ -218,295 +302,112 @@ impl<B: Backend> NetworkManager<B> {
             .collect()
     }
 
-    async fn perform(
-        &self,
-        state: &mut State,
-        operation: Operation,
-        background: bool,
-    ) -> Result<()> {
-        let restarting = matches!(&operation, Operation::Restart { .. });
-        let snapshots = match self.backend.snapshot().await {
-            Ok(snapshots) => snapshots,
-            Err(error) if error.code == ErrorCode::CoreExited => {
-                state.configs.clear();
-                vec![]
+    pub async fn shutdown(&self) -> Result<()> {
+        let lanes = {
+            let mut state = self.inner.state.lock().await;
+            state.closing = true;
+            state.recovery.clear();
+            for generation in state.generations.values_mut() {
+                *generation += 1;
             }
-            Err(error) => return Err(error),
+            publish(&mut state);
+            state.lanes.values().cloned().collect::<Vec<_>>()
         };
-        for snapshot in &snapshots {
-            if let Some(telemetry) = &snapshot.telemetry {
-                state.measurements.insert(snapshot.id, telemetry.clone());
-            }
+        // In-flight requests finish their frame exchange and compensate a late
+        // start before shutdown can report completion. No state lock is held.
+        let mut guards = Vec::new();
+        for lane in lanes {
+            guards.push(lane.lock_owned().await);
         }
-        state
-            .configs
-            .retain(|id, _| snapshots.iter().any(|snapshot| snapshot.id == *id));
-        match operation {
-            Operation::Stop { id } => {
-                self.backend.stop(id).await?;
-                state.configs.remove(&id);
-                state.errors.remove(&id);
-                Ok(())
-            }
-            Operation::Start { id, config } | Operation::Restart { id, config } => {
-                // Validation and logical conflicts are checked before disturbing
-                // an existing session. There is no stop/start rollback path.
-                let toml = config::to_core(id, &config)?;
-                for (other_id, running) in &state.configs {
-                    if *other_id == id {
+        let result = self.inner.backend.shutdown().await;
+        let mut state = self.inner.state.lock().await;
+        if result.is_ok() {
+            state.configs.clear();
+            state.candidates.clear();
+            state.observations.clear();
+            state.active.clear();
+            state.errors.clear();
+            state.health = "ready";
+            state.observation_error = None;
+            state.last_observed = Some(tokio::time::Instant::now());
+        } else {
+            state.health = "stale";
+            state.observation_error = result.as_ref().err().cloned();
+        }
+        publish(&mut state);
+        result
+    }
+
+    async fn synchronize(&self) -> Result<()> {
+        let _sampling = self.inner.sampling.lock().await;
+        let generations = self.inner.state.lock().await.generations.clone();
+        let result = self.inner.backend.snapshot().await;
+        let mut state = self.inner.state.lock().await;
+        match result {
+            Ok(snapshots) => {
+                state.health = "ready";
+                state.observation_error = None;
+                state.last_observed = Some(tokio::time::Instant::now());
+                let ids: BTreeSet<_> = state
+                    .observations
+                    .keys()
+                    .chain(state.configs.keys())
+                    .copied()
+                    .chain(snapshots.iter().map(|snapshot| snapshot.id))
+                    .collect();
+                for id in ids {
+                    if state.generations.get(&id) != generations.get(&id) {
                         continue;
                     }
-                    if config.same_network(running) {
-                        return Err(CoreError::new(
-                            ErrorCode::NetworkAlreadyRunning,
-                            "Another profile for this network is active",
-                        ));
-                    }
-                    if !config.tun_name.is_empty()
-                        && running.tun_name.eq_ignore_ascii_case(&config.tun_name)
-                    {
-                        return Err(CoreError::new(
-                            ErrorCode::TunNameInUse,
-                            "The interface name is in use",
-                        ));
-                    }
-                    if config.ipv4_mode == "manual"
-                        && running.ipv4_mode == "manual"
-                        && config.ipv4_address == running.ipv4_address
-                    {
-                        return Err(CoreError::new(
-                            ErrorCode::AddressInUse,
-                            "The virtual address is in use",
-                        ));
-                    }
-                }
-                if snapshots.iter().any(|snapshot| snapshot.id == id) {
-                    if !restarting
-                        && snapshots
-                            .iter()
-                            .any(|snapshot| snapshot.id == id && snapshot.running != Some(false))
-                    {
-                        return Err(CoreError::new(
-                            ErrorCode::InstanceRunning,
-                            "The instance is already active",
-                        ));
-                    }
-                    self.backend.stop(id).await?;
-                    state.configs.remove(&id);
-                }
-                state.errors.remove(&id);
-                let started = if background {
-                    self.backend.start_in_background(toml).await?
-                } else {
-                    self.backend.start(toml).await?
-                };
-                if started != id {
-                    return Err(CoreError::new(
-                        ErrorCode::ProtocolError,
-                        "Unexpected instance ID",
-                    ));
-                }
-                state.configs.insert(id, config);
-                state.order.retain(|item| *item != id);
-                state.order.push(id);
-                // Readiness requires a real TUN-ready event. No peer is required:
-                // an empty network is a valid running instance.
-                let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(12);
-                loop {
-                    let snapshots = self.backend.snapshot().await?;
                     if let Some(snapshot) = snapshots.iter().find(|snapshot| snapshot.id == id) {
-                        if snapshot.fatal || snapshot.running == Some(false) {
-                            let error = CoreError::new(
-                                snapshot.issue.unwrap_or(ErrorCode::InstanceFailed),
-                                "The instance failed to start",
+                        if let Some(telemetry) = &snapshot.telemetry {
+                            state.measurements.insert(id, telemetry.clone());
+                        }
+                        state.observations.insert(id, snapshot.clone());
+                    } else {
+                        state.observations.remove(&id);
+                        if !state.active.contains_key(&id) && state.configs.remove(&id).is_some() {
+                            state.errors.insert(
+                                id,
+                                CoreError::new(
+                                    ErrorCode::InstanceFailed,
+                                    "The running instance disappeared",
+                                ),
                             );
-                            self.backend.stop(id).await?;
-                            state.configs.remove(&id);
-                            return Err(error);
-                        }
-                        if snapshot.ready && snapshot.running == Some(true) {
-                            if snapshot.virtual_ip.is_some()
-                                && snapshots.iter().any(|other| {
-                                    other.id != id
-                                        && other.ready
-                                        && other.virtual_ip == snapshot.virtual_ip
-                                })
-                            {
-                                self.backend.stop(id).await?;
-                                state.configs.remove(&id);
-                                return Err(CoreError::new(
-                                    ErrorCode::AddressInUse,
-                                    "Another network uses this virtual address",
-                                ));
-                            }
-                            return Ok(());
                         }
                     }
-                    if tokio::time::Instant::now() >= deadline {
-                        self.backend.stop(id).await?;
-                        state.configs.remove(&id);
-                        return Err(CoreError::new(
-                            ErrorCode::InstanceStartTimeout,
-                            "The instance did not become ready",
-                        ));
-                    }
-                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                 }
             }
-        }
-    }
-
-    async fn collect(&self, state: &mut State) -> Result<Vec<NetworkSnapshot>> {
-        let mut snapshots = match self.backend.snapshot().await {
-            Ok(snapshots) => snapshots,
             Err(error) if error.code == ErrorCode::CoreExited => {
-                for id in state.configs.keys() {
-                    state.errors.insert(*id, error.clone());
-                }
-                state.configs.clear();
-                vec![]
-            }
-            Err(error) => return Err(error),
-        };
-        // DHCP may assign an address after the initial ready acknowledgement.
-        // Keep the earlier network, stop only the newer conflicting instance.
-        snapshots.sort_by_key(|snapshot| {
-            state
-                .order
-                .iter()
-                .position(|id| *id == snapshot.id)
-                .map(|position| position + 1)
-                .unwrap_or(0)
-        });
-        let mut addresses = BTreeMap::new();
-        let mut removed = Vec::new();
-        for snapshot in &snapshots {
-            if !snapshot.ready {
-                continue;
-            }
-            if let Some(address) = &snapshot.virtual_ip {
-                if addresses.insert(address.clone(), snapshot.id).is_some()
-                    && state.configs.contains_key(&snapshot.id)
-                {
-                    self.backend.stop(snapshot.id).await?;
-                    state.configs.remove(&snapshot.id);
-                    state.errors.insert(
-                        snapshot.id,
-                        CoreError::new(
-                            ErrorCode::AddressInUse,
-                            "Another network uses this virtual address",
-                        ),
-                    );
-                    removed.push(snapshot.id);
+                state.health = "ready";
+                state.observation_error = None;
+                state.last_observed = Some(tokio::time::Instant::now());
+                let ids: Vec<_> = state
+                    .configs
+                    .keys()
+                    .chain(state.observations.keys())
+                    .copied()
+                    .collect();
+                for id in ids {
+                    if state.generations.get(&id) == generations.get(&id) {
+                        state.configs.remove(&id);
+                        state.observations.remove(&id);
+                        state.errors.insert(id, error.clone());
+                    }
                 }
             }
-        }
-        snapshots.retain(|snapshot| !removed.contains(&snapshot.id));
-        for id in state.configs.keys() {
-            if !snapshots.iter().any(|snapshot| snapshot.id == *id) {
-                state.errors.insert(
-                    *id,
-                    CoreError::new(
-                        ErrorCode::InstanceFailed,
-                        "The running instance disappeared",
-                    ),
-                );
+            Err(error) => {
+                state.health = "stale";
+                state.observation_error = Some(error.clone());
+                publish(&mut state);
+                return Err(error);
             }
         }
-        state.order.retain(|id| state.configs.contains_key(id));
-        let mut result = Vec::new();
-        for snapshot in &snapshots {
-            if let Some(telemetry) = &snapshot.telemetry {
-                state.measurements.insert(snapshot.id, telemetry.clone());
-            }
-            let observed = snapshot
-                .issue
-                .map(|code| CoreError::new(code, "A network condition requires attention"));
-            let error = if snapshot.fatal || snapshot.running == Some(false) {
-                observed.or_else(|| {
-                    Some(CoreError::new(
-                        ErrorCode::InstanceFailed,
-                        "The running instance failed",
-                    ))
-                })
-            } else {
-                state.errors.get(&snapshot.id).cloned().or(observed)
-            };
-            result.push(NetworkSnapshot {
-                recovery: None,
-                telemetry: snapshot.telemetry.clone(),
-                id: snapshot.id,
-                state: if snapshot.fatal || snapshot.running == Some(false) {
-                    "failed"
-                } else if snapshot.running.is_none() {
-                    "unknown"
-                } else if snapshot.ready {
-                    "running"
-                } else {
-                    "starting"
-                },
-                running_config: state.configs.get(&snapshot.id).cloned(),
-                device_name: snapshot.device_name.clone(),
-                virtual_ip: snapshot.virtual_ip.clone(),
-                peer_count: snapshot.peer_count,
-                direct_peer_count: snapshot.direct_peer_count,
-                error,
-            });
-        }
-        for (id, error) in &state.errors {
-            if !snapshots.iter().any(|snapshot| snapshot.id == *id) {
-                result.push(NetworkSnapshot {
-                    recovery: None,
-                    telemetry: state.measurements.get(id).cloned(),
-                    id: *id,
-                    state: "failed",
-                    running_config: None,
-                    device_name: String::new(),
-                    virtual_ip: None,
-                    peer_count: 0,
-                    direct_peer_count: 0,
-                    error: Some(error.clone()),
-                });
-            }
-        }
-        for (id, telemetry) in &state.measurements {
-            if !result.iter().any(|snapshot| snapshot.id == *id) {
-                result.push(NetworkSnapshot {
-                    recovery: None,
-                    id: *id,
-                    state: "stopped",
-                    running_config: None,
-                    telemetry: Some(telemetry.clone()),
-                    device_name: String::new(),
-                    virtual_ip: None,
-                    peer_count: 0,
-                    direct_peer_count: 0,
-                    error: None,
-                });
-            }
-        }
-        state
-            .configs
-            .retain(|id, _| snapshots.iter().any(|snapshot| snapshot.id == *id));
-        state.recovery.observe(&result);
-        for snapshot in &result {
-            if let Some(error) = &snapshot.error {
-                record_error(state, snapshot.id, error.code);
-            } else {
-                state.observed_errors.remove(&snapshot.id);
-            }
-        }
-        for snapshot in &mut result {
-            snapshot.recovery = state.recovery.snapshot(snapshot.id);
-            if snapshot.running_config.is_none() {
-                snapshot.running_config = state.recovery.waiting_config(snapshot.id);
-            }
-        }
-        Ok(result)
+        publish(&mut state);
+        Ok(())
     }
-
     fn lease(&self) -> Result<File> {
-        if let Some(parent) = self.lease_path.parent() {
+        if let Some(parent) = self.inner.lease_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
         let file = OpenOptions::new()
@@ -514,7 +415,7 @@ impl<B: Backend> NetworkManager<B> {
             .write(true)
             .create(true)
             .truncate(false)
-            .open(&self.lease_path)?;
+            .open(&self.inner.lease_path)?;
         file.try_lock().map_err(|_| {
             CoreError::new(
                 ErrorCode::OtherController,
@@ -524,7 +425,151 @@ impl<B: Backend> NetworkManager<B> {
         Ok(file)
     }
 }
+fn frame(state: &State) -> RuntimeFrame {
+    let expired = state.health == "ready"
+        && state
+            .last_observed
+            .is_some_and(|at| at.elapsed() >= std::time::Duration::from_secs(3));
+    RuntimeFrame {
+        epoch: state.epoch,
+        health: if expired { "stale" } else { state.health },
+        error: state.observation_error.clone().or_else(|| {
+            expired.then(|| {
+                CoreError::new(
+                    ErrorCode::RequestTimeout,
+                    "The last core observation has expired",
+                )
+            })
+        }),
+        networks: state.frames.values().cloned().collect(),
+    }
+}
 
+fn publish(state: &mut State) {
+    state.sequence += 1;
+    let ids: BTreeSet<_> = state
+        .frames
+        .keys()
+        .chain(state.configs.keys())
+        .chain(state.observations.keys())
+        .chain(state.errors.keys())
+        .chain(state.measurements.keys())
+        .chain(state.active.keys())
+        .copied()
+        .collect();
+    let mut frames = vec![];
+    for id in ids {
+        let observed = state.observations.get(&id);
+        let operation = state.active.get(&id);
+        let fatal =
+            observed.is_some_and(|snapshot| snapshot.fatal || snapshot.running == Some(false));
+        let error = if fatal {
+            Some(CoreError::new(
+                observed
+                    .and_then(|snapshot| snapshot.issue)
+                    .unwrap_or(ErrorCode::InstanceFailed),
+                "The running instance failed",
+            ))
+        } else {
+            state.errors.get(&id).cloned().or_else(|| {
+                observed
+                    .and_then(|snapshot| snapshot.issue)
+                    .map(|code| CoreError::new(code, "A network condition requires attention"))
+            })
+        };
+        let status = if let Some(operation) = operation {
+            operation.kind
+        } else if fatal || (observed.is_none() && error.is_some()) {
+            "failed"
+        } else if let Some(snapshot) = observed {
+            if snapshot.running.is_none() {
+                "unknown"
+            } else if snapshot.ready {
+                "running"
+            } else {
+                "starting"
+            }
+        } else {
+            "stopped"
+        };
+        frames.push(NetworkSnapshot {
+            id,
+            revision: state.sequence,
+            state: status,
+            running_config: state.configs.get(&id).cloned(),
+            recovery_config: None,
+            recovery: None,
+            telemetry: observed
+                .and_then(|snapshot| snapshot.telemetry.clone())
+                .or_else(|| state.measurements.get(&id).cloned()),
+            device_name: observed
+                .map(|snapshot| snapshot.device_name.clone())
+                .unwrap_or_default(),
+            virtual_ip: observed.and_then(|snapshot| snapshot.virtual_ip.clone()),
+            peer_count: observed.map(|snapshot| snapshot.peer_count).unwrap_or(0),
+            direct_peer_count: observed
+                .map(|snapshot| snapshot.direct_peer_count)
+                .unwrap_or(0),
+            error,
+        });
+    }
+    if state.health == "ready" {
+        state.recovery.observe(&frames);
+    }
+    for snapshot in &mut frames {
+        let starting = state
+            .active
+            .get(&snapshot.id)
+            .is_some_and(|operation| operation.background);
+        snapshot.recovery = state.recovery.snapshot(snapshot.id, starting);
+        if snapshot.recovery.is_some() {
+            snapshot.recovery_config = state.recovery.config(snapshot.id);
+        }
+        if let Some(error) = &snapshot.error {
+            record_error(state, snapshot.id, error.code);
+        } else {
+            state.observed_errors.remove(&snapshot.id);
+        }
+    }
+    state.frames = frames
+        .into_iter()
+        .map(|snapshot| (snapshot.id, snapshot))
+        .collect();
+}
+fn collisions(state: &State) -> Vec<(Uuid, u64)> {
+    let mut snapshots: Vec<_> = state
+        .observations
+        .values()
+        .filter(|snapshot| snapshot.ready)
+        .collect();
+    snapshots.sort_by_key(|snapshot| {
+        state
+            .order
+            .iter()
+            .position(|id| *id == snapshot.id)
+            .map(|index| index + 1)
+            .unwrap_or(0)
+    });
+    let mut addresses = BTreeSet::new();
+    snapshots
+        .into_iter()
+        .filter_map(|snapshot| {
+            let duplicate = snapshot
+                .virtual_ip
+                .as_ref()
+                .is_some_and(|address| !addresses.insert(address));
+            (duplicate
+                && state.configs.contains_key(&snapshot.id)
+                && !state.active.contains_key(&snapshot.id))
+            .then(|| {
+                (
+                    snapshot.id,
+                    *state.generations.get(&snapshot.id).unwrap_or(&0),
+                )
+            })
+        })
+        .collect()
+}
 fn record_error(state: &mut State, id: Uuid, code: ErrorCode) {
     if state.observed_errors.insert(id, code) != Some(code) {
         state
@@ -535,6 +580,6 @@ fn record_error(state: &mut State, id: Uuid, code: ErrorCode) {
         }
     }
 }
-
+use operations::admit;
 #[cfg(test)]
 mod tests;

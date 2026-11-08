@@ -1,5 +1,5 @@
 use cleartier_core::{
-    connections::{NetworkManager, NetworkSnapshot, Operation},
+    connections::{NetworkManager, Operation, RuntimeFrame},
     process::CoreError,
 };
 use tauri::{Manager, State};
@@ -9,7 +9,7 @@ pub async fn network_operation(
     app: tauri::AppHandle,
     operation: Operation,
     manager: State<'_, NetworkManager>,
-) -> Result<Vec<NetworkSnapshot>, CoreError> {
+) -> Result<RuntimeFrame, CoreError> {
     if app.state::<crate::desktop::Desktop>().rejects_connections() {
         return Err(CoreError {
             code: cleartier_core::process::ErrorCode::CoreFailure,
@@ -22,6 +22,6 @@ pub async fn network_operation(
 #[tauri::command]
 pub async fn network_snapshot(
     manager: State<'_, NetworkManager>,
-) -> Result<Vec<NetworkSnapshot>, CoreError> {
+) -> Result<RuntimeFrame, CoreError> {
     manager.snapshot().await
 }

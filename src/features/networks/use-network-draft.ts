@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useSnackbar } from '../../components/ui';
 import { configurationDraft, configsEqual, draftConfig, hasPendingConfig, validateDraft, type DraftErrors, type NetworkDraft } from './configuration';
 import { isBusy, type Network } from './model';
-import type { SaveMode } from './network-store';
+import { completed, type SaveMode } from './network-store';
 import { useNetworkStore } from './store';
 
 // The draft survives failed disk writes. Closing and acknowledging success only
@@ -12,7 +12,8 @@ import { useNetworkStore } from './store';
 export function useNetworkDraft(network: Network, creating: boolean, close: () => void, focusError: () => void) {
   const { t } = useTranslation();
   const notify = useSnackbar();
-  const saveConfiguration = useNetworkStore((state) => state.saveConfiguration);
+  const saveNetwork = useNetworkStore((state) => state.save);
+  const create = useNetworkStore((state) => state.create);
   const selectNetwork = useNetworkStore((state) => state.selectNetwork);
   const networks = useNetworkStore((state) => state.networks);
   const [draft, setDraft] = useState(() => configurationDraft(network));
@@ -47,7 +48,7 @@ export function useNetworkDraft(network: Network, creating: boolean, close: () =
     if (!duplicate || saving) return false;
     setSaving(true); setSaveError(false);
     try {
-      if (!await selectNetwork(duplicate.id)) { setSaveError(true); return false; }
+      if (!completed(await selectNetwork(duplicate.id))) { setSaveError(true); return false; }
       close(); return true;
     } finally { setSaving(false); }
   };
@@ -66,17 +67,17 @@ export function useNetworkDraft(network: Network, creating: boolean, close: () =
     }
     setSaving(true); setSaveError(false);
     try {
-      const result = await saveConfiguration(network.id, draft, mode, creating);
+      const result = await (creating ? create(network.id, draft) : saveNetwork(network.id, draft, mode));
       if (result.status === 'confirmation-required') { setChoosing(true); return; }
       if (result.status === 'invalid') { setErrors(result.errors); focusError(); return; }
       if (result.status === 'storage-error') { setSaveError(true); setChoosing(false); setDuplicate(null); return; }
-      if (result.status === 'busy' || result.status === 'missing' || result.status === 'unsupported') { notify(t('networkConfig.busy')); return; }
+      if (result.status !== 'saved' && result.status !== 'applying') { notify(t(result.status === 'stale' ? 'networkConfig.stale' : 'networkConfig.busy')); return; }
       close();
       if (result.status === 'saved') {
         notify(t(result.pending ? 'networkConfig.savedLater' : creating ? 'networkConfig.added' : 'networkConfig.saved'));
       } else if (result.status === 'applying') {
         notify(t('networkConfig.applying', { name: draft.alias.trim() || draft.name }));
-        void result.completion.then((applied) => notify(t(applied ? 'networkConfig.applied' : 'networkConfig.applyFailed', { name: draft.alias.trim() || draft.name })));
+        void result.completion.then((applied) => notify(t(completed(applied) ? 'networkConfig.applied' : 'networkConfig.applyFailed', { name: draft.alias.trim() || draft.name })));
       }
     } finally { setSaving(false); }
   };

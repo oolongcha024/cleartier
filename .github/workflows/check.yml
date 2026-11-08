@@ -1,0 +1,59 @@
+name: Check
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.21.0'
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          toolchain: '1.96.0'
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+        with:
+          workspaces: src-tauri -> target
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config protobuf-compiler libclang-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm build
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all --check
+      - run: cargo check --locked --manifest-path src-tauri/Cargo.toml --workspace
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-config -p cleartier-core
+      - name: Install browser runner
+        run: |
+          npm install --global agent-browser@0.38.0
+          agent-browser install --with-deps
+          sudo ip address add 10.126.179.2/32 dev lo
+      - run: pnpm test:browser
+      - name: Check minimum window and reduced motion
+        env:
+          BROWSER_WIDTH: '900'
+          BROWSER_HEIGHT: '600'
+          BROWSER_COLOR_SCHEME: dark
+          BROWSER_REDUCED_MOTION: reduce
+        run: pnpm test:browser network-editor-session advanced-disclosure desktop-lifecycle navigation-overflow
+      - name: Upload browser failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: browser-failures
+          if-no-files-found: ignore
+          path: .cache/browser/*.png

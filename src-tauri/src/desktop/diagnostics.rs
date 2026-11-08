@@ -6,7 +6,20 @@ use tauri_plugin_opener::OpenerExt;
 
 async fn report(app: &tauri::AppHandle) -> Report {
     let manager = app.state::<NetworkManager>();
-    let snapshots = manager.snapshot().await.map_err(|error| error.code);
+    let snapshots = manager
+        .snapshot()
+        .await
+        .map_err(|error| error.code)
+        .and_then(|frame| {
+            if frame.health == "ready" {
+                Ok(frame.networks)
+            } else {
+                Err(frame
+                    .error
+                    .map(|error| error.code)
+                    .unwrap_or(cleartier_core::process::ErrorCode::CoreFailure))
+            }
+        });
     Report::collect(
         app.package_info().version.to_string(),
         &app.state::<CoreController>().status(),

@@ -24,6 +24,8 @@ pub(crate) fn interface_present(name: &str) -> Option<bool> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
+    OperationBusy,
+    OperationCancelled,
     InvalidConfig,
     UnsupportedConfig,
     NetworkAlreadyRunning,

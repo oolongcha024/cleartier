@@ -34,7 +34,6 @@ export function NetworkEditor({ network, open, onOpenChange, creating = false }:
   const invitation = useInvitationField(acceptInvitation, invitationInput,
     () => aliasInput.current?.focus({ preventScroll: true }));
   const errorText = (field: keyof NetworkDraft) => errors[field] ? t(`networkConfig.${errors[field]}`) : undefined;
-  const connectionEnabled = useNetworkStore((state) => state.connectionEnabled);
   const imported = network.savedConfig.officialToml !== undefined;
   const proposedConfig = useMemo(() => draftConfig(draft, network.savedConfig), [draft, network.savedConfig]);
   const compatibility = useCompatibility(network.id, proposedConfig, imported && isDesktop());
@@ -70,7 +69,7 @@ export function NetworkEditor({ network, open, onOpenChange, creating = false }:
         }}>{t('networkConfig.back')}</Button>
         <span className="network-editor-actions-spacer" />
         <Button variant="outlined" disabled={busy} autoFocus onClick={() => save('later')}>{t('networkConfig.later')}</Button>
-        <Button disabled={busy || !connectionEnabled || (imported && (compatibility.checking || compatibility.error || Boolean(compatibility.report?.issues.length)))} onClick={() => save('now')}>{t('networkConfig.applyNow')}</Button>
+        <Button disabled={busy || (imported && (compatibility.checking || compatibility.error || Boolean(compatibility.report?.issues.length)))} onClick={() => save('now')}>{t('networkConfig.applyNow')}</Button>
       </div>
     </div> : <form ref={form} className="network-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); void save(); }}>
       <fieldset className="network-editor-fields" disabled={saving}>

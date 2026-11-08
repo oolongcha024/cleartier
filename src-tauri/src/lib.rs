@@ -1,9 +1,9 @@
 mod config_commands;
-mod core_commands;
 mod desktop;
 mod host_environment;
 mod invitation_commands;
 mod network_commands;
+mod runtime_setup;
 mod toml_commands;
 
 #[tauri::command]
@@ -38,7 +38,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
-            core_commands::setup(app)?;
+            runtime_setup::setup(app)?;
             desktop::setup(app)
         })
         .invoke_handler(tauri::generate_handler![
@@ -59,12 +59,7 @@ pub fn run() {
             config_commands::config_restore,
             toml_commands::toml_import,
             toml_commands::toml_inspect,
-            toml_commands::toml_export,
-            core_commands::core_status,
-            core_commands::core_start,
-            core_commands::core_stop,
-            core_commands::core_snapshot,
-            core_commands::core_shutdown
+            toml_commands::toml_export
         ])
         .build(tauri::generate_context!())
         .expect("failed to build ClearTier")

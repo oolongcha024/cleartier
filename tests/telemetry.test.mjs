@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createTelemetryStore } from '../src/features/networks/telemetry.ts';
 import { trafficChart } from '../src/features/dashboard/traffic-chart.ts';
-import { createNetworkStore, newNetworkDraft } from '../src/features/networks/network-store.ts';
+import { fixture as workflowFixture, profile } from './helpers/networks.mjs';
 
 const sample = (elapsedMs, downloadBytes, uploadBytes = '0', session = 'session-a') => ({
   session, elapsedMs, downloadBytes: String(downloadBytes), uploadBytes: String(uploadBytes),
@@ -78,20 +78,30 @@ test('both directions share a chart scale and irregular samples use actual time 
   assert.equal(chart.scale, 4096);
   assert.equal(chart.download[0], 'M500.0,105.0 L600.0,136.0');
 });
-test('byte-only samples never notify the configuration and connection store subscribers', async () => {
-  const f = fixture(); const network = newNetworkDraft([], 'a');
-  let bytes = 0;
-  const runtime = Object.assign(async () => [], { snapshot: async () => [{ id: 'a', state: 'running',
-    runningConfig: network.savedConfig, deviceName: 'ct-test', virtualIp: '10.42.0.2', peerCount: 1, directPeerCount: 1, error: null,
-    telemetry: sample(bytes, bytes), }] });
-  const store = createNetworkStore([network], runtime, { telemetry: f.telemetry });
-  await store.getState().refreshRuntime();
+test('byte-only samples never notify configuration or connection subscribers', async () => {
+  const f = fixture(); const network = profile('a', 'a');
+  const workflow = workflowFixture([network]);
+  const store = workflow.makeStore({ telemetry: f.telemetry });
+  workflow.put({ id: 'a', state: 'running', runningConfig: network.savedConfig, deviceName: 'ct-test',
+    virtualIp: '10.42.0.2', peerCount: 1, directPeerCount: 1, telemetry: sample(0, 0) });
+  await store.getState().initialize();
   let notifications = 0; store.subscribe(() => { notifications++; });
-  for (bytes = 1000; bytes <= 5000; bytes += 1000) { f.at(bytes); await store.getState().refreshRuntime(); }
+  for (let bytes = 1000; bytes <= 5000; bytes += 1000) {
+    f.at(bytes); workflow.put({ ...workflow.frame().networks[0], telemetry: sample(bytes, bytes) });
+    await store.getState().refreshRuntime();
+  }
   assert.equal(notifications, 0); assert.equal(f.get().download, 1000);
-  runtime.snapshot = async () => { throw { code: 'request_timeout' }; };
+  workflow.control.failRead = { code: 'request_timeout' };
   await store.getState().refreshRuntime();
   assert.equal(f.get().freshness, 'stale'); assert.equal(store.getState().networks[0].coreState, 'unknown');
+});
+test('unchanged cached samples cannot renew freshness, including after a stale interval', () => {
+  const f = fixture(); const value = sample(0, 10); f.telemetry.receive('a', value, 'running');
+  for (let at = 1000; at <= 5000; at += 1000) {
+    f.at(at); f.telemetry.receive('a', value, 'running'); f.telemetry.expire();
+  }
+  assert.equal(f.get().updatedAt, 0); assert.equal(f.get().freshness, 'stale');
+  assert.equal(f.get().points.length, 2);
 });
 
 test('gradient areas close inside each measured interval and never bridge a missing sample', () => {

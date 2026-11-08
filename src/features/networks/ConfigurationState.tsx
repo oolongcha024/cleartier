@@ -7,7 +7,8 @@ export function ConfigurationState({ onAdd, onImport, importing = false }: { onA
   const { t } = useTranslation();
   const phase = useNetworkStore((state) => state.phase);
   const error = useNetworkStore((state) => state.storageError);
-  const initialize = useNetworkStore((state) => state.initialize);
+  const reload = useNetworkStore((state) => state.reload);
+  const restore = useNetworkStore((state) => state.restore);
   const [restoreConfirm, setRestoreConfirm] = useState(false);
   const failed = phase === 'error';
   return <>
@@ -20,14 +21,14 @@ export function ConfigurationState({ onAdd, onImport, importing = false }: { onA
       </div>}
       {failed && <>
         <p role="alert">{t(`configuration.errors.${error?.code}`, { defaultValue: t('configuration.errors.io') })}</p>
-        <div className="configuration-state-actions"><Button variant="outlined" onClick={() => { void initialize(); }}>{t('configuration.retry')}</Button>
+        <div className="configuration-state-actions"><Button variant="outlined" onClick={() => { void reload(); }}>{t('configuration.retry')}</Button>
           {error?.backupAvailable && <Button onClick={() => setRestoreConfirm(true)}>{t('configuration.restore')}</Button>}
         </div>
       </>}
     </Card>
     <Dialog open={restoreConfirm} onOpenChange={setRestoreConfirm} title={t('configuration.restoreTitle')} description={t('configuration.restoreDescription')}>
       <div className="network-editor-actions"><Button variant="text" onClick={() => setRestoreConfirm(false)}>{t('networkConfig.cancel')}</Button>
-        <Button onClick={() => { setRestoreConfirm(false); void initialize(true); }}>{t('configuration.restore')}</Button></div>
+        <Button onClick={() => { setRestoreConfirm(false); void restore(); }}>{t('configuration.restore')}</Button></div>
     </Dialog>
   </>;
 }
@@ -36,12 +37,12 @@ export function ConfigurationNotice() {
   const { t } = useTranslation();
   const phase = useNetworkStore((state) => state.phase);
   const error = useNetworkStore((state) => state.storageError);
-  const initialize = useNetworkStore((state) => state.initialize);
+  const reload = useNetworkStore((state) => state.reload);
   const clear = useNetworkStore((state) => state.clearStorageError);
   if (phase !== 'ready' || !error) return null;
   return <div className="configuration-notice" role="alert"><Icon name="error_outline" />
     <span>{t(`configuration.errors.${error.code}`, { defaultValue: t('configuration.errors.io') })}</span>
-    {error.code === 'conflict' && <Button variant="text" onClick={() => { void initialize(); }}>{t('configuration.reload')}</Button>}
+    {error.code === 'conflict' && <Button variant="text" onClick={() => { void reload(); }}>{t('configuration.reload')}</Button>}
     <Button variant="text" onClick={clear}>{t('app.close')}</Button>
   </div>;
 }

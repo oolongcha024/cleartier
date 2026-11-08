@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Chip, Icon, IconButton } from '../../components/ui';
 import { hasPendingConfig, serverSummary } from './configuration';
-import { isBusy } from './model';
+import { canRemove, isBusy } from './model';
 import { useNetworkEditor } from './use-network-editor';
 import { useNetworkStore } from './store';
 import { ConfigurationState } from './ConfigurationState';
@@ -21,7 +21,7 @@ export function NetworksPage() {
   if (phase !== 'ready' || !networks.length) return <><ConfigurationState onAdd={openCreator} onImport={() => { void openImport(); }} importing={picking} />{editor}{importer}</>;
 
   return <div className="networks-page">
-    <div className="networks-page-summary"><span>{t('networkConfig.savedCount', { count: networks.length })}</span>
+    <div className="networks-page-summary"><span>{t('networkConfig.savedCount', { count: networks.filter((network) => network.persisted).length })}</span>
       <Button variant="outlined" icon="file_open" disabled={picking || writing} onClick={() => { void openImport(); }}>{t('toml.import')}</Button>
       <Button variant="tonal" icon="add" onClick={openCreator}>{t('dashboard.join')}</Button></div>
     <Card className="network-config-card"><ul className="network-config-list">
@@ -39,13 +39,13 @@ export function NetworksPage() {
           </div>
           <div className="network-config-actions">
             {hasPendingConfig(network) && !isBusy(network) && <Chip tone="primary">{t('networkConfig.pending')}</Chip>}
-            <Button variant="text" icon="edit" disabled={isBusy(network)} aria-label={t('networkConfig.editNamed', { name: network.alias })}
+            <Button variant="text" icon="edit" disabled={isBusy(network) || !network.persisted} aria-label={t('networkConfig.editNamed', { name: network.alias })}
               onClick={() => openEditor(network.id)}>
               {t(isBusy(network) ? 'networkConfig.busyShort' : 'networkConfig.edit')}
             </Button>
             <IconButton icon="save_alt" label={t('toml.exportNamed', { name: network.alias })} onClick={() => openExport(network)} />
             <IconButton icon="delete" label={t('networkConfig.deleteNamed', { name: network.alias })}
-              disabled={writing || !['stopped', 'failed'].includes(network.coreState) || network.runningConfig !== null} onClick={() => requestDelete(network)} />
+              disabled={writing || !canRemove(network)} onClick={() => requestDelete(network)} />
           </div>
         </li>;
       })}

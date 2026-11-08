@@ -27,7 +27,7 @@ Windows 登录启动通过 `auto-launch` 明确指定 `CurrentUser`，启动项�
 
 ## 恢复策略
 
-恢复由普通权限 Rust GUI 进程中的每秒任务执行，使用跳过遗漏 tick 的策略，避免休眠唤醒后密集补发；不依赖隐藏窗口里的 JavaScript 计时器。
+恢复由普通权限 Rust GUI 进程中的每秒任务调度，使用跳过遗漏 tick 的策略；每个网络的恢复任务独立执行，采样和其他网络操作不等待其就绪。手动断开、关闭恢复或退出使旧代次失效；已发出的启动必须完成通信，并清理迟到实例后才确认停止。不依赖隐藏窗口里的 JavaScript 计时器。
 
 | 情况 | 处理 |
 | --- | --- |
@@ -69,7 +69,7 @@ Windows NSIS 明确使用当前用户安装。复用 Tauri 原生模板中默认
 | `src-tauri/src/desktop/` | 托盘、窗口请求、退出清理、启动设置与原生诊断文件操作 |
 | `cleartier-config/src/preferences.rs` | 独立的后台偏好文件与原子保存 |
 | `cleartier-core/src/connections/recovery.rs` | 内存运行意图、退避、预算及恢复状态 |
-| `cleartier-core::connections::NetworkManager` | 串行化手动操作、恢复与退出，保留原运行配置 |
+| `cleartier-core::connections::NetworkManager` | 逐网络协调手动操作、恢复与退出，资源预留覆盖在途启动，分开实际实例参数与恢复目标 |
 | `cleartier-core::support` | 诊断字段白名单、进程事件过滤及有界读取 |
 | `features/desktop/`、`platform/desktop.ts` | 全局对话框、事件同步、设置状态与浏览器隔离 |
 | `features/settings/` | 后台设置与诊断卡片 |

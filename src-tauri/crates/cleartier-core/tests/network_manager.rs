@@ -46,6 +46,9 @@ mod check {
         async fn stop(&self, id: Uuid) -> Result<()> {
             self.0.stop(id).await
         }
+        async fn shutdown(&self) -> Result<()> {
+            self.0.shutdown().await
+        }
         async fn snapshot(&self) -> Result<Vec<InstanceSnapshot>> {
             self.0.snapshot().await
         }
@@ -87,12 +90,13 @@ mod check {
                 .snapshot()
                 .await
                 .unwrap()
+                .networks
                 .iter()
                 .filter(|state| state.state == "running")
                 .count(),
             2
         );
-        let before = manager.snapshot().await.unwrap();
+        let before = manager.snapshot().await.unwrap().networks;
         let session_a = before
             .iter()
             .find(|state| state.id == a)
@@ -124,13 +128,14 @@ mod check {
                 .snapshot()
                 .await
                 .unwrap()
+                .networks
                 .iter()
                 .find(|state| state.id == b)
                 .unwrap()
                 .state,
             "running"
         );
-        let restarted = manager.snapshot().await.unwrap();
+        let restarted = manager.snapshot().await.unwrap().networks;
         assert_ne!(
             restarted
                 .iter()
@@ -154,7 +159,7 @@ mod check {
             session_b
         );
         manager.operate(Operation::Stop { id: a }).await.unwrap();
-        let stopped = manager.snapshot().await.unwrap();
+        let stopped = manager.snapshot().await.unwrap().networks;
         assert_eq!(
             stopped
                 .iter()
@@ -166,7 +171,7 @@ mod check {
         assert_eq!(retained.state, "stopped");
         assert!(retained.running_config.is_none());
         assert!(retained.telemetry.is_some());
-        core.shutdown().await.unwrap();
+        manager.shutdown().await.unwrap();
     }
 
     pub fn main() {

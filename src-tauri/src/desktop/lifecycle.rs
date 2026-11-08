@@ -101,11 +101,8 @@ pub(super) fn shutdown(app: &tauri::AppHandle) {
     desktop.notify(app);
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        app.state::<cleartier_core::connections::NetworkManager>()
-            .prepare_shutdown()
-            .await;
         let result = app
-            .state::<cleartier_core::process::CoreController>()
+            .state::<cleartier_core::connections::NetworkManager>()
             .shutdown()
             .await;
         let desktop = app.state::<Desktop>();
@@ -193,9 +190,6 @@ pub fn event(app: &tauri::AppHandle, event: tauri::RunEvent) {
             // its controller and cleans up on pipe EOF or controller death.
             let _ = tauri::async_runtime::block_on(async {
                 app.state::<cleartier_core::connections::NetworkManager>()
-                    .prepare_shutdown()
-                    .await;
-                app.state::<cleartier_core::process::CoreController>()
                     .shutdown()
                     .await
             });

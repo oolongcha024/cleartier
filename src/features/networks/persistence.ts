@@ -26,19 +26,34 @@ export function emptyDocument(): ConfigurationDocument {
   return { version: 1, revision: '', selectedId: '', networks: [] };
 }
 export function offlineNetwork(id: string, config = createNetworkConfig(id, { name: '', secret: '', servers: [] })): Network {
-  return { id, alias: config.name, icon: 'hub', autoConnect: false, savedConfig: config,
-    runningConfig: null, coreState: 'stopped', virtualIp: '', peers: [],
-    download: 0, upload: 0, traffic: { download: [], upload: [] }, trafficTotals: null };
+  return { id, alias: config.name, icon: 'hub', peerIcons: {}, autoConnect: false, savedConfig: config,
+    editRevision: 0, persisted: true, runningConfig: null, recoveryConfig: null, recovery: null,
+    coreState: 'stopped', operation: null, connectionError: null, virtualIp: '', deviceName: '', peerCount: 0, directPeerCount: 0 };
 }
 export function networksFromDocument(document: ConfigurationDocument): Network[] {
   return document.networks.map(({ id, client, config }) => ({ ...offlineNetwork(id, structuredClone(config)),
-    alias: client.alias, icon: client.icon, peerIcons: structuredClone(client.peerIcons ?? {}), autoConnect: client.autoConnect, peerCount: 0, directPeerCount: 0 }));
+    alias: client.alias, icon: client.icon, peerIcons: structuredClone(client.peerIcons ?? {}), autoConnect: client.autoConnect, editRevision: 0 }));
 }
 export function documentFromNetworks(previous: ConfigurationDocument, networks: Network[], selectedId: string): ConfigurationDocument {
-  return { ...previous, selectedId, networks: networks.map((network) => {
+  return { ...previous, selectedId, networks: networks.filter((network) => network.persisted).map((network) => {
     const previousRecord = previous.networks.find((record) => record.id === network.id);
     return { ...previousRecord, id: network.id,
       client: { ...previousRecord?.client, alias: network.alias, icon: network.icon, autoConnect: network.autoConnect, peerIcons: structuredClone(network.peerIcons ?? {}) },
       config: structuredClone(network.savedConfig) };
   }) };
+}
+
+// The browser uses the same durable mutation seam, scoped to this page lifetime.
+export function createMemoryStorage(initial = emptyDocument()): ConfigurationStorage {
+  let document = structuredClone(initial);
+  let revision = 0;
+  return {
+    load: async () => structuredClone(document),
+    restore: async () => structuredClone(document),
+    save: async (next, expected) => {
+      if (document.revision !== expected) throw { code: 'conflict' };
+      document = { ...structuredClone(next), revision: `memory-${++revision}` };
+      return structuredClone(document);
+    },
+  };
 }

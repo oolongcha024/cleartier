@@ -121,9 +121,13 @@ impl Recovery {
             };
         }
     }
-    pub fn snapshot(&self, id: Uuid) -> Option<RecoverySnapshot> {
+    pub fn snapshot(&self, id: Uuid, starting: bool) -> Option<RecoverySnapshot> {
         let intent = self.intents.get(&id)?;
-        let phase = intent.blocked.or(intent.due.map(|_| "waiting"))?;
+        let phase = if starting {
+            "starting"
+        } else {
+            intent.blocked.or(intent.due.map(|_| "waiting"))?
+        };
         Some(RecoverySnapshot {
             phase,
             attempt: intent.attempts,
@@ -137,9 +141,13 @@ impl Recovery {
                 .unwrap_or(0),
         })
     }
-    pub fn waiting_config(&self, id: Uuid) -> Option<ConnectionConfig> {
-        let intent = self.intents.get(&id)?;
-        intent.due.map(|_| intent.config.clone())
+    pub fn config(&self, id: Uuid) -> Option<ConnectionConfig> {
+        self.intents.get(&id).map(|intent| intent.config.clone())
+    }
+    pub fn pending_for(&self, id: Uuid) -> bool {
+        self.intents
+            .get(&id)
+            .is_some_and(|intent| intent.due.is_some())
     }
     pub fn pending(&self) -> bool {
         self.intents.values().any(|intent| intent.due.is_some())

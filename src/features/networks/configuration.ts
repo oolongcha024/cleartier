@@ -1,7 +1,7 @@
-import { networkIcons, p2pPolicies, type Network, type NetworkConfig, type NetworkIcon } from './model.ts';
+import { sessionConfig, networkIcons, p2pPolicies, type Network, type NetworkConfig, type NetworkIcon } from './model.ts';
 
 export interface NetworkDraft extends Omit<NetworkConfig, 'hostname' | 'servers' | 'ipv4Prefix' | 'mtu'> {
-  alias: string; icon: NetworkIcon; hostname: string; servers: string; ipv4Prefix: string; mtu: string;
+  baseRevision: number; alias: string; icon: NetworkIcon; hostname: string; servers: string; ipv4Prefix: string; mtu: string;
 }
 export type DraftError = 'nameRequired' | 'serversRequired' | 'serverInvalid' | 'iconInvalid'
   | 'hostnameInvalid' | 'ipv4Invalid' | 'prefixInvalid' | 'prefixNormalized' | 'tunInvalid' | 'tunDuplicate'
@@ -9,8 +9,8 @@ export type DraftError = 'nameRequired' | 'serversRequired' | 'serverInvalid' | 
 export type DraftErrors = Partial<Record<keyof NetworkDraft, DraftError>>;
 export type UpdateNetworkDraft = <Field extends keyof NetworkDraft>(field: Field, value: NetworkDraft[Field]) => void;
 
-export function configurationDraft(network: Pick<Network, 'savedConfig' | 'alias' | 'icon'>): NetworkDraft {
-  return { ...network.savedConfig, alias: network.alias, icon: network.icon,
+export function configurationDraft(network: Pick<Network, 'savedConfig' | 'alias' | 'icon'> & Partial<Pick<Network, 'editRevision'>>): NetworkDraft {
+  return { ...network.savedConfig, baseRevision: network.editRevision ?? 0, alias: network.alias, icon: network.icon,
     hostname: network.savedConfig.hostname ?? '', servers: network.savedConfig.servers.join('\n'),
     ipv4Prefix: String(network.savedConfig.ipv4Prefix), mtu: network.savedConfig.mtu === null ? '' : String(network.savedConfig.mtu) };
 }
@@ -73,13 +73,20 @@ export function draftConfig(draft: NetworkDraft, previous: NetworkConfig): Netwo
     magicDns: draft.magicDns, dnsSuffix: draft.dnsSuffix === previous.dnsSuffix ? previous.dnsSuffix : draft.dnsSuffix.trim(), udpBroadcastRelay: draft.udpBroadcastRelay };
 }
 export function configsEqual(a: NetworkConfig, b: NetworkConfig): boolean {
-  const fields = ['name', 'secret', 'hostname', 'ipv4Mode', 'ipv4Address', 'ipv4Prefix', 'tunName', 'mtu', 'ipv6',
-    'p2pPolicy', 'latencyFirst', 'tcpHolePunching', 'udpHolePunching', 'upnp', 'magicDns', 'dnsSuffix', 'udpBroadcastRelay'] as const;
-  return fields.every((field) => a[field] === b[field]) && a.officialToml === b.officialToml && a.servers.length === b.servers.length
-    && a.servers.every((server, index) => server === b.servers[index]);
+  // Include extension fields without depending on object key insertion order.
+  const equal = (left: unknown, right: unknown): boolean => {
+    if (left === right) return true;
+    if (Array.isArray(left) && Array.isArray(right)) return left.length === right.length && left.every((value, i) => equal(value, right[i]));
+    if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+    const keys = Object.keys(left);
+    return keys.length === Object.keys(right).length && keys.every((key) => Object.hasOwn(right, key)
+      && equal((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key]));
+  };
+  return equal(a, b);
 }
 export function hasPendingConfig(network: Network): boolean {
-  return network.runningConfig !== null && !configsEqual(network.savedConfig, network.runningConfig);
+  const baseline = sessionConfig(network);
+  return baseline !== null && !configsEqual(network.savedConfig, baseline);
 }
 export function serverSummary(address: string): string {
   try {

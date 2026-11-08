@@ -2,11 +2,11 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '../../components/ui';
 import type { Network } from '../networks/model';
 import { PeerTable } from './PeerTable';
-import { useDashboardTelemetry } from './use-dashboard-telemetry';
+import { useNetworkTelemetry } from '../networks/store';
 
 export function DevicesCard({ network, onCopy }: { network: Network; onCopy: (value: string) => void }) {
   const { t } = useTranslation();
-  const telemetry = useDashboardTelemetry(network);
+  const telemetry = useNetworkTelemetry(network.id);
   const stale = telemetry.freshness === 'stale' || network.coreState === 'unknown';
   const peers = network.coreState === 'running' || network.coreState === 'unknown' ? telemetry.snapshot?.peers ?? [] : [];
   return <Card className="devices-card"><div className="card-heading"><h2>{t('dashboard.devicesTitle')}<span className="heading-count">{peers.length}</span></h2>

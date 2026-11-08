@@ -3,13 +3,6 @@ use cleartier_config::ConnectionConfig;
 use easytier::common::config::{ConfigLoader, NetworkIdentity, PeerConfig, TomlConfigLoader};
 use uuid::Uuid;
 
-/// Use upstream's typed loader rather than interpolating credentials into TOML.
-/// Listener ports are allocated by the OS so independent networks do not all
-/// contend for the upstream CLI's fixed default port.
-pub fn to_core(id: Uuid, config: &ConnectionConfig) -> Result<String> {
-    crate::configuration::for_connection(id, config)
-}
-
 pub(crate) fn editor_toml(id: Uuid, config: &ConnectionConfig) -> Result<String> {
     config
         .validate()

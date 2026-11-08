@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Card, Hint, Icon } from '../../components/ui';
 import { formatBytes } from '../../lib/format-bytes';
 import type { Network } from '../networks/model';
-import { useDashboardTelemetry } from './use-dashboard-telemetry';
+import { useNetworkTelemetry } from '../networks/store';
 import { trafficChart } from './traffic-chart';
 
 export function TrafficCard({ network }: { network: Network }) {
   const { t } = useTranslation();
   const gradientId = useId();
-  const telemetry = useDashboardTelemetry(network);
+  const telemetry = useNetworkTelemetry(network.id);
   const { snapshot, freshness } = telemetry;
   const running = network.coreState === 'running';
   const stale = freshness === 'stale' || network.coreState === 'unknown';

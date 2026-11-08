@@ -1,0 +1,89 @@
+{
+  "document": {
+    "version": 1,
+    "revision": "22222222-2222-4222-8222-222222222222",
+    "selectedId": "11111111-1111-4111-8111-111111111111",
+    "networks": [
+      {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "client": {
+          "alias": "本地名称",
+          "icon": "work",
+          "autoConnect": false,
+          "peerIcons": {},
+          "futurePreference": {
+            "preserved": true
+          }
+        },
+        "config": {
+          "name": " exact office 办公 ",
+          "secret": " exact key 密钥 ",
+          "servers": [
+            "tcp://example.com:11010"
+          ],
+          "hostname": null,
+          "ipv4Mode": "auto",
+          "ipv4Address": "",
+          "ipv4Prefix": 24,
+          "tunName": "ct-contract",
+          "mtu": null,
+          "ipv6": true,
+          "p2pPolicy": "auto",
+          "latencyFirst": false,
+          "tcpHolePunching": true,
+          "udpHolePunching": true,
+          "upnp": true,
+          "magicDns": false,
+          "dnsSuffix": "et.net.",
+          "udpBroadcastRelay": false
+        },
+        "futureRecord": 7
+      }
+    ],
+    "futureDocument": {
+      "preserved": true
+    }
+  },
+  "runtimeFrame": {
+    "epoch": "33333333-3333-4333-8333-333333333333",
+    "health": "ready",
+    "error": null,
+    "networks": [
+      {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "revision": 1,
+        "state": "running",
+        "runningConfig": {
+          "name": " exact office 办公 ",
+          "secret": " exact key 密钥 ",
+          "servers": [
+            "tcp://example.com:11010"
+          ],
+          "hostname": null,
+          "ipv4Mode": "auto",
+          "ipv4Address": "",
+          "ipv4Prefix": 24,
+          "tunName": "ct-contract",
+          "mtu": null,
+          "ipv6": true,
+          "p2pPolicy": "auto",
+          "latencyFirst": false,
+          "tcpHolePunching": true,
+          "udpHolePunching": true,
+          "upnp": true,
+          "magicDns": false,
+          "dnsSuffix": "et.net.",
+          "udpBroadcastRelay": false
+        },
+        "recoveryConfig": null,
+        "recovery": null,
+        "telemetry": null,
+        "deviceName": "ct-contract",
+        "virtualIp": null,
+        "peerCount": 0,
+        "directPeerCount": 0,
+        "error": null
+      }
+    ]
+  }
+}

@@ -1,8 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Chip, Icon, IconButton } from '../components/ui';
-import { telemetry, useNetworkStore } from '../features/networks/store';
+import { useNetworkStore } from '../features/networks/store';
 import { isConnected, summaryKey } from '../features/networks/model';
 import { useTheme } from '../theme/theme';
 import { navigation, pageId } from './routes';
@@ -22,16 +22,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const connected = useNetworkStore((state) => state.networks.filter(isConnected).length);
   const summary = useNetworkStore((state) => summaryKey(state.networks));
   const currentPage = pageId(pathname);
-  const initialize = useNetworkStore((state) => state.initialize);
-  const refreshRuntime = useNetworkStore((state) => state.refreshRuntime);
-  useEffect(() => { void initialize(); }, [initialize]);
-  useEffect(() => {
-    if (!isDesktop()) return;
-    const timer = setInterval(() => { telemetry.expire(); void refreshRuntime(); }, 1000);
-    const refresh = () => { void refreshRuntime(); };
-    window.addEventListener('focus', refresh);
-    return () => { clearInterval(timer); window.removeEventListener('focus', refresh); };
-  }, [refreshRuntime]);
 
   return <div inert={quitting} className={`app-shell ${collapsed ? 'app-shell--collapsed' : ''}`}>
     <a href="#main-content" className="skip-link" onClick={(event) => {

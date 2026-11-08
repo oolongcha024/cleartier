@@ -7,7 +7,7 @@
 | 位置 | 职责 |
 | --- | --- |
 | `src-tauri/src/lib.rs` | 在创建 WebView 前分派核心入口，界面退出时关闭所拥有的核心 |
-| `src-tauri/src/core_commands.rs` | Tauri 命令与应用路径、状态组装 |
+| `src-tauri/src/runtime_setup.rs` | Tauri 命令与应用路径、状态组装 |
 | `src-tauri/crates/cleartier-core/src/entry.rs` | 无界面工作进程和检查入口 |
 | `…/src/process/controller.rs` | 按需启动、权限升级、请求串行化、状态、超时与退出管理 |
 | `…/src/process/worker.rs` | 验证控制端身份，执行请求，断开后清理网络 |
@@ -15,20 +15,17 @@
 | `…/src/process/wire.rs` | 私有的带长度帧协议，不作为外部兼容接口 |
 | `…/src/lib.rs` | 真实 EasyTier 多实例及类型化 TUN 错误事件 |
 
-核心模块独立于 Tauri。测试使用独立的 `core-test-host` 可执行文件调用同一个入口，不需要 WebKitGTK；它不进入发布包。
+核心模块独立于 Tauri。连接调度位于 `connections/mod.rs` 与 `connections/operations.rs`：短时间锁内检查意图与预留资源，锁外调用进程和等待就绪；原生计时器负责采样和调度恢复，缓存读取不等待慢启动。测试使用独立的 `core-test-host` 可执行文件调用同一个入口，不需要 WebKitGTK；它不进入发布包。
 
 ## 对界面的接口
 
 | Tauri 命令 | 行为 |
 | --- | --- |
-| `network_operation` | 执行目标网络的 start／stop／restart，等待实例就绪并返回快照 |
-| `network_snapshot` | 同步状态与运行配置，按已确认规则处理新实例的地址冲突 |
+| `network_operation` | 执行目标网络的 start／stop／restart／release；完成后返回带版本的运行观察。release 仅确认停止和取消残留恢复意图，不断开活动网络 |
+| `network_snapshot` | 读取缓存，返回 epoch、health、error 和逐网络 revision；不执行核心查询或纠正操作 |
 | `core_version` | 返回链接的核心版本，不启动进程 |
-| `core_status` | 返回控制进程状态、PID、权限、版本、最近的进程错误及目录 |
-| `core_start(toml)` | 验证配置并按需启动核心，返回实例 ID；接受请求不代表连接就绪 |
-| `core_stop(instanceId)` | 停止指定实例，保持其他实例运行 |
-| `core_snapshot` | 查询实例实际状态；尚未取得状态时 `running` 为 `null` |
-| `core_shutdown` | 清理所有实例并确认核心退出 |
+
+WebView 只通过连接管理 Module 控制网络。进程状态、独立进程检查和资源清理通过 Rust 内部的 `CoreController` 使用，不再另行注册直接启动、停止和关闭核心的 Tauri 命令。
 
 控制端状态为 `stopped`、`starting`、`ready`、`failed`。丢失核心后的查询返回错误，避免将其显示为健康的空列表。错误返回 `{ code, message }`，包括 `elevation_cancelled`、`missing_resource`、`resource_mismatch`、`core_exited`、超时及配置错误。网络侧的 TUN 错误来自 `GlobalCtxEvent::TunDeviceError`，恢复事件清除该错误。
 

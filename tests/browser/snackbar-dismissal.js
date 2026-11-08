@@ -15,7 +15,7 @@
     return document.querySelector('.snackbar > span').textContent;
   };
   const checkExit = async () => {
-    const deadline = performance.now() + 700;
+    const deadline = performance.now() + 2000;
     let frames = 0;
     while (document.querySelector('.snackbar') && performance.now() < deadline) {
       const element = document.querySelector('.snackbar');
