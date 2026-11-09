@@ -276,6 +276,8 @@ mod tests {
                             Err(error) => panic!("{error}"),
                         }
                     };
+                    // Windows inherits the listener's nonblocking mode.
+                    stream.set_nonblocking(false).unwrap();
                     stream
                         .set_read_timeout(Some(Duration::from_secs(2)))
                         .unwrap();
@@ -317,6 +319,32 @@ mod tests {
             "HTTP/1.1 {status} Test\r\nConnection: close\r\nContent-Length: {}\r\n{headers}\r\n{body}",
             body.len()
         )
+    }
+
+    #[test]
+    fn accepted_connections_wait_for_request_data() {
+        let server = Server::new(vec![response(200, "", INDEX)]);
+        let address = server
+            .url
+            .strip_prefix("http://")
+            .unwrap()
+            .split('/')
+            .next()
+            .unwrap();
+        let mut client = std::net::TcpStream::connect(address).unwrap();
+        client
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        // Accept must tolerate a connected client whose request has not arrived.
+        thread::sleep(Duration::from_millis(100));
+        client
+            .write_all(b"GET /updates/updates.json HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .unwrap();
+        let mut reply = String::new();
+        client.read_to_string(&mut reply).unwrap();
+        assert!(reply.starts_with("HTTP/1.1 200"));
+        assert!(reply.ends_with(INDEX));
+        assert_eq!(server.requests.load(Ordering::SeqCst), 1);
     }
 
     #[tokio::test]
