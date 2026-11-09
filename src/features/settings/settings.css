@@ -63,52 +63,220 @@
   color: var(--md-sys-color-error);
   line-height: 20px;
 }
-.diagnostic-checks {
+.diagnostic-card > .settings-section-heading > .button--text {
+  margin-right: -12px;
+}
+.diagnostic-card > .settings-section-heading > .button--text:disabled {
+  background: transparent;
+}
+.diagnostic-summary {
+  --diagnostic-accent: var(--md-sys-color-primary);
+  --diagnostic-container: var(--md-sys-color-secondary-container);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  margin: 16px 0 24px;
+}
+.diagnostic-summary-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  color: var(--diagnostic-accent);
+  background: var(--diagnostic-container);
+}
+.diagnostic-summary-mark > .icon {
+  font-size: 24px;
+}
+.diagnostic-summary[data-state='healthy'] {
+  --diagnostic-accent: var(--color-on-success-container);
+  --diagnostic-container: var(--color-success-container);
+}
+.diagnostic-summary:is([data-state='issues'], [data-state='failed']) {
+  --diagnostic-accent: var(--md-sys-color-on-error-container);
+  --diagnostic-container: var(--md-sys-color-error-container);
+}
+.diagnostic-summary:is([data-state='idle'], [data-state='incomplete']) {
+  --diagnostic-accent: var(--md-sys-color-on-surface-variant);
+  --diagnostic-container: var(--md-sys-color-surface-container-highest);
+}
+.diagnostic-summary-title {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 28px;
+}
+.diagnostic-timestamp {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+.diagnostic-problems {
+  list-style: none;
   display: grid;
   gap: 16px;
-  margin-top: 20px;
+  padding: 20px;
+  margin: 0 0 16px;
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container);
+}
+.diagnostic-problems > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.diagnostic-problems > li > .icon {
+  flex-shrink: 0;
+  font-size: 20px;
+  line-height: 24px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+.diagnostic-problems > li[data-state='error'] > .icon {
+  color: var(--md-sys-color-error);
+}
+.diagnostic-problem-title {
+  font-weight: 500;
+  line-height: 24px;
+}
+.diagnostic-problem-title + p {
+  margin-top: 4px;
+  line-height: 22px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+.diagnostic-problems > .diagnostic-problem-action {
+  justify-content: flex-end;
+  margin: -4px -12px -8px 0;
+}
+.diagnostic-disclosure {
+  margin-top: 8px;
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container);
+}
+.diagnostic-disclosure-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: transparent;
+  text-align: left;
+  font-weight: 500;
+  isolation: isolate;
+}
+.diagnostic-disclosure-trigger::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--md-sys-color-on-surface);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-short);
+}
+.diagnostic-disclosure-trigger:hover::after {
+  opacity: 0.08;
+}
+.diagnostic-disclosure-trigger:is(:focus-visible, :active)::after {
+  opacity: 0.12;
+}
+.diagnostic-disclosure-trigger > .icon {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 22px;
+}
+.diagnostic-disclosure-trigger > .diagnostic-disclosure-chevron {
+  margin-left: auto;
+  font-size: 20px;
+  transition: transform var(--motion-medium);
+}
+.diagnostic-disclosure-trigger[data-panel-open] > .diagnostic-disclosure-chevron {
+  transform: rotate(180deg);
+}
+.diagnostic-disclosure-panel {
+  height: var(--collapsible-panel-height);
+  overflow: clip;
+  opacity: 1;
+  transition:
+    height var(--motion-medium),
+    opacity var(--motion-enter);
+}
+.diagnostic-disclosure-panel[data-starting-style],
+.diagnostic-disclosure-panel[data-ending-style] {
+  height: 0;
+  opacity: 0;
+}
+.diagnostic-disclosure-panel[data-ending-style] {
+  transition:
+    height var(--motion-exit),
+    opacity var(--motion-exit);
+}
+.diagnostic-disclosure-content {
+  padding: 0 16px 16px;
+}
+.diagnostic-checks {
+  display: grid;
+  margin-bottom: 8px;
 }
 .diagnostic-check {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 24px;
+  gap: 16px;
+  min-height: 48px;
+  padding-block: 8px;
 }
 .diagnostic-check > .icon {
+  font-size: 20px;
+}
+.diagnostic-check > .icon,
+.diagnostic-check > span:last-child {
   color: var(--md-sys-color-on-surface-variant);
 }
-.diagnostic-check--error > .icon {
+.diagnostic-check[data-state='error'] > .icon,
+.diagnostic-check[data-state='error'] > span:last-child {
   color: var(--md-sys-color-error);
 }
 .diagnostic-check > span:last-child {
   margin-left: auto;
-}
-.diagnostic-errors {
-  margin-top: 24px;
-  border-top: 1px solid var(--md-sys-color-outline-variant);
-  padding-top: 20px;
-}
-.diagnostic-errors h3 {
-  font-size: 14px;
+  font-size: 12px;
   line-height: 20px;
-  margin-bottom: 12px;
+  text-align: right;
 }
-.diagnostic-errors ul {
+.diagnostic-history {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 16px;
 }
-.diagnostic-errors li {
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
-  gap: 16px;
-  line-height: 20px;
+.diagnostic-history li {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 4px;
+  line-height: 22px;
 }
-.diagnostic-errors time {
+.diagnostic-history time {
   color: var(--md-sys-color-on-surface-variant);
   font-size: 12px;
+  line-height: 20px;
+}
+.diagnostic-footer {
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.diagnostic-privacy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.diagnostic-privacy > .icon {
+  font-size: 16px;
 }
 .desktop-dialog > .dialog-description {
   margin: 16px 0 24px;

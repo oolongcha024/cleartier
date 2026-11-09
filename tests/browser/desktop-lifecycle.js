@@ -32,7 +32,9 @@
   const operations = window.__telemetryTest.operations.length;
   settings();
   await waitFor(
-    () => toggle('登录系统后启动') && document.querySelector('.diagnostic-checks'),
+    () =>
+      toggle('登录系统后启动') &&
+      document.querySelector('.diagnostic-summary[data-state="healthy"]'),
     'settings or diagnostics missing',
   );
   check(
@@ -147,6 +149,8 @@
   button('断开并退出', dialog()).click();
   await waitFor(closeDialog, 'exit acknowledgement missing');
   check(test.responses.at(-1).choice === 'exit', 'explicit exit not sent');
+  button('检查详情').click();
+  await waitFor(() => button('打开日志目录'), 'diagnostic details missing');
   button('打开日志目录').click();
   await waitFor(() => test.logs === 1, 'logs action missing');
   await waitFor(() => button('导出诊断信息')?.disabled === false, 'diagnostic controls disabled');

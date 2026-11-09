@@ -33,6 +33,8 @@
     failExport: false,
     cancelExport: false,
     failRespond: false,
+    failRead: false,
+    failLogs: false,
     logs: 0,
     exports: 0,
     recovery: null,
@@ -41,6 +43,7 @@
       emit();
     },
     report: {
+      generatedAt: Math.floor(Date.now() / 1000),
       appVersion: '0.1.0',
       coreVersion: '2.6.4-8428a89d',
       platform: 'windows',
@@ -110,7 +113,10 @@
       emit();
       return;
     }
-    if (command === 'diagnostics_read') return structuredClone(test.report);
+    if (command === 'diagnostics_read') {
+      if (test.failRead) throw 'io';
+      return structuredClone(test.report);
+    }
     if (command === 'diagnostics_export') {
       if (test.failExport) throw 'io';
       if (test.cancelExport) return false;
@@ -118,6 +124,7 @@
       return true;
     }
     if (command === 'logs_open') {
+      if (test.failLogs) throw 'io';
       test.logs++;
       return;
     }

@@ -20,6 +20,7 @@ const suites = [
   ['official-configuration', ['native-telemetry', 'native-configuration']],
   ['invitations', ['native-telemetry', 'native-invitations']],
   ['desktop-lifecycle', ['native-telemetry', 'native-desktop']],
+  ['diagnostics', ['native-telemetry', 'native-desktop']],
   ['updates', ['native-telemetry', 'native-desktop', 'native-updates']],
 ];
 const requested = process.argv.slice(2);

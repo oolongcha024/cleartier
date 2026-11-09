@@ -23,6 +23,7 @@ export type DesktopUpdate = Pick<
   'closeBehavior' | 'launchAtLogin' | 'autoRecover'
 >;
 export interface DiagnosticReport {
+  generatedAt: number;
   appVersion: string;
   coreVersion: string;
   platform: string;
