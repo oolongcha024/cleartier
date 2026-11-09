@@ -5,7 +5,7 @@
   "identifier": "app.cleartier.desktop",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://10.126.179.2:5173",
+    "devUrl": "http://localhost:5173",
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build"
   },

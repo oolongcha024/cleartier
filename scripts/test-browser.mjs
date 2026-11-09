@@ -2,9 +2,10 @@ import { spawn } from 'node:child_process';
 import { readFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
+import { devEnvironment } from './dev-environment.ts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const url = 'http://10.126.179.2:5173/';
+const url = `${devEnvironment().devUrl}/`;
 const cli = process.env.AGENT_BROWSER_BIN ?? 'agent-browser';
 const suites = [
   ['route-transitions'],

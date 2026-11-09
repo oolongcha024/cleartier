@@ -6,3 +6,5 @@ dist/
 artifacts/
 .version.lock
 *.version-*.tmp
+.env*
+!.env.example

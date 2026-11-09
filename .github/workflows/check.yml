@@ -47,7 +47,6 @@ jobs:
         run: |
           npm install --global agent-browser@0.38.0
           agent-browser install --with-deps
-          sudo ip address add 10.126.179.2/32 dev lo
       - run: pnpm test:browser
       - name: Check minimum window and reduced motion
         env:

@@ -18,7 +18,7 @@
     "icons:generate": "node scripts/generate-icons.mjs",
     "build": "pnpm version:check && pnpm typecheck && vite build",
     "preview": "vite preview",
-    "tauri": "tauri",
+    "tauri": "node scripts/tauri.mjs",
     "build:windows": "node scripts/build-windows.mjs",
     "build:windows:exe": "node scripts/build-windows.mjs exe",
     "build:windows:nsis": "node scripts/build-windows.mjs nsis",

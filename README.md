@@ -40,7 +40,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-访问 `http://10.126.179.2:5173`，支持热更新。浏览器预览使用演示数据，真实组网需运行桌面客户端。Tauri 调试、系统依赖和检查命令见[开发指南](docs/development.md)。
+默认访问 `http://localhost:5173`，支持热更新。远程开发时，将 [.env.example](.env.example) 复制为 `.env.local`，设置 `CLEARTIER_DEV_HOST` 为开发机地址；此文件不提交。浏览器预览使用演示数据，真实组网需运行桌面客户端。Tauri 调试、系统依赖和检查命令见[开发指南](docs/development.md)。
 
 ## 文档
 
