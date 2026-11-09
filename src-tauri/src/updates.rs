@@ -1,8 +1,8 @@
-//! Tauri/GitHub/NSIS Adapter. Policy and operation ordering live in the deep
+//! Tauri/static-index/NSIS Adapter. Policy and operation ordering live in the deep
 //! cleartier-updates module, independently testable without a desktop runtime.
 use cleartier_updates::{
-    Backend, Cancellation, Candidate, Distribution, Error, Github, Preferences, Progress, Result,
-    Snapshot, UpdateManager,
+    Backend, Cancellation, Candidate, Distribution, Error, Preferences, Progress, Result, Snapshot,
+    UpdateManager, UpdateSource,
 };
 use serde::Deserialize;
 use std::{sync::Arc, time::Duration};
@@ -54,7 +54,7 @@ impl Backend for Native {
         distribution()
     }
     async fn find(&self, current: &str, prereleases: bool) -> Result<Option<Candidate>> {
-        Github::new()?.find(current, prereleases).await
+        UpdateSource::new()?.find(current, prereleases).await
     }
     async fn download(
         &self,
@@ -63,7 +63,7 @@ impl Backend for Native {
         cancel: Cancellation,
     ) -> Result<Package> {
         let download = async {
-            let metadata = Github::new()?.manifest(candidate).await?;
+            let metadata = UpdateSource::new()?.manifest(candidate).await?;
             let updater = self
                 .app
                 .updater_builder()

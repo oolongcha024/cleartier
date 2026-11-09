@@ -1,10 +1,10 @@
 //! One owner for update policy, cadence, persistent preferences and operations.
 //! Platform/network/installer details enter through Backend; callers use snapshots
 //! and commands, including in tests. No WebView timer or installer URL is trusted.
-mod releases;
+mod source;
 mod storage;
-pub use releases::{Candidate, Github, MANIFEST_NAME, REPOSITORY, select_release};
 use serde::{Deserialize, Serialize};
+pub use source::{Candidate, MANIFEST_NAME, REPOSITORY, UPDATE_INDEX_URL, UpdateSource};
 use std::{
     future::Future,
     path::PathBuf,
@@ -56,6 +56,7 @@ pub struct Snapshot {
     pub candidate: Option<Candidate>,
     pub error: Option<&'static str>,
     pub last_checked: Option<u64>,
+    pub retry_at: Option<u64>,
     pub downloaded: u64,
     pub total: Option<u64>,
 }
@@ -113,6 +114,7 @@ struct State<P> {
     loaded: bool,
     cancel: Cancellation,
     package: Option<P>,
+    last_success: Option<(u64, bool)>,
 }
 pub struct UpdateManager<B: Backend> {
     backend: Arc<B>,
@@ -144,6 +146,7 @@ impl<B: Backend> UpdateManager<B> {
             candidate,
             error,
             last_checked: record.last_checked,
+            retry_at: record.blocked_until,
             downloaded: 0,
             total: None,
         };
@@ -157,6 +160,7 @@ impl<B: Backend> UpdateManager<B> {
                 loaded: error.is_none(),
                 cancel: Cancellation::default(),
                 package: None,
+                last_success: None,
             })),
             operation: AsyncMutex::new(()),
         }
@@ -256,8 +260,28 @@ impl<B: Backend> UpdateManager<B> {
             {
                 return Ok(state.snapshot.clone());
             }
-            if state.record.blocked_until.is_some_and(|until| until > now) {
-                return Err(Error::new("rateLimited"));
+        }
+        if self
+            .state
+            .lock()
+            .unwrap()
+            .record
+            .blocked_until
+            .is_some_and(|until| until > now)
+        {
+            return Err(self.fail(Error::new("rateLimited")));
+        }
+        if !automatic {
+            let state = self.state.lock().unwrap();
+            if state.snapshot.error.is_none()
+                && matches!(state.snapshot.phase, "current" | "available")
+                && state.last_success.is_some_and(|(last, channel)| {
+                    channel == state.record.preferences.prereleases
+                        && last <= now
+                        && now - last < 60
+                })
+            {
+                return Ok(state.snapshot.clone());
             }
         }
         self.change(|state| {
@@ -268,6 +292,7 @@ impl<B: Backend> UpdateManager<B> {
             state.snapshot.last_checked = Some(now);
             state.snapshot.phase = "checking";
             state.snapshot.error = None;
+            state.snapshot.retry_at = None;
         });
         if let Err(error) = self.save() {
             return Err(self.fail(error));
@@ -278,6 +303,7 @@ impl<B: Backend> UpdateManager<B> {
                 let candidate =
                     candidate.filter(|candidate| candidate.accepted(&self.current, prereleases));
                 self.change(|state| {
+                    state.last_success = Some((now, prereleases));
                     state.record.candidate = candidate.clone();
                     state.record.blocked_until = None;
                     state.snapshot.candidate = candidate;
@@ -291,7 +317,10 @@ impl<B: Backend> UpdateManager<B> {
                 Ok(self.snapshot())
             }
             Err(error) => {
-                self.change(|state| state.record.blocked_until = error.retry_at);
+                self.change(|state| {
+                    state.record.blocked_until = error.retry_at;
+                    state.snapshot.retry_at = error.retry_at;
+                });
                 let _ = self.save();
                 Err(self.fail(error))
             }

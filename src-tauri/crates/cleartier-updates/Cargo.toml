@@ -15,6 +15,7 @@ tokio = { version = "1", features = ["sync", "time", "macros"] }
 tempfile = "3"
 minisign-verify = "0.3"
 base64 = "0.23"
+httpdate = "1.0.3"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "test-util"] }

@@ -15,6 +15,7 @@ export interface UpdateSnapshot {
   candidate: { version: string; notes: string } | null;
   error: string | null;
   lastChecked: number | null;
+  retryAt: number | null;
   downloaded: number;
   total: number | null;
 }
@@ -49,6 +50,7 @@ function preview(): UpdateSnapshot {
     candidate: null,
     error: null,
     lastChecked: null,
+    retryAt: null,
     downloaded: 0,
     total: null,
   };

@@ -15,7 +15,15 @@ export function UpdateCard() {
   const percentage = snapshot?.total
     ? Math.min(100, Math.floor((snapshot.downloaded / snapshot.total) * 100))
     : null;
-  const status = !snapshot ? 'loading' : preview ? 'preview' : !supported ? 'unsupported' : phase;
+  const status = !snapshot
+    ? 'loading'
+    : preview
+      ? 'preview'
+      : !supported
+        ? 'unsupported'
+        : code && !busy && !candidate
+          ? 'failed'
+          : phase;
   const change = (key: 'automatic' | 'prereleases', value: boolean) => {
     if (snapshot)
       void run({ action: 'configure', preferences: { ...snapshot.preferences, [key]: value } });
@@ -24,6 +32,7 @@ export function UpdateCard() {
     code &&
     [
       'network',
+      'access',
       'metadata',
       'signature',
       'storage',
@@ -72,6 +81,16 @@ export function UpdateCard() {
           <p className="update-error" role="alert">
             {t(`updates.errors.${errorKey}`)}
           </p>
+        )}
+        {code === 'rateLimited' && snapshot?.retryAt && (
+          <time
+            className="update-last-check"
+            dateTime={new Date(snapshot.retryAt * 1000).toISOString()}
+          >
+            {t('updates.retryAt', {
+              time: new Date(snapshot.retryAt * 1000).toLocaleString('zh-CN'),
+            })}
+          </time>
         )}
         {snapshot?.lastChecked && (
           <time

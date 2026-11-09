@@ -10,6 +10,7 @@ const snapshot = (revision, phase = 'idle') => ({
   candidate: null,
   error: null,
   lastChecked: null,
+  retryAt: null,
   downloaded: 0,
   total: null,
 });

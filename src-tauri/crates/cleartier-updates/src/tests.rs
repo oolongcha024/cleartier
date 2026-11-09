@@ -124,7 +124,7 @@ async fn automatic_checks_share_a_persistent_24_hour_interval_including_failures
     assert_eq!(backend.0.checks.load(Ordering::SeqCst), 2);
 }
 #[tokio::test]
-async fn manual_checks_bypass_cadence_and_disabled_automatic_checks() {
+async fn manual_checks_bypass_automatic_cadence_but_share_a_short_success_cache() {
     let (_directory, manager, backend) = fixture(Distribution::Installed);
     manager
         .configure(Preferences {
@@ -136,6 +136,9 @@ async fn manual_checks_bypass_cadence_and_disabled_automatic_checks() {
     manager.check(true).await.unwrap();
     assert_eq!(backend.0.checks.load(Ordering::SeqCst), 0);
     manager.check(false).await.unwrap();
+    manager.check(false).await.unwrap();
+    assert_eq!(backend.0.checks.load(Ordering::SeqCst), 1);
+    backend.0.now.fetch_add(60, Ordering::SeqCst);
     manager.check(false).await.unwrap();
     assert_eq!(backend.0.checks.load(Ordering::SeqCst), 2);
 }
@@ -161,6 +164,24 @@ async fn same_version_is_not_reinstalled_and_channel_changes_clear_ineligible_ca
     }
     assert!(candidate("0.2.0-beta.10").accepted("0.2.0-beta.9", true));
     assert!(!candidate("0.2.0-beta.10").accepted("0.1.0", false));
+}
+
+#[tokio::test]
+async fn channel_changes_do_not_reuse_the_previous_channels_success_cache() {
+    let (_directory, manager, backend) = fixture(Distribution::Installed);
+    *backend.0.found.lock().unwrap() = Ok(Some(candidate("0.2.0")));
+    manager.check(false).await.unwrap();
+    manager
+        .configure(Preferences {
+            automatic: true,
+            prereleases: false,
+        })
+        .await
+        .unwrap();
+    manager.check(false).await.unwrap();
+    assert_eq!(backend.0.checks.load(Ordering::SeqCst), 2);
+    manager.check(false).await.unwrap();
+    assert_eq!(backend.0.checks.load(Ordering::SeqCst), 2);
 }
 #[tokio::test]
 async fn concurrent_checks_coalesce_and_late_calls_cannot_change_preferences() {
@@ -246,6 +267,7 @@ async fn rate_limits_are_persistent_and_apply_to_manual_checks() {
         retry_at: Some(1_000_120),
     });
     assert!(manager.check(false).await.is_err());
+    assert_eq!(manager.snapshot().retry_at, Some(1_000_120));
     let restarted = UpdateManager::new(
         directory.path().join("updates.json"),
         "0.1.0-rc.1".into(),
@@ -290,46 +312,125 @@ async fn unsupported_or_damaged_storage_is_never_overwritten_and_unknown_fields_
     }
 }
 
-fn release(version: &str, prerelease: bool) -> serde_json::Value {
-    let c = candidate(version);
-    json!({"tag_name":format!("v{version}"),"draft":false,"prerelease":prerelease,"body":"notes","assets":[
-        {"name":MANIFEST_NAME,"state":"uploaded","browser_download_url":c.manifest_url()},
-        {"name":c.installer_name(),"state":"uploaded","browser_download_url":c.installer_url()},
-        {"name":"cleartier-windows-x64.zip","state":"uploaded","browser_download_url":c.zip_url()}]})
-}
 #[test]
-fn release_selection_uses_semver_not_dates_filters_channels_drafts_and_missing_assets() {
-    let mut draft = release("9.0.0", false);
-    draft["draft"] = json!(true);
-    let mut incomplete = release("8.0.0", false);
-    incomplete["assets"] = json!([]);
-    let list = json!([
-        release("0.2.0-beta.9", true),
-        release("0.2.0-beta.10", true),
-        release("0.1.1", false),
-        draft,
-        incomplete
-    ]);
+fn static_index_contract_selects_channels_and_prevents_reinstallation_or_downgrade() {
+    use crate::source::select_candidate;
+    let index: serde_json::Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../tests/fixtures/update-index.json"
+    )))
+    .unwrap();
     assert_eq!(
-        select_release(&list, "0.1.0", true)
+        select_candidate(&index, "0.0.9", false)
+            .unwrap()
+            .unwrap()
+            .version,
+        "0.1.0"
+    );
+    assert_eq!(
+        select_candidate(&index, "0.2.0-beta.9", true)
             .unwrap()
             .unwrap()
             .version,
         "0.2.0-beta.10"
     );
-    assert_eq!(
-        select_release(&list, "0.1.0", false)
-            .unwrap()
-            .unwrap()
-            .version,
-        "0.1.1"
-    );
-    assert!(select_release(&list, "9.0.0", true).unwrap().is_none());
-    let mut other_host = release("0.3.0", false);
-    other_host["assets"][0]["browser_download_url"] = json!("https://example.invalid/latest.json");
     assert!(
-        select_release(&json!([other_host]), "0.1.0", true)
+        select_candidate(&index, "0.2.0-beta.10", true)
             .unwrap()
             .is_none()
     );
+    assert!(select_candidate(&index, "0.1.0", false).unwrap().is_none());
+    assert!(select_candidate(&index, "9.0.0", true).unwrap().is_none());
+    let only_rc = json!({"schemaVersion":1,"stable":null,"preview":candidate("0.1.0-rc.2")});
+    assert!(
+        select_candidate(&only_rc, "0.1.0-rc.1", false)
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(
+        select_candidate(&only_rc, "0.1.0-rc.1", true)
+            .unwrap()
+            .unwrap()
+            .version,
+        "0.1.0-rc.2"
+    );
+    let stable =
+        json!({"schemaVersion":1,"stable":candidate("0.1.0"),"preview":candidate("0.1.0")});
+    assert_eq!(
+        select_candidate(&stable, "0.1.0-rc.2", true)
+            .unwrap()
+            .unwrap()
+            .version,
+        "0.1.0"
+    );
+}
+
+#[test]
+fn incompatible_or_inconsistent_indexes_fail_instead_of_claiming_no_update() {
+    use crate::source::select_candidate;
+    for index in [
+        json!({"schemaVersion":2,"stable":null,"preview":null}),
+        json!({"schemaVersion":1,"preview":null}),
+        json!({"schemaVersion":1,"stable":null}),
+        json!({"schemaVersion":1,"stable":candidate("0.1.0-rc.1"),"preview":candidate("0.1.0-rc.1")}),
+        json!({"schemaVersion":1,"stable":candidate("0.1.0"),"preview":null}),
+        json!({"schemaVersion":1,"stable":candidate("0.1.0"),"preview":candidate("0.1.0-rc.1")}),
+        json!({"schemaVersion":1,"stable":null,"preview":candidate("1.0.0")}),
+        json!({"schemaVersion":1,"stable":candidate("1.0.0"),"preview":candidate("1.1.0")}),
+        json!({"schemaVersion":1,"stable":null,"preview":candidate("01.0.0")}),
+        json!({"schemaVersion":1,"stable":null,"preview":candidate("1.0.0+build")}),
+        json!({"schemaVersion":1,"stable":null,"preview":{"version":"1.0.0","notes":"x".repeat(16385)}}),
+    ] {
+        assert_eq!(
+            select_candidate(&index, "0.1.0", true).unwrap_err().code,
+            "metadata"
+        );
+    }
+}
+
+#[tokio::test]
+async fn switching_from_the_api_preserves_preferences_and_drops_the_old_sources_cooldown() {
+    let (directory, manager, backend) = fixture(Distribution::Installed);
+    manager
+        .configure(Preferences {
+            automatic: false,
+            prereleases: true,
+        })
+        .await
+        .unwrap();
+    *backend.0.found.lock().unwrap() = Err(Error {
+        code: "rateLimited",
+        retry_at: Some(2_000_000),
+    });
+    manager.check(false).await.unwrap_err();
+    let path = directory.path().join("updates.json");
+    let mut record: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    record.as_object_mut().unwrap().remove("source");
+    std::fs::write(&path, serde_json::to_vec(&record).unwrap()).unwrap();
+    *backend.0.found.lock().unwrap() = Ok(None);
+    let restarted = UpdateManager::new(path, "0.1.0-rc.1".into(), backend.clone());
+    assert!(!restarted.snapshot().preferences.automatic);
+    assert!(restarted.snapshot().preferences.prereleases);
+    assert_eq!(restarted.snapshot().retry_at, None);
+    assert_eq!(restarted.check(false).await.unwrap().phase, "current");
+    assert_eq!(backend.0.checks.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn failed_rechecks_retain_known_candidates_and_can_be_retried_without_success_caching() {
+    let (_directory, manager, backend) = fixture(Distribution::Installed);
+    manager.check(false).await.unwrap();
+    backend.0.now.fetch_add(60, Ordering::SeqCst);
+    *backend.0.found.lock().unwrap() = Err(Error::new("network"));
+    manager.check(false).await.unwrap_err();
+    assert_eq!(manager.snapshot().phase, "available");
+    assert_eq!(
+        manager.snapshot().candidate.unwrap().version,
+        "0.2.0-beta.10"
+    );
+    *backend.0.found.lock().unwrap() = Ok(None);
+    assert_eq!(manager.check(false).await.unwrap().phase, "current");
+    assert!(manager.snapshot().candidate.is_none());
+    assert_eq!(backend.0.checks.load(Ordering::SeqCst), 3);
 }

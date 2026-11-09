@@ -15,6 +15,12 @@
   }
   location.hash = '#/settings/about';
   await until(() => document.querySelector('.update-card'));
+  test.rateLimited = true;
+  await press('检查更新');
+  await until(() => document.querySelector('.update-card').textContent.includes('后重试'));
+  if (!document.querySelector('.update-status').textContent.includes('检查更新失败'))
+    throw new Error('A failed check was shown as never checked');
+  test.rateLimited = false;
   test.failCheck = true;
   await press('检查更新');
   await until(() => document.querySelector('.update-error'));

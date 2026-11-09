@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "stable": {
+    "version": "0.1.0",
+    "notes": "Stable release"
+  },
+  "preview": {
+    "version": "0.2.0-beta.10",
+    "notes": "Preview release"
+  }
+}

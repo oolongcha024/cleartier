@@ -17,6 +17,7 @@ export const zhCN = {
     install: '断开连接并安装',
     progress: '更新下载进度',
     lastChecked: '上次检查：{{time}}',
+    retryAt: '可于 {{time}} 后重试',
     discovered: '发现 ClearTier {{version}}，可在关于页查看更新。',
     confirmTitle: '安装更新',
     confirmDescription:
@@ -24,6 +25,7 @@ export const zhCN = {
     status: {
       loading: '正在读取更新状态…',
       idle: '尚未检查更新',
+      failed: '检查更新失败',
       checking: '正在检查更新…',
       current: '已是当前渠道的最新版本',
       available: '发现新版本 {{version}}',
@@ -36,6 +38,7 @@ export const zhCN = {
     errors: {
       read: '暂时无法读取更新状态，请重试。',
       network: '无法连接更新服务，请检查网络后重试。',
+      access: '更新服务拒绝访问，请检查网络或访问权限。',
       metadata: '更新信息不完整或不匹配，未启动安装。',
       signature: '更新签名验证失败，未启动安装。',
       storage: '更新偏好或缓存无法读取或保存，请检查配置目录。',

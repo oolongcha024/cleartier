@@ -111,7 +111,7 @@ pnpm version:check --release v0.1.0-rc.1
 git push origin v0.1.0-rc.1
 ```
 
-标签必须与应用版本一致并指向 HEAD。推送后按顺序执行：Windows 构建及检查 → 创建或复用草稿 → 上传 ZIP／NSIS／latest.json 并核对远端 SHA-256 → 发布。此顺序兼容 [GitHub 不可变发布](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)，无需预先在网页点击发布。
+标签必须与应用版本一致并指向 HEAD。推送后按顺序执行：Windows 构建及检查 → 创建或复用草稿 → 上传 ZIP／NSIS／latest.json 并核对远端 SHA-256 → 发布 → 部署静态更新索引。此顺序兼容 [GitHub 不可变发布](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)，无需预先在网页点击发布。
 
 alpha／beta／rc 自动标为预发布；正式版按 GitHub 的版本规则决定 Latest。新草稿自动生成发布说明，已有草稿保留标题与正文，可提前编辑说明再推送标签。编译任务只读仓库，独立发布任务才持有写权限，使用内置 `GITHUB_TOKEN`，无需另配 PAT。
 
@@ -125,4 +125,8 @@ NSIS 构建必须设置 `TAURI_SIGNING_PRIVATE_KEY`，加密密钥另需 `TAURI_
 
 当前签名私钥在开发机 `~/.config/cleartier/signing/updater.key`，应另行离线备份，禁止提交或随包交付。后续发布复用同一密钥；丢失密钥无法向现有客户端推送可信更新。轮换前先用旧密钥发布包含新公钥的过渡版本。
 
-更新地址固定使用公开仓库的 HTTPS 地址，不携带访问令牌；仓库公开且 Release 包含完整三个附件后才可正常检查。首个包含更新器的版本须手动安装一次，后续安装版可从关于页升级。
+客户端从 `https://oolongcha024.github.io/cleartier/updates/updates.json` 检查版本，再通过公开 Release 附件直链读取签名清单和安装包，全程不携带访问令牌、不查询 GitHub REST API。索引由 [Publish update index](../.github/workflows/update-index.yml) 使用内置 `GITHUB_TOKEN` 从已发布且附件完整的版本重建：`stable` 为最高正式版，`preview` 为包含正式版的最高版本；暂无候选时为 `null`。
+
+Pages 发布源设为 GitHub Actions，`github-pages` 环境允许 `main` 分支和 `v*` 标签部署。版本发布后调用索引工作流；手动编辑、撤回或删除 Release 也会重建。并发部署串行执行。索引失败不会回滚已发布 Release，可单独运行 `gh workflow run update-index.yml --ref main` 重试，无需重新编译安装包。`pnpm updates:generate` 可在 `.cache/update-site` 本地生成索引，输出目录也可作为参数指定。
+
+索引是 Pages 产物，Release 附件仍只有 ZIP、NSIS 和 `latest.json`。已发布的 rc1 使用旧版 API 检查入口，需通过原有更新路径或手动安装升级到包含静态更新源的新版本；后续版本继续使用同一签名公钥。

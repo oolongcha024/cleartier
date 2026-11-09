@@ -24,6 +24,7 @@
     "build:windows:nsis": "node scripts/build-windows.mjs nsis",
     "build:windows:all": "node scripts/build-windows.mjs all",
     "test:browser": "node scripts/test-browser.mjs",
+    "updates:generate": "node scripts/generate-update-index.mjs",
     "version:start": "node scripts/version.mjs start",
     "version:next": "node scripts/version.mjs next",
     "version:promote": "node scripts/version.mjs promote",

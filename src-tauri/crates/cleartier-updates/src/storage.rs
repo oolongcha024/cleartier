@@ -16,6 +16,8 @@ pub(crate) struct Record {
     pub last_checked: Option<u64>,
     pub blocked_until: Option<u64>,
     pub candidate: Option<Candidate>,
+    #[serde(default)]
+    source: String,
     #[serde(flatten)]
     extra: BTreeMap<String, serde_json::Value>,
 }
@@ -31,6 +33,7 @@ impl Record {
             last_checked: None,
             blocked_until: None,
             candidate: None,
+            source: crate::UPDATE_INDEX_URL.into(),
             extra: BTreeMap::new(),
         }
     }
@@ -57,9 +60,15 @@ impl Repository {
         if bytes.len() > 262144 {
             return Err(Error::new("storage"));
         }
-        let record: Record = serde_json::from_slice(&bytes).map_err(|_| Error::new("storage"))?;
+        let mut record: Record =
+            serde_json::from_slice(&bytes).map_err(|_| Error::new("storage"))?;
         if record.version != 1 {
             return Err(Error::new("storage"));
+        }
+        if record.source != crate::UPDATE_INDEX_URL {
+            record.source = crate::UPDATE_INDEX_URL.into();
+            record.blocked_until = None;
+            record.last_automatic = None;
         }
         Ok(record)
     }

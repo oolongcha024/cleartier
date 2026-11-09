@@ -19,6 +19,7 @@
     candidate: null,
     error: null,
     lastChecked: null,
+    retryAt: null,
     downloaded: 0,
     total: null,
   };
@@ -37,6 +38,7 @@
     installs: 0,
     downloads: 0,
     failCheck: false,
+    rateLimited: false,
     failSignature: false,
     failCleanup: false,
     hold: false,
@@ -57,6 +59,14 @@
     if (command !== 'updates_command') return original(command, args);
     const action = args.command;
     if (action.action === 'check') {
+      if (test.rateLimited) {
+        status.phase = 'idle';
+        status.error = 'rateLimited';
+        status.lastChecked = Math.floor(Date.now() / 1000);
+        status.retryAt = status.lastChecked + 120;
+        emit();
+        throw 'rateLimited';
+      }
       if (test.failCheck) {
         status.error = 'network';
         emit();
@@ -64,6 +74,7 @@
       }
       status.lastChecked = Math.floor(Date.now() / 1000);
       status.error = null;
+      status.retryAt = null;
       status.candidate = { version: '0.2.0-beta.10', notes: '测试更新说明' };
       status.phase = 'available';
     } else if (action.action === 'configure') {
