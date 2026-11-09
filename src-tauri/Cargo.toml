@@ -1,6 +1,6 @@
 [package]
 name = "cleartier"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.2"
 description = "基于 EasyTier 的跨平台本地桌面客户端"
 edition = "2024"
 rust-version = "1.95"
