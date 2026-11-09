@@ -126,9 +126,9 @@ pub struct UpdateManager<B: Backend> {
 impl<B: Backend> UpdateManager<B> {
     pub fn new(path: PathBuf, current: String, backend: B) -> Self {
         let storage = storage::Repository::new(path);
-        let (record, error) = match storage.load(&current) {
+        let (record, error) = match storage.load() {
             Ok(record) => (record, None),
-            Err(error) => (storage::Record::new(&current), Some(error.code)),
+            Err(error) => (storage::Record::new(), Some(error.code)),
         };
         let candidate = record
             .candidate
@@ -180,7 +180,7 @@ impl<B: Backend> UpdateManager<B> {
     }
     fn load(&self) -> Result<()> {
         if !self.state.lock().unwrap().loaded {
-            let record = self.storage.load(&self.current)?;
+            let record = self.storage.load()?;
             self.change(|state| {
                 state.snapshot.preferences = record.preferences.clone();
                 state.record = record;

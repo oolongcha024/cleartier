@@ -90,8 +90,15 @@ fn fixture(distribution: Distribution) -> (tempfile::TempDir, Arc<UpdateManager<
         release: Notify::new(),
         distribution,
     }));
+    let path = directory.path().join("updates.json");
+    // Update-flow scenarios explicitly model a user who opted into previews.
+    let mut record = storage::Record::new();
+    record.preferences.prereleases = true;
+    storage::Repository::new(path.clone())
+        .save(&record)
+        .unwrap();
     let manager = Arc::new(UpdateManager::new(
-        directory.path().join("updates.json"),
+        path,
         "0.1.0-rc.1".into(),
         backend.clone(),
     ));

@@ -1,6 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { version } from '../../package.json';
 import { isDesktop } from './client';
 
 export interface UpdatePreferences {
@@ -43,8 +42,7 @@ function preview(): UpdateSnapshot {
     distribution: 'preview',
     preferences: {
       automatic: stored.automatic !== false,
-      prereleases:
-        typeof stored.prereleases === 'boolean' ? stored.prereleases : version.includes('-'),
+      prereleases: stored.prereleases === true,
     },
     phase: 'idle',
     candidate: null,

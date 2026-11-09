@@ -22,12 +22,12 @@ pub(crate) struct Record {
     extra: BTreeMap<String, serde_json::Value>,
 }
 impl Record {
-    pub fn new(current: &str) -> Self {
+    pub fn new() -> Self {
         Self {
             version: 1,
             preferences: Preferences {
                 automatic: true,
-                prereleases: current.contains('-'),
+                prereleases: false,
             },
             last_automatic: None,
             last_checked: None,
@@ -45,11 +45,11 @@ impl Repository {
     pub fn new(path: PathBuf) -> Self {
         Self { path }
     }
-    pub fn load(&self, current: &str) -> Result<Record> {
+    pub fn load(&self) -> Result<Record> {
         let file = match fs::File::open(&self.path) {
             Ok(file) => file,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(Record::new(current));
+                return Ok(Record::new());
             }
             Err(_) => return Err(Error::new("storage")),
         };
