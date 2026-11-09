@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '../../components/ui';
 import type { Network } from '../networks/model';
 import { PeerTable } from './PeerTable';
-import { useNetworkTelemetry } from '../networks/store';
+import { useNetworkDevices } from '../networks/store';
 
 export function DevicesCard({
   network,
@@ -12,12 +12,10 @@ export function DevicesCard({
   onCopy: (value: string) => void;
 }) {
   const { t } = useTranslation();
-  const telemetry = useNetworkTelemetry(network.id);
+  const telemetry = useNetworkDevices(network.id);
   const stale = telemetry.freshness === 'stale' || network.coreState === 'unknown';
   const peers =
-    network.coreState === 'running' || network.coreState === 'unknown'
-      ? (telemetry.snapshot?.peers ?? [])
-      : [];
+    network.coreState === 'running' || network.coreState === 'unknown' ? telemetry.peers : [];
   return (
     <Card className="devices-card">
       <div className="card-heading">

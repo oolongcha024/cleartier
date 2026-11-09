@@ -2,7 +2,25 @@
 // It never creates a core process, adapter or external network connection.
 (() => {
   window.isTauri = true;
-  window.__telemetryTest = { fail: false, failSave: false, noStableId: false, operations: [] };
+  const control = (window.__telemetryTest = {
+    fail: false,
+    failSave: false,
+    noStableId: false,
+    operations: [],
+    visible: true,
+    minimized: false,
+    reads: 0,
+    latency: 23.5,
+    lossRate: 0.012,
+  });
+  let callbackId = 0;
+  const callbacks = new Map();
+  const listeners = new Map();
+  control.emitWindow = (event, payload) => {
+    for (const [id, listener] of listeners) {
+      if (listener.event === event) callbacks.get(listener.handler)?.({ event, id, payload });
+    }
+  };
   let epoch = 0;
   let revision = 0;
   const profile = (id, name, ip) => ({
@@ -76,8 +94,8 @@
                   name: 'friend',
                   ip: '10.42.0.3',
                   connection: 'direct',
-                  latency: 23.5,
-                  lossRate: 0.012,
+                  latency: control.latency,
+                  lossRate: control.lossRate,
                   protocols: ['UDP'],
                   nextHop: null,
                   version: '2.6.4-test',
@@ -122,7 +140,24 @@
     networks: snapshot(),
   });
   window.__TAURI_INTERNALS__ = {
+    metadata: { currentWindow: { label: 'main' } },
+    transformCallback: (callback) => {
+      const id = ++callbackId;
+      callbacks.set(id, callback);
+      return id;
+    },
     invoke: async (command, args = {}) => {
+      if (command === 'plugin:window|is_visible') return control.visible;
+      if (command === 'plugin:window|is_minimized') return control.minimized;
+      if (command === 'plugin:event|listen') {
+        const id = ++callbackId;
+        listeners.set(id, { event: args.event, handler: args.handler });
+        return id;
+      }
+      if (command === 'plugin:event|unlisten') {
+        listeners.delete(args.eventId);
+        return;
+      }
       if (command === 'config_load') return structuredClone(document);
       if (command === 'config_save') {
         if (window.__telemetryTest.failSave) throw { code: 'io' };
@@ -131,6 +166,7 @@
         return structuredClone(document);
       }
       if (command === 'network_snapshot') {
+        control.reads++;
         if (window.__telemetryTest.fail) throw { code: 'request_timeout' };
         return frame();
       }
@@ -159,5 +195,8 @@
       if (command === 'core_version') return '2.6.4-8428a89d';
       throw new Error(`Unexpected command: ${command}`);
     },
+  };
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__ = {
+    unregisterListener: (_event, id) => listeners.delete(id),
   };
 })();

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createTelemetryStore } from '../src/features/networks/telemetry.ts';
 import { trafficChart } from '../src/features/dashboard/traffic-chart.ts';
-import { fixture as workflowFixture, profile } from './helpers/networks.mjs';
+import { fixture as workflowFixture, idle, profile } from './helpers/networks.mjs';
 
 const sample = (elapsedMs, downloadBytes, uploadBytes = '0', session = 'session-a') => ({
   session,
@@ -21,7 +21,8 @@ function fixture() {
     at: (value) => {
       time = value;
     },
-    get: (id = 'a') => telemetry.store.getState()[id],
+    get: (id = 'a') => telemetry.store.getState()[id]?.traffic,
+    devices: (id = 'a') => telemetry.store.getState()[id]?.devices,
   };
 }
 test('rates use elapsed time and exact integer differences, including above JS safe integer range', () => {
@@ -45,7 +46,7 @@ test('query failure retains devices and totals but blanks measurements and split
   f.telemetry.stale('a');
   assert.equal(f.get().freshness, 'stale');
   assert.equal(f.get().download, null);
-  assert.equal(f.get().snapshot.peers.length, 1);
+  assert.equal(f.devices().peers.length, 1);
   assert.equal(f.get().snapshot.downloadBytes, '1034');
   f.at(3000);
   f.telemetry.receive('a', sample(3000, 3082), 'running');
@@ -172,4 +173,207 @@ test('gradient areas close inside each measured interval and never bridge a miss
   assert.deepEqual(chart.areas.upload, [], 'isolated samples cannot invent a filled interval');
   assert.deepEqual(chart.axis, { unit: 'KiB/s', ticks: ['2', '1', '0'] });
   assert.deepEqual(trafficChart([]).axis, { unit: 'KiB/s', ticks: ['1', '0.5', '0'] });
+});
+
+test('traffic changes every sample while unchanged device read models preserve their references', () => {
+  const f = fixture();
+  f.telemetry.receive('a', sample(0, 0), 'running');
+  const devices = f.devices();
+  const peer = devices.peers[0];
+  let traffic = f.get();
+  for (let at = 1000; at <= 10_000; at += 1000) {
+    f.at(at);
+    f.telemetry.receive('a', sample(at, at), 'running');
+    assert.notEqual(f.get(), traffic);
+    assert.equal(f.devices(), devices);
+    assert.equal(f.devices().peers[0], peer);
+    traffic = f.get();
+  }
+});
+
+test('quality publishes the latest values every three seconds, independently of receipt freshness', () => {
+  const f = fixture();
+  f.telemetry.receive('a', sample(0, 0), 'running');
+  const before = f.devices();
+  for (let at = 1000; at <= 2000; at += 1000) {
+    f.at(at);
+    const next = sample(at, at);
+    next.peers[0].latency = at / 100;
+    next.peers[0].lossRate = at / 100_000;
+    f.telemetry.receive('a', next, 'running');
+    f.telemetry.expire();
+    assert.equal(f.devices(), before);
+    assert.equal(f.get().freshness, 'fresh');
+  }
+  f.at(3000);
+  const next = sample(3000, 3000);
+  next.peers[0].latency = 30;
+  next.peers[0].lossRate = 0.03;
+  f.telemetry.receive('a', next, 'running');
+  assert.equal(f.devices().peers[0].latency, 30);
+  assert.equal(f.devices().peers[0].lossRate, 0.03);
+});
+
+test('structure changes publish immediately without flushing unrelated pending metrics', () => {
+  const f = fixture();
+  f.telemetry.receive('a', sample(0, 0), 'running');
+  f.at(1000);
+  const next = sample(1000, 1000);
+  next.peers[0] = {
+    ...next.peers[0],
+    name: 'renamed',
+    ip: '10.1.1.3',
+    latency: 99,
+    version: 'next',
+    protocols: ['UDP'],
+  };
+  next.peers.push({ id: 'new', name: 'joined', ip: null, connection: 'direct', latency: 33 });
+  f.telemetry.receive('a', next, 'running');
+  assert.equal(f.devices().peers.length, 2);
+  assert.equal(f.devices().peers[0].name, 'renamed');
+  assert.equal(f.devices().peers[0].version, 'next');
+  assert.deepEqual(f.devices().peers[0].protocols, ['UDP']);
+  assert.equal(f.devices().peers[0].latency, 12);
+  assert.equal(f.devices().peers[1].latency, 33);
+  f.at(2000);
+  const removed = structuredClone(next);
+  removed.elapsedMs = 2000;
+  removed.peers.shift();
+  const retained = f.devices().peers[1];
+  f.telemetry.receive('a', removed, 'running');
+  assert.equal(f.devices().peers.length, 1);
+  assert.equal(f.devices().peers[0], retained);
+});
+
+test('relay changes, unavailable measurements and stale data clear invalid quality immediately', () => {
+  const f = fixture();
+  f.telemetry.receive('a', sample(0, 0), 'running');
+  f.at(1000);
+  const relay = sample(1000, 1000);
+  relay.peers[0] = {
+    ...relay.peers[0],
+    connection: 'relay',
+    nextHop: 'gateway',
+    latency: 100,
+    lossRate: 0.1,
+  };
+  f.telemetry.receive('a', relay, 'running');
+  assert.equal(f.devices().peers[0].latency, null);
+  assert.equal(f.devices().peers[0].lossRate, null);
+  assert.equal(f.devices().peers[0].nextHop, 'gateway');
+  f.at(1500);
+  f.telemetry.receive('a', sample(1500, 1500), 'running');
+  assert.equal(f.devices().peers[0].latency, 12);
+  f.at(2000);
+  const unavailable = sample(2000, 2000);
+  unavailable.peers[0].latency = null;
+  unavailable.peers[0].lossRate = null;
+  f.telemetry.receive('a', unavailable, 'running');
+  assert.equal(f.devices().peers[0].latency, null);
+  f.at(5000);
+  f.telemetry.expire();
+  assert.equal(f.devices().freshness, 'stale');
+  assert.equal(f.devices().peers.length, 1);
+  f.at(6000);
+  f.telemetry.receive('a', sample(6000, 6000), 'running');
+  assert.equal(f.devices().peers[0].latency, 12);
+});
+
+test('stopping clears peers immediately, and a new session cannot reuse old metrics or totals', () => {
+  const f = fixture();
+  f.telemetry.receive('a', sample(0, 100), 'running');
+  f.telemetry.receive('a', sample(0, 100), 'stopped');
+  assert.deepEqual(f.devices().peers, []);
+  f.at(1000);
+  const next = sample(0, 1, 0, 'new');
+  next.peers[0].latency = 50;
+  f.telemetry.receive('a', next, 'running');
+  assert.equal(f.devices().peers[0].latency, 50);
+  assert.equal(f.get().snapshot.downloadBytes, '1');
+  assert.equal(f.get().download, null);
+  assert.equal(f.get().points.length, 1);
+});
+
+test('hidden views stop publishing and restore latest observations without averaging across the gap', () => {
+  const f = fixture();
+  f.telemetry.receive('a', sample(0, 0), 'running');
+  f.at(1000);
+  f.telemetry.receive('a', sample(1000, 1000), 'running');
+  const visible = f.telemetry.store.getState();
+  let notifications = 0;
+  f.telemetry.store.subscribe(() => notifications++);
+  f.telemetry.setVisible(false);
+  for (let at = 2000; at <= 20_000; at += 1000) {
+    f.at(at);
+    const next = sample(at, at);
+    next.peers[0].latency = at;
+    f.telemetry.receive('a', next, 'running');
+    f.telemetry.expire();
+  }
+  assert.equal(f.telemetry.store.getState(), visible);
+  assert.equal(notifications, 0);
+  f.telemetry.setVisible(true);
+  assert.equal(notifications, 1);
+  assert.equal(f.get().snapshot.downloadBytes, '20000');
+  assert.equal(f.devices().peers[0].latency, 20_000);
+  assert.equal(f.get().download, null);
+  assert.equal(f.get().points.length, 3, 'hidden samples must not fabricate chart history');
+  f.at(21_000);
+  f.telemetry.receive('a', sample(21_000, 21_000), 'running');
+  assert.equal(f.get().download, null, 'the first visible sample rebuilds the baseline');
+  f.at(22_000);
+  f.telemetry.receive('a', sample(22_000, 22_000), 'running');
+  assert.equal(f.get().download, 1000);
+  assert.equal(
+    trafficChart(f.get().points).download.length,
+    2,
+    'isolated intervals cannot bridge the hidden gap',
+  );
+});
+
+test('resume does not renew old cached data; hidden stops, removals and session changes remain independent', () => {
+  const f = fixture();
+  f.telemetry.receive('a', sample(0, 100), 'running');
+  f.telemetry.receive('b', sample(0, 200, 0, 'b'), 'running');
+  f.telemetry.receive('c', sample(0, 300, 0, 'c'), 'running');
+  f.telemetry.receive('d', sample(0, 400, 0, 'd'), 'running');
+  f.telemetry.setVisible(false);
+  f.at(1000);
+  f.telemetry.receive('b', null, 'stopped');
+  f.telemetry.receive('d', null, 'stopped');
+  f.telemetry.receive('c', sample(0, 1, 0, 'new-c'), 'running');
+  f.telemetry.remove('b');
+  f.at(5000);
+  f.telemetry.setVisible(true);
+  assert.equal(f.get().freshness, 'stale');
+  assert.equal(f.devices().peers[0].latency, null);
+  assert.equal(f.get().updatedAt, 0);
+  assert.equal(f.get('b'), undefined);
+  assert.equal(f.get('c').snapshot.downloadBytes, '1');
+  assert.equal(f.get('c').freshness, 'stale');
+  assert.equal(f.get('c').points.length, 1);
+  assert.equal(f.get('d').freshness, 'stopped');
+  assert.equal(f.get('d').snapshot.downloadBytes, '400');
+  assert.deepEqual(f.devices('d').peers, []);
+});
+
+test('initially hidden publication does not block startup auto-connect or its state synchronization', async () => {
+  const f = fixture();
+  f.telemetry.setVisible(false);
+  const network = profile('automatic', 'a');
+  network.autoConnect = true;
+  const workflow = workflowFixture([network]);
+  workflow.control.health = 'initializing';
+  const store = workflow.makeStore({ telemetry: f.telemetry });
+  await store.getState().initialize();
+  assert.equal(workflow.calls.length, 0);
+  workflow.control.health = 'ready';
+  await store.getState().refreshRuntime();
+  await idle(store);
+  assert.equal(workflow.calls.length, 1);
+  assert.equal(store.getState().networks[0].coreState, 'running');
+  assert.deepEqual(f.telemetry.store.getState(), {});
+  f.telemetry.setVisible(true);
+  assert.equal(f.get().freshness, 'fresh');
+  assert.equal(f.get().download, null);
 });

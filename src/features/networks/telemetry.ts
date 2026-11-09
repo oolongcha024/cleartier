@@ -15,15 +15,20 @@ export interface TrafficPoint {
   download: number | null;
   upload: number | null;
 }
-export interface NetworkTelemetry {
-  snapshot: TelemetrySnapshot | null;
-  freshness: 'empty' | 'fresh' | 'stale' | 'stopped';
+type Freshness = 'empty' | 'fresh' | 'stale' | 'stopped';
+export interface NetworkTraffic {
+  snapshot: Omit<TelemetrySnapshot, 'peers'> | null;
+  freshness: Freshness;
   download: number | null;
   upload: number | null;
   points: TrafficPoint[];
   updatedAt: number | null;
 }
-export const emptyTelemetry: NetworkTelemetry = {
+export interface NetworkDevices {
+  peers: Peer[];
+  freshness: Freshness;
+}
+export const emptyTraffic: NetworkTraffic = {
   snapshot: null,
   freshness: 'empty',
   download: null,
@@ -31,58 +36,171 @@ export const emptyTelemetry: NetworkTelemetry = {
   points: [],
   updatedAt: null,
 };
+export const emptyDevices: NetworkDevices = { peers: [], freshness: 'empty' };
+interface Presentation {
+  traffic: NetworkTraffic;
+  devices: NetworkDevices;
+}
+interface Entry extends Presentation {
+  latest: TelemetrySnapshot | null;
+  metricsAt: number;
+  baseline: boolean;
+}
+const qualityInterval = 3000;
+const staleAfter = 3000;
+const historyWindow = 60_000;
 
-// Sampling and chart history have their own subscription surface: byte changes
-// never rebuild the saved-network list, editor, sidebar or connection controls.
+function sameStructure(a: Peer, b: Peer) {
+  return (
+    a.id === b.id &&
+    a.instanceId === b.instanceId &&
+    a.publicServer === b.publicServer &&
+    a.name === b.name &&
+    a.ip === b.ip &&
+    a.connection === b.connection &&
+    a.nextHop === b.nextHop &&
+    a.version === b.version &&
+    (a.protocols ?? []).length === (b.protocols ?? []).length &&
+    (a.protocols ?? []).every((protocol, index) => protocol === b.protocols?.[index])
+  );
+}
+
+// One sampling input, two independent read models. Receipt freshness, metric
+// publication and window visibility have separate clocks and responsibilities.
 export function createTelemetryStore(now = () => performance.now()) {
-  const store = createStore<Record<string, NetworkTelemetry>>(() => ({}));
-  const put = (id: string, value: NetworkTelemetry) => store.setState({ [id]: value });
+  const store = createStore<Record<string, Presentation>>(() => ({}));
+  const entries = new Map<string, Entry>();
+  let visible = true;
+  const entryFor = (id: string) => {
+    let entry = entries.get(id);
+    if (!entry) {
+      entry = {
+        traffic: emptyTraffic,
+        devices: emptyDevices,
+        latest: null,
+        metricsAt: 0,
+        baseline: false,
+      };
+      entries.set(id, entry);
+    }
+    return entry;
+  };
+  const publish = (id: string, entry: Entry) => {
+    if (!visible) return;
+    const previous = store.getState()[id];
+    if (previous?.traffic === entry.traffic && previous?.devices === entry.devices) return;
+    store.setState({ [id]: { traffic: entry.traffic, devices: entry.devices } });
+  };
+  const updateDevices = (entry: Entry, force = false) => {
+    const { freshness } = entry.traffic;
+    const fresh = freshness === 'fresh';
+    const due =
+      force || entry.devices.freshness !== 'fresh' || now() - entry.metricsAt >= qualityInterval;
+    const previous = new Map(entry.devices.peers.map((peer) => [peer.id, peer]));
+    const source = freshness === 'stopped' ? [] : (entry.latest?.peers ?? []);
+    const peers = source.map((peer) => {
+      const before = previous.get(peer.id);
+      const reseed =
+        !before || before.instanceId !== peer.instanceId || before.connection !== peer.connection;
+      const measured = fresh && peer.connection === 'direct';
+      const latency = measured
+        ? due || reseed || peer.latency === null
+          ? peer.latency
+          : before!.latency
+        : null;
+      const lossRate = measured
+        ? due || reseed || peer.lossRate == null
+          ? peer.lossRate
+          : before!.lossRate
+        : null;
+      if (
+        before &&
+        sameStructure(before, peer) &&
+        before.latency === latency &&
+        before.lossRate === lossRate
+      )
+        return before;
+      return { ...peer, latency, lossRate };
+    });
+    const unchanged =
+      peers.length === entry.devices.peers.length &&
+      peers.every((peer, index) => peer === entry.devices.peers[index]);
+    if (!unchanged || entry.devices.freshness !== freshness)
+      entry.devices = { peers: unchanged ? entry.devices.peers : peers, freshness };
+    if (fresh && due) entry.metricsAt = now();
+  };
   const stale = (id: string) => {
-    const current = store.getState()[id];
-    if (!current || current.freshness === 'stale' || current.freshness === 'stopped') return;
+    const entry = entries.get(id);
+    if (!entry || ['stale', 'stopped', 'empty'].includes(entry.traffic.freshness)) return;
     const at = now();
-    put(id, {
-      ...current,
+    entry.baseline = false;
+    entry.traffic = {
+      ...entry.traffic,
       freshness: 'stale',
       download: null,
       upload: null,
-      points: [
-        ...current.points.filter((point) => point.at >= at - 60_000),
-        { at, download: null, upload: null },
-      ],
-    });
+      points: visible
+        ? [
+            ...entry.traffic.points.filter((point) => point.at >= at - historyWindow),
+            { at, download: null, upload: null },
+          ]
+        : entry.traffic.points,
+    };
+    if (visible) updateDevices(entry);
+    publish(id, entry);
+  };
+  const expire = () => {
+    for (const [id, { traffic }] of entries) {
+      if (
+        traffic.freshness === 'fresh' &&
+        traffic.updatedAt !== null &&
+        now() - traffic.updatedAt >= staleAfter
+      )
+        stale(id);
+    }
   };
   return {
     store,
     receive(id: string, snapshot: TelemetrySnapshot | null | undefined, state: CoreState) {
-      const current = store.getState()[id] ?? emptyTelemetry;
+      const entry = entryFor(id);
+      const current = entry.traffic;
       if (state === 'unknown') {
         stale(id);
         return;
       }
+      const stopped = state === 'stopped' || state === 'failed';
+      const stop = () => {
+        entry.baseline = false;
+        if (entry.traffic.freshness !== 'stopped')
+          entry.traffic = { ...entry.traffic, freshness: 'stopped', download: null, upload: null };
+        if (visible) updateDevices(entry);
+        publish(id, entry);
+      };
       if (!snapshot) {
-        if (state === 'stopped' || state === 'failed') {
-          if (current.freshness !== 'stopped')
-            put(id, { ...current, freshness: 'stopped', download: null, upload: null });
-        } else if (current.snapshot) stale(id);
+        if (stopped) stop();
+        else stale(id);
+        return;
+      }
+      const previous = entry.latest;
+      const same = previous?.session === snapshot.session;
+      if (same && snapshot.elapsedMs < previous.elapsedMs) return;
+      if (same && snapshot.elapsedMs === previous.elapsedMs) {
+        if (stopped) stop();
         return;
       }
       const at = now();
-      const previous = current.snapshot;
-      const same = previous?.session === snapshot.session;
-      // An old command response may contain an earlier sample from the same
-      // session. It must not move totals backwards or produce negative rates.
-      if (same && snapshot.elapsedMs < previous.elapsedMs) return;
-      const duplicate = same && snapshot.elapsedMs === previous.elapsedMs;
-      if (duplicate) {
-        if ((state === 'stopped' || state === 'failed') && current.freshness !== 'stopped')
-          put(id, { ...current, freshness: 'stopped', download: null, upload: null });
-        return;
-      }
       let download: number | null = null,
         upload: number | null = null;
       const elapsed = previous && same ? snapshot.elapsedMs - previous.elapsedMs : 0;
-      if (same && current.freshness === 'fresh' && elapsed > 0 && elapsed <= 3000) {
+      if (
+        visible &&
+        entry.baseline &&
+        !stopped &&
+        same &&
+        current.freshness === 'fresh' &&
+        elapsed > 0 &&
+        elapsed <= staleAfter
+      ) {
         try {
           const rx = BigInt(snapshot.downloadBytes) - BigInt(previous!.downloadBytes);
           const tx = BigInt(snapshot.uploadBytes) - BigInt(previous!.uploadBytes);
@@ -91,42 +209,70 @@ export function createTelemetryStore(now = () => performance.now()) {
             upload = (Number(tx) * 1000) / elapsed;
           }
         } catch {
-          /* Malformed/unavailable counters are never rendered as zero. */
+          /* Invalid counters remain unknown. */
         }
       }
-      const stopped = state === 'stopped' || state === 'failed';
-      if (stopped) {
-        download = null;
-        upload = null;
-      }
-      const points = same ? current.points.filter((point) => point.at >= at - 60_000) : [];
-      put(id, {
-        snapshot,
+      const points = same
+        ? visible
+          ? current.points.filter((point) => point.at >= at - historyWindow)
+          : current.points
+        : [];
+      entry.latest = snapshot;
+      entry.baseline = visible && !stopped;
+      entry.traffic = {
+        snapshot: {
+          session: snapshot.session,
+          elapsedMs: snapshot.elapsedMs,
+          hostname: snapshot.hostname,
+          downloadBytes: snapshot.downloadBytes,
+          uploadBytes: snapshot.uploadBytes,
+          incomplete: snapshot.incomplete,
+        },
         freshness: stopped ? 'stopped' : 'fresh',
         updatedAt: at,
         download,
         upload,
-        points: [...points, { at, download, upload }].slice(-121),
-      });
+        points: visible ? [...points, { at, download, upload }].slice(-121) : points,
+      };
+      if (visible) {
+        if (!same) entry.devices = emptyDevices;
+        updateDevices(entry, !same);
+      }
+      publish(id, entry);
     },
     stale,
-    expire() {
+    expire,
+    setVisible(next: boolean) {
+      if (next === visible) return;
+      // Expire from actual receipt time before exposing a previously hidden view.
+      expire();
+      visible = next;
+      for (const entry of entries.values()) entry.baseline = false;
+      if (!visible) return;
       const at = now();
-      for (const [id, current] of Object.entries(store.getState())) {
-        if (
-          current.freshness === 'fresh' &&
-          current.updatedAt !== null &&
-          at - current.updatedAt >= 3000
-        )
-          stale(id);
+      const presentation: Record<string, Presentation> = {};
+      for (const [id, entry] of entries) {
+        const points = entry.traffic.points.filter((point) => point.at >= at - historyWindow);
+        entry.traffic = {
+          ...entry.traffic,
+          download: null,
+          upload: null,
+          points: entry.latest
+            ? [...points, { at, download: null, upload: null }].slice(-121)
+            : points,
+        };
+        updateDevices(entry, true);
+        presentation[id] = { traffic: entry.traffic, devices: entry.devices };
       }
+      store.setState(presentation, true);
     },
     remove(id: string) {
-      store.setState((state) => {
-        const next = { ...state };
+      entries.delete(id);
+      if (visible) {
+        const next = { ...store.getState() };
         delete next[id];
-        return next;
-      }, true);
+        store.setState(next, true);
+      }
     },
   };
 }

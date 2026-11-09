@@ -4,6 +4,11 @@
   let sequence = 0;
   const callbacks = new Map();
   const listeners = new Map();
+  window.__telemetryTest.emitWindow = (event, payload) => {
+    for (const [id, listener] of listeners) {
+      if (listener.event === event) callbacks.get(listener.handler)?.({ event, id, payload });
+    }
+  };
   const status = {
     preferences: {
       version: 1,

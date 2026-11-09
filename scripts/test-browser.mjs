@@ -15,6 +15,7 @@ const suites = [
   ['network-editor-session'],
   ['advanced-disclosure', [], true],
   ['dashboard-telemetry', ['native-telemetry']],
+  ['telemetry-refresh', ['native-telemetry']],
   ['peer-icons', ['native-telemetry']],
   ['peer-disclosure', ['native-telemetry']],
   ['official-configuration', ['native-telemetry', 'native-configuration']],

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { telemetry, useNetworkStore } from './store';
+import { watchWindowVisibility } from '../../platform/window-visibility';
 
 // Mounted once by the application. Layout and route lifetimes own no sampling.
 export function NetworkLifecycle() {
@@ -7,6 +8,10 @@ export function NetworkLifecycle() {
   const refresh = useNetworkStore((state) => state.refreshRuntime);
   useEffect(() => {
     void initialize();
+    const stopVisibility = watchWindowVisibility((visible) => {
+      telemetry.setVisible(visible);
+      if (visible) void refresh();
+    });
     const timer = setInterval(() => {
       telemetry.expire();
       void refresh();
@@ -17,6 +22,7 @@ export function NetworkLifecycle() {
     window.addEventListener('focus', focused);
     return () => {
       clearInterval(timer);
+      stopVisibility();
       window.removeEventListener('focus', focused);
     };
   }, [initialize, refresh]);

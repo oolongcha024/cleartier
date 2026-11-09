@@ -12,11 +12,11 @@ test('browser adapter supplies real-shaped snapshots and seeds telemetry through
   await store.getState().initialize();
   assert.equal(store.getState().networks.length, 3);
   assert.equal(store.getState().networks.find((network) => network.id === 'office').peerCount, 3);
-  const telemetry = store.telemetry.store.getState().office;
+  const { traffic: telemetry, devices } = store.telemetry.store.getState().office;
   assert.ok(telemetry.points.length >= 30);
   assert.equal(telemetry.snapshot.hostname, 'ClearTier-PC');
   assert.ok(telemetry.download > 0);
-  assert.equal(telemetry.snapshot.peers.length, 3);
+  assert.equal(devices.peers.length, 3);
   const external = await demo.runtime.snapshot();
   external.networks[0].runningConfig.secret = 'changed';
   assert.notEqual((await demo.runtime.snapshot()).networks[0].runningConfig.secret, 'changed');
