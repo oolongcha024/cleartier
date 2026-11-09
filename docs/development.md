@@ -66,7 +66,7 @@ gh workflow run windows-build.yml --ref main -f bundle=all
 gh run list --workflow windows-build.yml
 ```
 
-手动触发只生成 Actions Artifacts，支持选择产物类型。推送 `v*` 标签时固定构建 `all`，成功后自动上传至 Release 草稿，再发布。正常产物须通过测试、原生编译、图标／资源校验及打包程序检查；Artifacts 保留期限以工作流为准。
+手动触发只生成 Actions Artifacts，支持选择产物类型。`cleartier-windows-x64-*` 包含用户测试包和更新清单；`windows-diagnostics-*` 单独保存构建清单、检查报告与日志。推送 `v*` 标签时固定构建 `all`，成功后自动上传至 Release 草稿，再发布。正常产物须通过测试、原生编译、图标／资源校验及打包程序检查；Artifacts 保留期限以工作流为准。
 
 | 内容                         | 本机构建位置                                                                    |
 | ---------------------------- | ------------------------------------------------------------------------------- |
@@ -76,7 +76,7 @@ gh run list --workflow windows-build.yml
 | 版本、来源、工具链及 SHA-256 | `artifacts/windows-x64/build-info.json`                                         |
 | 检查报告与失败诊断           | `artifacts/windows-x64/checks/`                                                 |
 
-构建入口为 [scripts/windows/build.mjs](../scripts/windows/build.mjs)。ZIP 和安装包均携带项目许可文本。`build-info.json` 和检查报告仅保留在本机构建目录及 Actions Artifacts，Release 附件只有 ZIP、NSIS 和 `latest.json`；签名嵌入更新清单，`.sig` 不单独发布。先查看检查报告和工具链错误，交付时核对提交及校验值。
+构建入口为 [scripts/windows/build.mjs](../scripts/windows/build.mjs)。ZIP 与 NSIS 共用运行资源白名单，携带程序、DLL／驱动和许可文本；检查脚本及已嵌入程序的资源清单不随包交付。`build-info.json` 和检查报告保留在本机构建目录及独立诊断 Artifact，发布任务从中读取内部证据进行校验。Release 附件只有 ZIP、NSIS 和 `latest.json`；签名嵌入更新清单，`.sig` 不单独发布。先查看检查报告和工具链错误，交付时核对提交及校验值。
 
 ## 版本管理
 

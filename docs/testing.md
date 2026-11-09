@@ -15,7 +15,7 @@
 
 ## 实机准备
 
-使用同次成功构建的完整 ZIP 和 NSIS，核对版本、提交及 `build-info.json`。先退出旧版本，备份测试配置；两种分发形式共用用户数据目录，不同时运行。准备两个不冲突的测试网络和另一台设备，邀请解析需另一份 ClearTier。
+使用同次成功构建的完整 ZIP 和 NSIS，从对应的 `windows-diagnostics-*` Artifact 获取 `build-info.json` 核对版本、提交及校验值。先退出旧版本，备份测试配置；两种分发形式共用用户数据目录，不同时运行。准备两个不冲突的测试网络和另一台设备，邀请解析需另一份 ClearTier。
 
 以下为可重复执行的验收模板。每个候选版本复制清单到对应 Issue 或发布记录，未执行项目保持待验收；不要用历史包的通过结果替代当前提交。
 
@@ -65,14 +65,15 @@
 
 ## 核心分项检查
 
-在完整免安装目录，以普通权限 PowerShell 运行；`Cancel` 在 UAC 中取消，`Tun` 在 UAC 中同意：
+在仓库根目录，以普通权限 PowerShell 调用仓库中的检查脚本，`-AppDirectory` 指向完整免安装目录；以下使用本机构建目录为例。`Cancel` 在 UAC 中取消，`Tun` 在 UAC 中同意：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\check-core.ps1 -Mode Process
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\check-core.ps1 -Mode Cancel
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\check-core.ps1 -Mode Tun
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\check-core.ps1 -Mode Recovery
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\check-core.ps1 -Mode MissingResource
+$packageDirectory = (Resolve-Path .\artifacts\windows-x64\exe).Path
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-core.ps1 -AppDirectory $packageDirectory -Mode Process
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-core.ps1 -AppDirectory $packageDirectory -Mode Cancel
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-core.ps1 -AppDirectory $packageDirectory -Mode Tun
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-core.ps1 -AppDirectory $packageDirectory -Mode Recovery
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-core.ps1 -AppDirectory $packageDirectory -Mode MissingResource
 ```
 
 `Direct` 为进程内基础检查。成功报告要求 `passed: true`、错误及清理错误为空；`Process` 验证不同控制端／核心 PID，`Tun` 验证双网卡创建及独立清理。`Recovery` 仅验证普通权限无 TUN 的独立进程恢复，不代替 GUI 自动恢复验收。检查不使用日常配置，`Tun` 使用临时测试网卡；报告及关联日志应一并保留。

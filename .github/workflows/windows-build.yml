@@ -30,6 +30,7 @@ jobs:
     timeout-minutes: 60
     outputs:
       artifact_id: ${{ steps.packages.outputs.artifact-id }}
+      diagnostics_artifact_id: ${{ steps.diagnostics.outputs.artifact-id }}
     env:
       CARGO_TERM_COLOR: always
       CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
@@ -116,17 +117,18 @@ jobs:
           path: |
             artifacts/windows-x64/cleartier-windows-x64.zip
             artifacts/windows-x64/nsis/*-setup.exe
-            artifacts/windows-x64/build-info.json
             artifacts/windows-x64/latest.json
-            artifacts/windows-x64/checks/
-      - name: Upload failure diagnostics
-        if: failure()
+      - name: Upload build diagnostics
+        id: diagnostics
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: windows-diagnostics-${{ github.run_number }}-${{ github.run_attempt }}
           retention-days: 14
           if-no-files-found: ignore
-          path: artifacts/windows-x64/checks/
+          path: |
+            artifacts/windows-x64/build-info.json
+            artifacts/windows-x64/checks/
 
   publish:
     name: Publish Windows release
@@ -146,10 +148,10 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24.21.0'
-      - name: Download this build's verified packages
+      - name: Download verified packages and internal build evidence
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          artifact-ids: ${{ needs.windows.outputs.artifact_id }}
+          artifact-ids: ${{ needs.windows.outputs.artifact_id }},${{ needs.windows.outputs.diagnostics_artifact_id }}
           merge-multiple: true
           path: ${{ runner.temp }}/windows-release
       - name: Upload to draft and publish

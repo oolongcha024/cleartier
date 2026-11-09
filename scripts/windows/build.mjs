@@ -21,14 +21,6 @@ const output = join(root, 'artifacts/windows-x64');
 const stage = join(root, '.cache/windows-native/ClearTier');
 const checks = join(output, 'checks');
 const resources = join(root, 'src-tauri/resources/windows');
-const packageFiles = [
-  'cleartier.exe',
-  'wintun.dll',
-  'Packet.dll',
-  'WinDivert64.sys',
-  'core-resources.json',
-  'check-core.ps1',
-];
 const usage =
   'Usage: pnpm build:windows [exe|nsis|all]\nNative Windows x64 build; exe exports a complete portable ZIP. Default: all.';
 
@@ -51,24 +43,25 @@ function checksum(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
-function stageProgram(executable) {
-  rmSync(stage, { recursive: true, force: true });
-  mkdirSync(stage, { recursive: true });
-  copyFileSync(executable, join(stage, 'cleartier.exe'));
-  for (const name of packageFiles.filter(
-    (name) => !['cleartier.exe', 'check-core.ps1'].includes(name),
-  )) {
-    copyFileSync(join(resources, name), join(stage, name));
+// ZIP and NSIS share one resource whitelist, owned by the bundle configuration.
+export function stageProgram(executable, destination, projectRoot) {
+  rmSync(destination, { recursive: true, force: true });
+  mkdirSync(destination, { recursive: true });
+  copyFileSync(executable, join(destination, 'cleartier.exe'));
+  const config = JSON.parse(
+    readFileSync(join(projectRoot, 'src-tauri/tauri.windows.conf.json'), 'utf8'),
+  );
+  for (const [source, targetPath] of Object.entries(config.bundle.resources)) {
+    cpSync(resolve(projectRoot, 'src-tauri', source), join(destination, targetPath), {
+      recursive: true,
+    });
   }
-  cpSync(join(resources, 'licenses'), join(stage, 'licenses'), { recursive: true });
-  copyFileSync(join(root, 'LICENSE'), join(stage, 'LICENSE'));
-  copyFileSync(join(root, 'scripts/check-core.ps1'), join(stage, 'check-core.ps1'));
 }
 
 function verifyProgram() {
   const executable = join(stage, 'cleartier.exe');
   verifyWindowsIcon(readFileSync(executable), readFileSync(join(root, 'src-tauri/icons/icon.ico')));
-  const manifest = JSON.parse(readFileSync(join(stage, 'core-resources.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(join(resources, 'core-resources.json'), 'utf8'));
   for (const file of manifest.files) {
     if (checksum(join(stage, file.path)) !== file.sha256)
       throw new Error(`Resource hash mismatch: ${file.path}`);
@@ -81,7 +74,9 @@ function verifyProgram() {
       '-ExecutionPolicy',
       'Bypass',
       '-File',
-      join(stage, 'check-core.ps1'),
+      join(root, 'scripts/check-core.ps1'),
+      '-AppDirectory',
+      stage,
       '-Mode',
       mode,
       '-ReportPath',
@@ -274,7 +269,7 @@ export function main(args = process.argv.slice(2).filter((arg) => arg !== '--'))
     '--',
     '--locked',
   ]);
-  stageProgram(join(release, 'cleartier.exe'));
+  stageProgram(join(release, 'cleartier.exe'), stage, root);
   verifyProgram();
   if (checkProjectVersion(root, versionOptions).version !== version.version)
     throw new Error('Application version changed during the build. Rebuild with a fixed version.');

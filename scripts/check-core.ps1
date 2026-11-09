@@ -1,10 +1,12 @@
 param(
+    [Parameter(Mandatory)][string]$AppDirectory,
     [ValidateSet('Direct', 'Process', 'Tun', 'Cancel', 'Recovery', 'MissingResource')]
     [string]$Mode = 'Process',
     [string]$ReportPath
 )
 $ErrorActionPreference = 'Stop'
-$appDirectory = $PSScriptRoot
+$packageDirectory = (Resolve-Path -LiteralPath $AppDirectory).ProviderPath
+$appDirectory = $packageDirectory
 $temporaryPackage = $null
 $report = if ($ReportPath) { [System.IO.Path]::GetFullPath($ReportPath) } else {
     Join-Path ([System.IO.Path]::GetTempPath()) ('cleartier-core-check-' + [guid]::NewGuid() + '.json')
@@ -20,7 +22,7 @@ try {
         $temporaryPackage = Join-Path ([System.IO.Path]::GetTempPath()) ('cleartier-missing-resource-' + [guid]::NewGuid())
         New-Item -ItemType Directory -Path $temporaryPackage | Out-Null
         foreach ($name in @('cleartier.exe', 'Packet.dll', 'WinDivert64.sys')) {
-            Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $temporaryPackage
+            Copy-Item -LiteralPath (Join-Path $packageDirectory $name) -Destination $temporaryPackage
         }
         $appDirectory = $temporaryPackage
     }
