@@ -55,6 +55,8 @@ pnpm test:browser
 
 Windows x64 本机需要 MSVC、Windows SDK、Rust MSVC target、Git 和 protoc 等工具，具体版本及环境设置以 [Windows 工作流](../.github/workflows/windows-build.yml)为准。
 
+CI 使用 PowerShell 7 运行 [setup-build-tools.ps1](../scripts/windows/setup-build-tools.ps1)：调用 Visual Studio 官方开发环境入口启用 x64 工具链，校验固定 SHA-256 后解压 protoc 21.12，并验证编译、链接与标准 protobuf 导入。环境增量传递给后续步骤；签名凭据不写入日志。Action 使用原生 Node 24 版本并固定完整提交 SHA，项目 Node.js 版本单独固定。
+
 直接执行 Windows 核心测试前，先运行 `node scripts/prepare-core-resources.mjs` 准备运行资源与链接库；下面的标准构建命令会自动准备：
 
 ```sh
@@ -68,7 +70,7 @@ gh workflow run windows-build.yml --ref main -f bundle=all
 gh run list --workflow windows-build.yml
 ```
 
-手动触发只生成 Actions Artifacts，支持选择产物类型。`cleartier-windows-x64-*` 包含用户测试包和更新清单；`windows-diagnostics-*` 单独保存构建清单、检查报告与日志。推送 `v*` 标签时固定构建 `all`，成功后自动上传至 Release 草稿，再发布。正常产物须通过测试、原生编译、图标／资源校验及打包程序检查；Artifacts 保留期限以工作流为准。
+手动触发只生成 Actions Artifacts，支持选择产物类型。`cleartier-windows-x64-*` 包含用户测试包和更新清单；`windows-diagnostics-*` 单独保存构建清单、检查报告与日志。构建后独立下载两个 Artifact，核对合并目录、来源提交、文件大小与 SHA-256；手动构建也执行此检查。推送 `v*` 标签时固定构建 `all`，检查通过后自动上传至 Release 草稿，再发布。正常产物须通过测试、原生编译、图标／资源校验及打包程序检查；Artifacts 保留期限以工作流为准。
 
 | 内容                         | 本机构建位置                                                                    |
 | ---------------------------- | ------------------------------------------------------------------------------- |

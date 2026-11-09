@@ -42,39 +42,28 @@ jobs:
         shell: pwsh
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
           ref: ${{ github.sha }}
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24.21.0'
       - name: Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           run_install: false
-      - name: Cache pnpm store
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '24.21.0'
-          cache: pnpm
+          cache: true
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: '1.96.0'
           components: rustfmt
           targets: x86_64-pc-windows-msvc
-      - name: Set up MSVC
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
-        with:
-          arch: x64
-      - name: Set up protoc
-        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3
-        with:
-          version: '21.12'
-          repo-token: ${{ github.token }}
+      - name: Set up Windows build tools
+        run: ./scripts/windows/setup-build-tools.ps1
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
@@ -83,13 +72,6 @@ jobs:
       - name: Check build environment
         run: |
           git config --global core.longpaths true
-          $protoc = (Get-Command protoc).Source
-          $include = Join-Path (Split-Path (Split-Path $protoc)) 'include'
-          if (-not (Test-Path (Join-Path $include 'google/protobuf/timestamp.proto'))) {
-            throw "Missing protoc standard includes: $include"
-          }
-          "PROTOC=$protoc" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          "PROTOC_INCLUDE=$include" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           New-Item -ItemType Directory -Force artifacts/windows-x64/checks | Out-Null
           @(
             "Image: $env:ImageOS $env:ImageVersion"
@@ -108,12 +90,13 @@ jobs:
         run: pnpm build:windows $env:BUILD_BUNDLE
       - name: Upload verified packages
         id: packages
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cleartier-windows-x64-${{ inputs.bundle || 'all' }}-${{ github.run_number }}-${{ github.run_attempt }}
           retention-days: 14
           if-no-files-found: error
           compression-level: 0
+          archive: true
           path: |
             artifacts/windows-x64/cleartier-windows-x64.zip
             artifacts/windows-x64/nsis/*-setup.exe
@@ -121,38 +104,89 @@ jobs:
       - name: Upload build diagnostics
         id: diagnostics
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-diagnostics-${{ github.run_number }}-${{ github.run_attempt }}
           retention-days: 14
           if-no-files-found: ignore
+          archive: true
           path: |
             artifacts/windows-x64/build-info.json
             artifacts/windows-x64/checks/
 
+  verify-artifacts:
+    name: Verify Windows artifacts
+    needs: windows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.21.0'
+      - name: Restore packages and build evidence
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.windows.outputs.artifact_id }},${{ needs.windows.outputs.diagnostics_artifact_id }}
+          merge-multiple: true
+          digest-mismatch: error
+          path: ${{ runner.temp }}/windows-verify
+      - name: Verify restored layout and SHA-256
+        env:
+          PACKAGE_DIRECTORY: ${{ runner.temp }}/windows-verify
+          BUILD_BUNDLE: ${{ inputs.bundle || 'all' }}
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { lstatSync, readFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const directory = process.env.PACKAGE_DIRECTORY;
+          const info = JSON.parse(readFileSync(join(directory, 'build-info.json'), 'utf8'));
+          assert.equal(info.source.commit, process.env.GITHUB_SHA);
+          assert.equal(info.source.ref, process.env.GITHUB_REF);
+          assert.equal(info.target, 'x86_64-pc-windows-msvc');
+          assert.equal(info.mode, process.env.BUILD_BUNDLE);
+          assert.match(info.version, /^\d+\.\d+\.\d+(?:-(?:alpha|beta|rc)\.[1-9]\d*)?$/);
+          const expected = [];
+          if (info.mode !== 'nsis') expected.push('cleartier-windows-x64.zip');
+          if (info.mode !== 'exe') expected.push('latest.json', `nsis/ClearTier_${info.version}_x64-setup.exe`);
+          assert.deepEqual(info.files.map(file => file.path).sort(), expected.sort());
+          for (const file of info.files) {
+            const path = join(directory, file.path);
+            assert(lstatSync(path).isFile());
+            const bytes = readFileSync(path);
+            assert(bytes.length > 0);
+            assert.equal(bytes.length, file.size);
+            assert.equal(createHash('sha256').update(bytes).digest('hex'), file.sha256);
+          }
+          console.log(`Verified ${info.files.length} restored packages for ${info.version}.`);
+          JS
+
   publish:
     name: Publish Windows release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: windows
+    needs: [windows, verify-artifacts]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: write
     steps:
       - name: Checkout release source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ github.sha }}
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24.21.0'
       - name: Download verified packages and internal build evidence
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.windows.outputs.artifact_id }},${{ needs.windows.outputs.diagnostics_artifact_id }}
           merge-multiple: true
+          digest-mismatch: error
           path: ${{ runner.temp }}/windows-release
       - name: Upload to draft and publish
         env:
