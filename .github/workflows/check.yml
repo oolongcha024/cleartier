@@ -40,7 +40,16 @@ jobs:
       - name: Check version consistency and progression
         env:
           VERSION_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: pnpm version:check
+        run: |
+          # A force-push can put event.before outside the history fetched by checkout.
+          if [[ -n "$VERSION_BASE_REF" && ! "$VERSION_BASE_REF" =~ ^0+$ ]] &&
+            ! git cat-file -e "${VERSION_BASE_REF}^{commit}" 2>/dev/null; then
+            if ! git fetch --no-tags origin "$VERSION_BASE_REF"; then
+              echo "::error::Cannot fetch version comparison base $VERSION_BASE_REF. Version progression must be checked."
+              exit 1
+            fi
+          fi
+          pnpm version:check
       - run: pnpm test
       - run: pnpm build
       - run: cargo check --locked --manifest-path src-tauri/Cargo.toml --workspace
