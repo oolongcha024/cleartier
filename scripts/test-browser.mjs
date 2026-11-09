@@ -15,6 +15,7 @@ const suites = [
   ['advanced-disclosure', [], true],
   ['dashboard-telemetry', ['native-telemetry']],
   ['peer-icons', ['native-telemetry']],
+  ['peer-disclosure', ['native-telemetry']],
   ['official-configuration', ['native-telemetry', 'native-configuration']],
   ['invitations', ['native-telemetry', 'native-invitations']],
   ['desktop-lifecycle', ['native-telemetry', 'native-desktop']],

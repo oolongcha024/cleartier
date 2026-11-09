@@ -535,6 +535,9 @@
   font-size: 18px;
   color: var(--md-sys-color-on-surface-variant);
   flex-shrink: 0;
+  transition:
+    transform var(--motion-exit),
+    color var(--motion-short);
 }
 .device-expand:hover {
   background: var(--state-hover);
@@ -547,6 +550,10 @@
 }
 .device-expand[aria-expanded='true'] > .icon {
   color: var(--md-sys-color-primary);
+  transform: rotate(180deg);
+  transition:
+    transform var(--motion-medium),
+    color var(--motion-short);
 }
 .copy-address {
   display: inline-flex;
@@ -606,8 +613,29 @@
   font-size: 11px;
 }
 .device-table .device-details > td {
-  padding: 0 0 16px;
+  padding: 0;
   border: 0;
+}
+.device-detail-collapse {
+  height: var(--collapsible-panel-height);
+  overflow: clip;
+  opacity: 1;
+  transition:
+    height var(--motion-medium),
+    opacity var(--motion-enter);
+}
+.device-detail-collapse[data-starting-style],
+.device-detail-collapse[data-ending-style] {
+  height: 0;
+  opacity: 0;
+}
+.device-detail-collapse[data-ending-style] {
+  transition:
+    height var(--motion-exit),
+    opacity var(--md-sys-motion-duration-short-2) var(--md-sys-motion-easing-standard-accelerate);
+}
+.device-detail-content {
+  padding-bottom: 16px;
 }
 .device-detail-panel {
   padding: 20px;

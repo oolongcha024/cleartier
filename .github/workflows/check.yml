@@ -55,7 +55,7 @@ jobs:
           BROWSER_HEIGHT: '600'
           BROWSER_COLOR_SCHEME: dark
           BROWSER_REDUCED_MOTION: reduce
-        run: pnpm test:browser network-editor-session advanced-disclosure desktop-lifecycle navigation-overflow
+        run: pnpm test:browser network-editor-session advanced-disclosure peer-disclosure desktop-lifecycle navigation-overflow
       - name: Upload browser failure screenshots
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
