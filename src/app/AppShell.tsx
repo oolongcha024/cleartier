@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { Chip, Icon, IconButton } from '../components/ui';
+import { Chip, Icon, IconButton, useSnackbar } from '../components/ui';
 import { useNetworkStore } from '../features/networks/store';
 import { isConnected, summaryKey } from '../features/networks/model';
 import { useTheme } from '../theme/theme';
@@ -11,9 +11,11 @@ import { isDesktop } from '../platform/client';
 import { ConfigurationNotice } from '../features/networks/ConfigurationState';
 import { ConnectionNotice } from '../features/networks/ConnectionNotice';
 import { useDesktopStore } from '../features/desktop/desktop-store';
+import { exitDesktop } from '../platform/desktop';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
+  const notify = useSnackbar();
   const { pathname } = useLocation();
   const { dark, setPreference } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
@@ -22,6 +24,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const connected = useNetworkStore((state) => state.networks.filter(isConnected).length);
   const summary = useNetworkStore((state) => summaryKey(state.networks));
   const currentPage = pageId(pathname);
+  const desktop = isDesktop();
 
   return (
     <div inert={quitting} className={`app-shell ${collapsed ? 'app-shell--collapsed' : ''}`}>
@@ -76,6 +79,21 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Icon name="settings" />
             <span className="nav-item-label">{t('nav.settings')}</span>
           </NavLink>
+          <button
+            type="button"
+            className="nav-item sidebar-exit"
+            aria-label={t('desktop.exitApp')}
+            title={
+              !desktop ? t('desktop.desktopOnly') : collapsed ? t('desktop.exitApp') : undefined
+            }
+            disabled={!desktop || quitting}
+            onClick={() => {
+              void exitDesktop().catch(() => notify(t('desktop.actionFailed')));
+            }}
+          >
+            <Icon name="power_settings_new" />
+            <span className="nav-item-label">{t('desktop.exitApp')}</span>
+          </button>
           <div className="sidebar-footer">
             <IconButton
               icon={collapsed ? 'left_panel_open' : 'left_panel_close'}
@@ -96,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {t(`nav.${currentPage}`)}
           </h1>
           <div className="header-actions">
-            {!isDesktop() && <Chip dot>{t('app.demo')}</Chip>}
+            {!desktop && <Chip dot>{t('app.demo')}</Chip>}
             <IconButton
               icon={dark ? 'light_mode' : 'dark_mode'}
               label={t('app.theme')}
@@ -109,7 +127,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div key={pathname} className="page-view">
           {children}
         </div>
-        {!isDesktop() && (
+        {!desktop && (
           <footer className="page-footer">
             <Icon name="science" />
             <span>{t('app.demoDescription')}</span>

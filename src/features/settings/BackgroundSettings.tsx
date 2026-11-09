@@ -1,12 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import { Button, Select, Switch, useSnackbar } from '../../components/ui';
+import { Button, Select, Switch } from '../../components/ui';
 import { useDesktopStore } from '../desktop/desktop-store';
-import { exitDesktop, type DesktopUpdate } from '../../platform/desktop';
+import type { DesktopUpdate } from '../../platform/desktop';
 import { isDesktop } from '../../platform/client';
 
 export function BackgroundSettings() {
   const { t } = useTranslation();
-  const notify = useSnackbar();
   const { status, error, saving, refresh, update } = useDesktopStore();
   const preferences = status?.preferences;
   const disabled =
@@ -81,20 +80,6 @@ export function BackgroundSettings() {
           onChange={(autoRecover) => change({ autoRecover })}
         />
       </div>
-      {isDesktop() && (
-        <div className="settings-actions">
-          <Button
-            variant="text"
-            icon="logout"
-            disabled={status?.quitting}
-            onClick={() => {
-              void exitDesktop().catch(() => notify(t('desktop.actionFailed')));
-            }}
-          >
-            {t('desktop.exit')}
-          </Button>
-        </div>
-      )}
     </section>
   );
 }

@@ -133,6 +133,20 @@
 .sidebar-status > .status-dot {
   justify-self: center;
 }
+.sidebar-exit {
+  width: 100%;
+  margin-top: 8px;
+  padding: 0;
+  background: transparent;
+  text-align: left;
+}
+.sidebar-exit .nav-item-label {
+  width: auto;
+}
+.sidebar-exit:disabled {
+  background: transparent;
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+}
 .sidebar-footer {
   display: grid;
   grid-template-columns: var(--sidebar-icon-column) minmax(0, 1fr);

@@ -447,6 +447,8 @@ export const zhCN = {
     exitDescription:
       '所有正在运行和等待恢复的网络都会断开。再次打开后，仅启用了自动连接的网络会尝试连接。',
     exit: '退出客户端',
+    exitApp: '退出 ClearTier',
+    desktopOnly: '仅桌面客户端可用',
     confirmExit: '断开并退出',
     runInBackground: '后台运行',
     processing: '处理中…',

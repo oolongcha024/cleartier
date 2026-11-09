@@ -129,7 +129,7 @@
   button('后台运行', dialog()).click();
   await waitFor(closeDialog, 'background response did not dismiss dialog');
   check(test.status.preferences.closeExplained, 'first close explanation was not remembered');
-  button('退出客户端').click();
+  button('退出 ClearTier').click();
   await waitFor(
     () => dialog()?.textContent.includes('退出 ClearTier？'),
     'exit confirmation missing',
