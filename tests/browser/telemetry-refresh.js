@@ -68,16 +68,16 @@
     () => totals() !== frozen && table().textContent.includes('88.8'),
     'Visible window failed to catch up',
   );
+  check(
+    document.querySelector('.metric-value')?.textContent.includes('/s') &&
+      !document.querySelector('.chart-empty'),
+    'Restore restarted traffic sampling despite continuous background observations',
+  );
   check(control.reads > beforeRestore, 'Restore did not request a fresh observation');
   check(
     peer.getAttribute('aria-expanded') === 'true' && document.activeElement === peer,
     'Restore lost disclosure or focus',
   );
-  await waitFor(
-    () => document.querySelector('.metric-value')?.textContent.includes('/s'),
-    'Traffic baseline did not recover',
-  );
-
   control.minimized = true;
   control.emitWindow('tauri://resize', { width: 0, height: 0 });
   await settle();
@@ -115,6 +115,7 @@
       'visible-blur',
       'hidden-publication-paused',
       'background-state-sync',
+      'continuous-background-sampling',
       'restore-refresh',
       'minimize-restore',
       'browser-visibility',

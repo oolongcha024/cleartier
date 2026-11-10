@@ -93,12 +93,14 @@ test('old snapshots and duplicate focus refreshes cannot regress counters or era
   assert.equal(f.get().download, 1024);
   assert.equal(f.get().points.length, 2);
 });
-test('time window stays bounded and zero-only charts contain no NaN or division by zero', () => {
+test('time window stays bounded even while hidden and zero-only charts contain no NaN or division by zero', () => {
   const f = fixture();
   for (let time = 0; time <= 120_000; time += 1000) {
     f.at(time);
+    if (time === 2000) f.telemetry.setVisible(false);
     f.telemetry.receive('a', sample(time, 0), 'running');
   }
+  f.telemetry.setVisible(true);
   assert.equal(f.get().points.length, 61);
   const chart = trafficChart(f.get().points);
   assert.equal(chart.scale, 1024);
@@ -294,7 +296,7 @@ test('stopping clears peers immediately, and a new session cannot reuse old metr
   assert.equal(f.get().points.length, 1);
 });
 
-test('hidden views stop publishing and restore latest observations without averaging across the gap', () => {
+test('hidden views keep sampling without publishing and restore continuous history and current rates', () => {
   const f = fixture();
   f.telemetry.receive('a', sample(0, 0), 'running');
   f.at(1000);
@@ -316,19 +318,50 @@ test('hidden views stop publishing and restore latest observations without avera
   assert.equal(notifications, 1);
   assert.equal(f.get().snapshot.downloadBytes, '20000');
   assert.equal(f.devices().peers[0].latency, 20_000);
-  assert.equal(f.get().download, null);
-  assert.equal(f.get().points.length, 3, 'hidden samples must not fabricate chart history');
+  assert.equal(f.get().download, 1000);
+  assert.equal(f.get().points.length, 21);
+  assert.ok(
+    f
+      .get()
+      .points.slice(1)
+      .every((point) => point.download === 1000),
+  );
   f.at(21_000);
   f.telemetry.receive('a', sample(21_000, 21_000), 'running');
-  assert.equal(f.get().download, null, 'the first visible sample rebuilds the baseline');
+  assert.equal(f.get().download, 1000);
   f.at(22_000);
   f.telemetry.receive('a', sample(22_000, 22_000), 'running');
   assert.equal(f.get().download, 1000);
   assert.equal(
     trafficChart(f.get().points).download.length,
-    2,
-    'isolated intervals cannot bridge the hidden gap',
+    1,
+    'visibility changes must not split continuously sampled history',
   );
+});
+
+test('real sampling failures while hidden leave gaps and retain the latest device structure', () => {
+  const f = fixture();
+  f.telemetry.receive('a', sample(0, 0), 'running');
+  f.at(1000);
+  f.telemetry.receive('a', sample(1000, 1000), 'running');
+  f.telemetry.setVisible(false);
+  f.at(2000);
+  f.telemetry.stale('a');
+  f.at(3000);
+  const changed = sample(3000, 3000);
+  changed.peers = [
+    { id: 'new', name: 'joined', ip: null, connection: 'direct', latency: 33, lossRate: 0 },
+  ];
+  f.telemetry.receive('a', changed, 'running');
+  f.at(4000);
+  f.telemetry.receive('a', { ...changed, elapsedMs: 4000, downloadBytes: '4000' }, 'running');
+  f.telemetry.setVisible(true);
+  assert.equal(f.get().download, 1000);
+  assert.equal(trafficChart(f.get().points).download.length, 2);
+  assert.equal(f.get().points.find((point) => point.at === 2000).download, null);
+  assert.equal(f.get().points.find((point) => point.at === 3000).download, null);
+  assert.deepEqual(f.devices().peers, changed.peers);
+  assert.equal(f.devices().freshness, 'fresh');
 });
 
 test('resume does not renew old cached data; hidden stops, removals and session changes remain independent', () => {
@@ -351,7 +384,7 @@ test('resume does not renew old cached data; hidden stops, removals and session 
   assert.equal(f.get('b'), undefined);
   assert.equal(f.get('c').snapshot.downloadBytes, '1');
   assert.equal(f.get('c').freshness, 'stale');
-  assert.equal(f.get('c').points.length, 1);
+  assert.equal(f.get('c').points.length, 2);
   assert.equal(f.get('d').freshness, 'stopped');
   assert.equal(f.get('d').snapshot.downloadBytes, '400');
   assert.deepEqual(f.devices('d').peers, []);

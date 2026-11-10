@@ -139,14 +139,12 @@ export function createTelemetryStore(now = () => performance.now()) {
       freshness: 'stale',
       download: null,
       upload: null,
-      points: visible
-        ? [
-            ...entry.traffic.points.filter((point) => point.at >= at - historyWindow),
-            { at, download: null, upload: null },
-          ]
-        : entry.traffic.points,
+      points: [
+        ...entry.traffic.points.filter((point) => point.at >= at - historyWindow),
+        { at, download: null, upload: null },
+      ],
     };
-    if (visible) updateDevices(entry);
+    updateDevices(entry);
     publish(id, entry);
   };
   const expire = () => {
@@ -173,7 +171,7 @@ export function createTelemetryStore(now = () => performance.now()) {
         entry.baseline = false;
         if (entry.traffic.freshness !== 'stopped')
           entry.traffic = { ...entry.traffic, freshness: 'stopped', download: null, upload: null };
-        if (visible) updateDevices(entry);
+        updateDevices(entry);
         publish(id, entry);
       };
       if (!snapshot) {
@@ -193,7 +191,6 @@ export function createTelemetryStore(now = () => performance.now()) {
         upload: number | null = null;
       const elapsed = previous && same ? snapshot.elapsedMs - previous.elapsedMs : 0;
       if (
-        visible &&
         entry.baseline &&
         !stopped &&
         same &&
@@ -212,13 +209,9 @@ export function createTelemetryStore(now = () => performance.now()) {
           /* Invalid counters remain unknown. */
         }
       }
-      const points = same
-        ? visible
-          ? current.points.filter((point) => point.at >= at - historyWindow)
-          : current.points
-        : [];
+      const points = same ? current.points.filter((point) => point.at >= at - historyWindow) : [];
       entry.latest = snapshot;
-      entry.baseline = visible && !stopped;
+      entry.baseline = !stopped;
       entry.traffic = {
         snapshot: {
           session: snapshot.session,
@@ -232,12 +225,10 @@ export function createTelemetryStore(now = () => performance.now()) {
         updatedAt: at,
         download,
         upload,
-        points: visible ? [...points, { at, download, upload }].slice(-121) : points,
+        points: [...points, { at, download, upload }].slice(-121),
       };
-      if (visible) {
-        if (!same) entry.devices = emptyDevices;
-        updateDevices(entry, !same);
-      }
+      if (!same) entry.devices = emptyDevices;
+      updateDevices(entry, !same);
       publish(id, entry);
     },
     stale,
@@ -247,19 +238,13 @@ export function createTelemetryStore(now = () => performance.now()) {
       // Expire from actual receipt time before exposing a previously hidden view.
       expire();
       visible = next;
-      for (const entry of entries.values()) entry.baseline = false;
       if (!visible) return;
       const at = now();
       const presentation: Record<string, Presentation> = {};
       for (const [id, entry] of entries) {
-        const points = entry.traffic.points.filter((point) => point.at >= at - historyWindow);
         entry.traffic = {
           ...entry.traffic,
-          download: null,
-          upload: null,
-          points: entry.latest
-            ? [...points, { at, download: null, upload: null }].slice(-121)
-            : points,
+          points: entry.traffic.points.filter((point) => point.at >= at - historyWindow),
         };
         updateDevices(entry, true);
         presentation[id] = { traffic: entry.traffic, devices: entry.devices };
