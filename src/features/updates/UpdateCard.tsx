@@ -13,7 +13,7 @@ export function UpdateCard() {
   const candidate = snapshot?.candidate;
   const code = error ?? snapshot?.error;
   const percentage = snapshot?.total
-    ? Math.min(100, Math.floor((snapshot.downloaded / snapshot.total) * 100))
+    ? Math.max(0, Math.min(100, Math.floor((snapshot.downloaded / snapshot.total) * 100)))
     : null;
   const status = !snapshot
     ? 'loading'
@@ -24,6 +24,20 @@ export function UpdateCard() {
         : code && !busy && !candidate
           ? 'failed'
           : phase;
+  const preferencesDisabled =
+    !snapshot || (!supported && !preview) || busy || pending || phase === 'ready';
+  const statusIcon =
+    status === 'failed'
+      ? 'error_outline'
+      : status === 'current'
+        ? 'check_circle'
+        : status === 'downloading'
+          ? 'download'
+          : status === 'available' || status === 'ready'
+            ? 'system_update'
+            : busy
+              ? 'progress_activity'
+              : 'update';
   const change = (key: 'automatic' | 'prereleases', value: boolean) => {
     if (snapshot)
       void run({ action: 'configure', preferences: { ...snapshot.preferences, [key]: value } });
@@ -48,90 +62,84 @@ export function UpdateCard() {
       : 'read';
   return (
     <Card className="update-card">
-      <div className="update-heading">
-        <h2>{t('updates.title')}</h2>
-        <Button
-          variant="outlined"
-          icon="refresh"
-          disabled={!supported || busy || pending || phase === 'ready'}
-          onClick={() => {
-            void run({ action: 'check' });
-          }}
+      <h2>{t('updates.title')}</h2>
+      <div className="update-summary">
+        <span
+          className={`update-status-icon ${status === 'failed' ? 'update-status-icon--error' : ''}`}
         >
-          {t(phase === 'checking' ? 'updates.checking' : 'updates.check')}
-        </Button>
-      </div>
-      <div className="update-details">
-        <p className="update-status" role="status">
-          {busy && <Icon name="progress_activity" className="is-spinning" />}
-          {t(`updates.status.${status}`, {
-            version: candidate?.version,
-            progress: percentage === null ? '' : `${percentage}%`,
-          })}
-        </p>
-        {phase === 'downloading' && (
-          <progress
-            className="update-progress"
-            aria-label={t('updates.progress')}
-            max={100}
-            value={percentage ?? undefined}
+          <Icon
+            name={statusIcon}
+            className={busy && phase !== 'downloading' ? 'is-spinning' : ''}
           />
-        )}
-        {code && (
-          <p className="update-error" role="alert">
-            {t(`updates.errors.${errorKey}`)}
+        </span>
+        <div className="update-details">
+          <p className="update-status" role="status">
+            {t(`updates.status.${status}`, { version: candidate?.version })}
           </p>
-        )}
-        {code === 'rateLimited' && snapshot?.retryAt && (
-          <time
-            className="update-last-check"
-            dateTime={new Date(snapshot.retryAt * 1000).toISOString()}
-          >
-            {t('updates.retryAt', {
-              time: new Date(snapshot.retryAt * 1000).toLocaleString('zh-CN'),
-            })}
-          </time>
-        )}
-        {snapshot?.lastChecked && (
-          <time
-            className="update-last-check"
-            dateTime={new Date(snapshot.lastChecked * 1000).toISOString()}
-          >
-            {t('updates.lastChecked', {
-              time: new Date(snapshot.lastChecked * 1000).toLocaleString('zh-CN'),
-            })}
-          </time>
-        )}
-        {candidate && supported && (
-          <div className="update-actions">
-            {phase === 'downloading' ? (
-              <Button
-                variant="text"
-                onClick={() => {
-                  void run({ action: 'cancel' });
-                }}
-              >
-                {t('updates.cancel')}
-              </Button>
-            ) : (
-              <Button
-                icon={snapshot.distribution === 'installed' ? 'system_update' : 'download'}
-                disabled={busy || pending || phase === 'ready'}
-                onClick={() => {
-                  void run(
-                    snapshot.distribution === 'installed'
+          {snapshot?.lastChecked && (
+            <time
+              className="update-last-check"
+              dateTime={new Date(snapshot.lastChecked * 1000).toISOString()}
+            >
+              {t('updates.lastChecked', {
+                time: new Date(snapshot.lastChecked * 1000).toLocaleString('zh-CN'),
+              })}
+            </time>
+          )}
+        </div>
+        <div className="update-actions">
+          {phase === 'downloading' ? (
+            <Button
+              variant="text"
+              onClick={() => {
+                void run({ action: 'cancel' });
+              }}
+            >
+              {t('updates.cancel')}
+            </Button>
+          ) : candidate && supported ? (
+            <Button
+              icon={snapshot.distribution === 'installed' ? 'download' : 'open_in_new'}
+              disabled={busy || pending || phase === 'ready'}
+              onClick={() => {
+                void run(
+                  code === 'unavailable'
+                    ? { action: 'check' }
+                    : snapshot.distribution === 'installed'
                       ? { action: 'update', confirmed: false }
                       : { action: 'openZip' },
-                  );
-                }}
-              >
-                {t(
-                  snapshot.distribution === 'installed'
-                    ? 'updates.downloadInstall'
+                );
+              }}
+            >
+              {t(
+                code === 'unavailable'
+                  ? 'updates.retryCheck'
+                  : snapshot.distribution === 'installed'
+                    ? code && ['network', 'signature', 'metadata'].includes(code)
+                      ? 'updates.retryDownload'
+                      : 'updates.downloadInstall'
                     : 'updates.downloadZip',
-                )}
-              </Button>
-            )}
+              )}
+            </Button>
+          ) : (
+            <Button
+              variant="outlined"
+              icon="refresh"
+              disabled={!supported || busy || pending}
+              onClick={() => {
+                void run({ action: 'check' });
+              }}
+            >
+              {t(
+                phase === 'checking'
+                  ? 'updates.checking'
+                  : code
+                    ? 'updates.retryCheck'
+                    : 'updates.check',
+              )}
+            </Button>
+          )}
+          {candidate && supported && (
             <Button
               variant="text"
               icon="open_in_new"
@@ -142,35 +150,76 @@ export function UpdateCard() {
             >
               {t('updates.notes')}
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+      {phase === 'downloading' && (
+        <div className="update-download">
+          <div
+            className={`update-progress ${percentage === null ? 'update-progress--indeterminate' : ''}`}
+            role="progressbar"
+            aria-label={t('updates.progress')}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={percentage ?? undefined}
+            data-complete={percentage === 100 || undefined}
+          >
+            <span
+              className="update-progress-fill"
+              style={{ width: percentage === null ? undefined : `${percentage}%` }}
+            />
+          </div>
+          {percentage !== null && (
+            <span className="update-percentage" aria-hidden="true">
+              {percentage}%
+            </span>
+          )}
+        </div>
+      )}
+      {code && phase !== 'ready' && (
+        <div className="update-feedback">
+          <p className="update-error" role="alert">
+            {t(`updates.errors.${errorKey}`)}
+          </p>
+          {code === 'rateLimited' && snapshot?.retryAt && (
+            <time
+              className="update-last-check"
+              dateTime={new Date(snapshot.retryAt * 1000).toISOString()}
+            >
+              {t('updates.retryAt', {
+                time: new Date(snapshot.retryAt * 1000).toLocaleString('zh-CN'),
+              })}
+            </time>
+          )}
+        </div>
+      )}
       <div className="update-preferences">
-        <div className="update-preference">
+        <label className="update-preference" data-disabled={preferencesDisabled || undefined}>
           <span>{t('updates.automatic')}</span>
           <Switch
             checked={snapshot?.preferences.automatic ?? true}
             label={t('updates.automatic')}
-            disabled={!snapshot || (!supported && !preview) || busy || pending || phase === 'ready'}
+            disabled={preferencesDisabled}
             onChange={(value) => change('automatic', value)}
           />
-        </div>
-        <div className="update-preference">
+        </label>
+        <label className="update-preference" data-disabled={preferencesDisabled || undefined}>
           <span>{t('updates.prereleases')}</span>
           <Switch
             checked={snapshot?.preferences.prereleases ?? false}
             label={t('updates.prereleases')}
-            disabled={!snapshot || (!supported && !preview) || busy || pending || phase === 'ready'}
+            disabled={preferencesDisabled}
             onChange={(value) => change('prereleases', value)}
           />
-        </div>
+        </label>
       </div>
       <Dialog
+        className="update-dialog"
         open={phase === 'ready'}
         onOpenChange={(open) => {
-          if (!open) void run({ action: 'cancel' });
+          if (!open && !pending) void run({ action: 'cancel' });
         }}
-        title={t('updates.confirmTitle')}
+        title={t('updates.confirmTitle', { version: candidate?.version })}
         description={t('updates.confirmDescription')}
       >
         {code && (
@@ -189,6 +238,7 @@ export function UpdateCard() {
             {t('updates.later')}
           </Button>
           <Button
+            variant="text"
             disabled={pending}
             onClick={() => {
               void run({ action: 'update', confirmed: true });

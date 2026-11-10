@@ -22,31 +22,41 @@
     throw new Error('A failed check was shown as never checked');
   test.rateLimited = false;
   test.failCheck = true;
-  await press('检查更新');
+  await press('重新检查');
   await until(() => document.querySelector('.update-error'));
   if (document.querySelector('.update-card').textContent.includes('已是当前渠道的最新版本'))
     throw new Error('Network failure was shown as current');
   test.failCheck = false;
-  await press('检查更新');
+  await press('重新检查');
   await until(() => document.querySelector('.update-status').textContent.includes('0.2.0-beta.10'));
+  if (document.querySelector('.snackbar'))
+    throw new Error('About page announced a redundant update notification');
   const automatic = document.querySelector('[role=switch][aria-label="自动检查更新"]');
   await until(() => !automatic.disabled && automatic.getAttribute('aria-disabled') !== 'true');
-  automatic.click();
+  document.querySelector('.update-preference > span').click();
   await until(() => test.status.preferences.automatic === false);
+  await until(() => automatic.getAttribute('aria-disabled') !== 'true');
+  automatic.click();
+  await until(() => test.status.preferences.automatic === true);
   test.hold = true;
-  await press('下载并更新');
+  await press('下载更新');
   await until(() => document.querySelector('.update-progress'));
-  if (document.querySelector('.update-progress').value !== 40)
+  if (document.querySelector('.update-progress').getAttribute('aria-valuenow') !== '40')
     throw new Error('Download progress missing');
+  if (document.querySelector('.update-summary .is-spinning'))
+    throw new Error('Download showed two progress indicators');
+  test.status.total = null;
+  test.emit();
+  await until(() => !document.querySelector('.update-progress').hasAttribute('aria-valuenow'));
   await press('取消下载');
   await until(() => test.status.phase === 'available');
   test.hold = false;
   test.failSignature = true;
-  await press('下载并更新');
+  await press('下载更新');
   await until(() => document.querySelector('.update-error')?.textContent.includes('签名'));
   if (test.installs !== 0) throw new Error('Unverified installer was started');
   test.failSignature = false;
-  await press('下载并更新');
+  await press('重新下载');
   await until(() => document.querySelector('[role=dialog]'));
   if (!document.querySelector('[role=dialog]').textContent.includes('断开所有网络'))
     throw new Error('Network impact was not disclosed');
