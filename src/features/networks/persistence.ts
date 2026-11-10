@@ -106,7 +106,7 @@ export function documentFromNetworks(
   };
 }
 
-// The browser uses the same durable mutation seam, scoped to this page lifetime.
+// In-memory storage implements the same revision checks for development and tests.
 export function createMemoryStorage(initial = emptyDocument()): ConfigurationStorage {
   let document = structuredClone(initial);
   let revision = 0;

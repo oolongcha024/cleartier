@@ -3,7 +3,6 @@ import { Link } from 'react-router';
 import { Collapsible } from '@base-ui/react/collapsible';
 import { useTranslation } from 'react-i18next';
 import { Button, Icon, useSnackbar } from '../../components/ui';
-import { isDesktop } from '../../platform/client';
 import {
   exportDiagnostics,
   openLogs,
@@ -27,32 +26,24 @@ const summaryIcons = {
   pending: 'progress_activity',
   checking: 'progress_activity',
   failed: 'error',
-  preview: 'desktop_windows',
 };
 type Action = 'read' | 'export' | 'logs';
 
 export function DiagnosticSettings() {
   const { t, i18n } = useTranslation();
-  const desktop = isDesktop();
   const formatTime = new Intl.DateTimeFormat(i18n.resolvedLanguage ?? i18n.language, {
     dateStyle: 'short',
     timeStyle: 'medium',
   });
   const notify = useSnackbar();
   const [report, setReport] = useState<DiagnosticReport | null>(null);
-  const [busy, setBusy] = useState<Action | null>(desktop ? 'read' : null);
+  const [busy, setBusy] = useState<Action | null>('read');
   const [readFailed, setReadFailed] = useState(false);
   const [actionError, setActionError] = useState<'export' | 'logs' | null>(null);
   const result = report ? summarizeDiagnostics(report) : null;
-  const summary = !desktop
-    ? 'preview'
-    : busy === 'read'
-      ? 'checking'
-      : readFailed
-        ? 'failed'
-        : (result?.summary ?? 'checking');
-  const disabled = !desktop || Boolean(busy);
-  const desktopHint = !desktop ? t('desktop.desktopOnly') : undefined;
+  const summary =
+    busy === 'read' ? 'checking' : readFailed ? 'failed' : (result?.summary ?? 'checking');
+  const disabled = Boolean(busy);
   const checks: DiagnosticCheck[] =
     result?.checks ??
     (['config', 'core', 'networks', 'tun', 'logs'] as const).map((id) => ({
@@ -61,7 +52,6 @@ export function DiagnosticSettings() {
     }));
 
   useEffect(() => {
-    if (!desktop) return;
     let disposed = false;
     void readDiagnostics()
       .then((next) => {
@@ -76,10 +66,10 @@ export function DiagnosticSettings() {
     return () => {
       disposed = true;
     };
-  }, [desktop]);
+  }, []);
 
   const run = async (action: Action) => {
-    if (busy || !desktop) return;
+    if (busy) return;
     setBusy(action);
     setActionError(null);
     if (action === 'read') setReadFailed(false);
@@ -127,13 +117,7 @@ export function DiagnosticSettings() {
     <section className="card settings-card diagnostic-card">
       <div className="settings-section-heading">
         <h2>{t('desktop.diagnostics')}</h2>
-        <Button
-          variant="text"
-          disabled={disabled}
-          title={desktopHint}
-          icon="refresh"
-          onClick={() => void run('read')}
-        >
+        <Button variant="text" disabled={disabled} icon="refresh" onClick={() => void run('read')}>
           {t('desktop.recheck')}
         </Button>
       </div>
@@ -206,7 +190,6 @@ export function DiagnosticSettings() {
           variant="text"
           icon="folder_open"
           disabled={disabled}
-          title={desktopHint}
           onClick={() => void run('logs')}
         >
           {t(busy === 'logs' ? 'desktop.openingLogs' : 'desktop.openLogs')}
@@ -250,7 +233,6 @@ export function DiagnosticSettings() {
           variant="tonal"
           icon="download"
           disabled={disabled}
-          title={desktopHint}
           onClick={() => void run('export')}
         >
           {t(busy === 'export' ? 'desktop.exporting' : 'desktop.exportDiagnostics')}

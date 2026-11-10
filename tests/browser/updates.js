@@ -1,5 +1,5 @@
 (async () => {
-  const test = window.__updateTest;
+  const test = window.__CLEARTIER_DEV__.mock.updates;
   async function until(condition) {
     const deadline = Date.now() + 4000;
     while (!condition()) {
@@ -75,7 +75,7 @@
   await press('下载 ZIP');
   await until(() => test.opens.includes('openZip'));
   if (test.installs !== 0) throw new Error('Portable app was converted to an installation');
-  const errors = window.__telemetryTest?.operations ?? [];
+  const errors = window.__CLEARTIER_DEV__.mock.networks?.operations ?? [];
   if (errors.length) throw new Error('Update UI directly controlled networks');
   return { passed: true, downloads: test.downloads, installs: test.installs, opens: test.opens };
 })();

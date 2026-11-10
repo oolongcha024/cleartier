@@ -1,5 +1,5 @@
-// Load fixtures/native-telemetry.js before opening a fresh browser session.
-// Leaves a saved phone override; reloading the page should retain that icon.
+// Uses the shared development adapter with scene=testing.
+// Saves a phone override within this isolated mock session.
 (async () => {
   const assert = (value, message) => {
     if (!value) throw new Error(message);
@@ -31,14 +31,14 @@
   );
   await choice('手机');
   await wait(() => icons()[0] === 'smartphone');
-  let saved = await window.__TAURI_INTERNALS__.invoke('config_load');
+  let saved = await window.__CLEARTIER_DEV__.platform.networks.storage.load();
   const identity = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
   assert(
     saved.networks[0].client.peerIcons[identity] === 'phone',
     'Icon was not saved in client metadata',
   );
   assert(!('peerIcons' in saved.networks[0].config), 'Local choice leaked into core config');
-  window.__telemetryTest.failSave = true;
+  window.__CLEARTIER_DEV__.mock.networks.failSave = true;
   await choice('路由器');
   await wait(() => document.querySelector('[role="alert"]'));
   assert(icons()[0] === 'smartphone', 'Failed save changed the displayed icon');
@@ -46,7 +46,7 @@
     document.querySelector('.device-expand').getAttribute('aria-expanded') === 'false',
     'Picking an icon expanded the row',
   );
-  window.__telemetryTest.failSave = false;
+  window.__CLEARTIER_DEV__.mock.networks.failSave = false;
   document.querySelector('.device-expand').click();
   await wait(
     () => document.querySelector('.device-expand').getAttribute('aria-expanded') === 'true',
@@ -57,7 +57,7 @@
     document.querySelector('.device-expand').getAttribute('aria-expanded') === 'true',
     'Picking an icon changed expanded details',
   );
-  saved = await window.__TAURI_INTERNALS__.invoke('config_load');
+  saved = await window.__CLEARTIER_DEV__.platform.networks.storage.load();
   assert(
     !Object.hasOwn(saved.networks[0].client.peerIcons, identity),
     'Auto did not remove the override',
@@ -65,7 +65,7 @@
   await choice('手机');
   await wait(() => icons()[0] === 'smartphone');
   assert(
-    window.__telemetryTest.operations.length === 0,
+    window.__CLEARTIER_DEV__.mock.networks.operations.length === 0,
     'Changing icons triggered a core operation',
   );
   assert(document.documentElement.scrollWidth <= innerWidth, 'Icon menu caused page overflow');
@@ -82,6 +82,6 @@
       'no-reconnect',
       'no-overflow',
     ],
-    reloadExpectedIcon: 'smartphone',
+    savedIcon: 'smartphone',
   };
 })();

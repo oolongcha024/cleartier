@@ -1,5 +1,5 @@
 // Run after a fresh page load on the dashboard, before visiting other pages:
-// agent-browser eval --stdin < this file. Works with dev and production previews.
+// agent-browser eval --stdin < this file. Uses the development data source.
 (async () => {
   if (location.hash && location.hash !== '#/')
     throw new Error('Start on a fresh dashboard preview');

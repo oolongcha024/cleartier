@@ -6,23 +6,39 @@ Node.js 与 pnpm 要求见 [package.json](../package.json)，Rust 与原生构�
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm dev
+pnpm dev --host 10.126.179.2 --port 5173
 ```
 
-默认开发地址为 `http://localhost:5173`。远程开发时，将 [.env.example](../.env.example) 复制为 `.env.local`，把 `CLEARTIER_DEV_HOST` 改为开发机的 IP 或主机名，不包含协议、端口或路径。读取顺序为环境变量 → `.env.local` → `localhost`；本地配置不提交。
+上述命令监听 `10.126.179.2`，访问 `http://10.126.179.2:5173`。`--host` 与 `--port` 支持空格或等号写法，例如 `--host=10.126.179.2 --port=5188`，热更新使用同一地址。地址优先级为命令行 `--host` → 旧环境变量 `CLEARTIER_DEV_HOST` → `.env.local` → `localhost`；后两种旧配置仍兼容，但不再需要设置。端口未指定时，开发服务为 `5173`、产物资源预览为 `4174`。
 
-前端监听、热更新、`pnpm tauri dev` 和浏览器测试共用此地址，开发端口固定为 `5173`，产物预览端口为 `4174`。Tauri 调试通过临时配置覆盖 `devUrl`，不修改仓库配置；正式构建不读取这项本机设置。独立浏览器入口使用演示数据，原生能力通过适配层隔离。
+前端监听、热更新、`pnpm tauri dev` 和浏览器测试共用此地址，开发端口可用 `--port` 调整。Tauri 调试通过临时配置同步覆盖 `devUrl` 和前端启动命令，自动向前端传递相同的 `--host / --port`，不修改仓库配置；正式构建不读取这项本机设置。前端只有一套页面与 Store，数据来源在创建 Store 前统一选择；浏览器用于开发调试，正式产品依赖 Tauri。
 
-| 命令                  | 用途                                                      |
-| --------------------- | --------------------------------------------------------- |
-| `pnpm tauri dev`      | 原生桌面调试；会启动前端服务，先停止独立运行的 `pnpm dev` |
-| `pnpm build`          | 版本校验、类型检查及前端构建                              |
-| `pnpm preview`        | 在所配置的主机地址、`4174` 端口预览已有前端产物           |
-| `pnpm tauri build`    | 本机桌面构建                                              |
-| `pnpm theme:generate` | 修改 `src/theme/palettes.ts` 后生成主题令牌               |
-| `pnpm icons:generate` | 修改标志或品牌配色后生成网页、桌面图标                    |
+| 命令                                             | 用途                                                      |
+| ------------------------------------------------ | --------------------------------------------------------- |
+| `pnpm tauri dev --host 10.126.179.2 --port 5173` | 原生桌面调试；会启动前端服务，先停止独立运行的 `pnpm dev` |
+| `pnpm build`                                     | 版本校验、类型检查及前端构建                              |
+| `pnpm preview --host 10.126.179.2 --port 4174`   | 在 `4174` 端口检查构建资源；正式产物的原生功能需要 Tauri  |
+| `pnpm tauri build`                               | 本机桌面构建                                              |
+| `pnpm theme:generate`                            | 修改 `src/theme/palettes.ts` 后生成主题令牌               |
+| `pnpm icons:generate`                            | 修改标志或品牌配色后生成网页、桌面图标                    |
 
-主题与图标生成结果随代码提交，普通构建不需要重新生成。开发端口被占用时先检查已有服务。
+主题与图标生成结果随代码提交，普通构建不需要重新生成。开发端口被占用时明确报错，不会自动切换端口；可停止已有服务或用 `--port` 指定其他端口。Tauri 的地址参数放在第一个 `--` 之前，其后的 runner／应用参数保持原样。
+
+## 开发场景与模拟数据
+
+打开 `http://10.126.179.2:5173`，点击右下角“开发 · 模拟数据”面板，选择网络、软件更新、诊断或桌面场景。下载场景支持进度滑块；外观可选择浅色、深色或跟随系统，窗口尺寸通过浏览器或 Tauri 窗口调整。
+
+浏览器开发默认使用模拟数据；Tauri 开发默认使用真实数据，可在同一面板中切换到模拟数据。URL 的 `dataSource=mock` 与 `scene` 保存当前选择，便于复制和刷新复现。例如：
+
+- [更新下载中](http://10.126.179.2:5173/?dataSource=mock&scene=updates.downloading#/settings/about)
+- [网络连接失败](http://10.126.179.2:5173/?dataSource=mock&scene=networks.failed#/)
+- [诊断异常](http://10.126.179.2:5173/?dataSource=mock&scene=diagnostics.issues#/settings)
+
+切换数据来源、场景或调试外观会重新加载页面，丢弃当前草稿、重建 Store 并重置模拟配置和异步任务。模拟数据全部保存在内存；系统启动项、剪贴板、文件、网络及安装操作均由模拟实现接管。主题偏好仍使用前端自己的本地存储。
+
+平台合同位于 [contracts.ts](../src/platform/contracts.ts)，真实实现位于 [native.ts](../src/platform/native.ts)。开发实现集中在 [dev/](../dev/)：场景目录为 [scenarios/index.ts](../dev/scenarios/index.ts)，网络种子数据为 [scenarios/networks.ts](../dev/scenarios/networks.ts)，网络、更新和其余平台行为分别由 `mock-networks.ts`、`mock-updates.ts`、`mock-platform.ts` 提供。新增场景时同时注册目录并设置对应模拟状态。浏览器测试直接复用这些实现，`scene=testing` 提供稳定的测试初始数据。
+
+`src/main.tsx` 仅在 `import.meta.env.DEV` 下加载开发入口；正式构建固定使用真实 Tauri 实现，忽略场景 URL。构建插件会拒绝包含 `dev/` 或 `tests/` 模块的产物。`pnpm test` 同时验证构建隔离和模拟实例间的状态隔离。原来的 `/dev/updates.html` 独立入口已移除，统一从应用入口调试。
 
 ## 自动化检查
 
@@ -46,10 +62,10 @@ cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-config -p 
 ```sh
 npm install --global agent-browser@0.38.0
 agent-browser install
-pnpm test:browser
+pnpm test:browser --host 10.126.179.2 --port 5173
 ```
 
-可追加场景名，例如 `pnpm test:browser network-editor-session desktop-lifecycle`。脚本自动启动或复用开发服务、隔离浏览器会话并清理；失败截图在 `.cache/browser/`。`BROWSER_WIDTH / BROWSER_HEIGHT / BROWSER_COLOR_SCHEME / BROWSER_REDUCED_MOTION` 用于最小窗口、深色及减少动态效果检查。测试覆盖边界和实机步骤见[测试与验收](testing.md)。
+可追加场景名，例如 `pnpm test:browser --host 10.126.179.2 --port 5173 network-editor-session desktop-lifecycle`。脚本使用共享模拟数据来源，自动启动或复用开发服务、隔离浏览器会话并清理；失败截图在 `.cache/browser/`。`BROWSER_WIDTH / BROWSER_HEIGHT / BROWSER_COLOR_SCHEME / BROWSER_REDUCED_MOTION` 用于最小窗口、深色及减少动态效果检查。测试覆盖边界和实机步骤见[测试与验收](testing.md)。
 
 ## Windows 构建
 

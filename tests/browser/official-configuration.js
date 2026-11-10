@@ -1,4 +1,4 @@
-// Run with both native-telemetry.js and native-configuration.js init scripts.
+// Uses the shared development adapter with scene=testing.
 (async () => {
   const check = (condition, message) => {
     if (!condition) throw new Error(message);
@@ -27,15 +27,15 @@
   document.querySelector('a[href="#/networks"]').click();
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await wait(() => button('导入 TOML'), 'Import action missing');
-  const original = await window.__TAURI_INTERNALS__.invoke('config_load');
-  window.__configurationTest.cancelPick = true;
+  const original = await window.__CLEARTIER_DEV__.platform.networks.storage.load();
+  window.__CLEARTIER_DEV__.mock.configuration.cancelPick = true;
   button('导入 TOML').click();
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await wait(() => !button('导入 TOML').disabled, 'Cancelled chooser stuck');
   check(!document.querySelector('.configuration-transfer'), 'Cancel created a preview');
-  window.__configurationTest.cancelPick = false;
-  window.__configurationTest.invalidPick = true;
+  window.__CLEARTIER_DEV__.mock.configuration.cancelPick = false;
+  window.__CLEARTIER_DEV__.mock.configuration.invalidPick = true;
   button('导入 TOML').click();
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await wait(
@@ -46,7 +46,7 @@
     document.querySelectorAll('.network-config-row').length === 2,
     'Failed import changed records',
   );
-  window.__configurationTest.invalidPick = false;
+  window.__CLEARTIER_DEV__.mock.configuration.invalidPick = false;
   button('导入 TOML').click();
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await wait(() => document.querySelector('input[name="importAlias"]'), 'Preview missing');
@@ -59,7 +59,7 @@
   fill('importAlias', '迁移配置');
   fill('importTunName', 'ct-migrated');
   await wait(() => !button('仍然导入').disabled, 'Resolved TUN conflict did not revalidate');
-  window.__telemetryTest.failSave = true;
+  window.__CLEARTIER_DEV__.mock.networks.failSave = true;
   button('仍然导入').click();
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await wait(
@@ -73,7 +73,7 @@
     document.querySelector('input[name="importAlias"]').value === '迁移配置',
     'Failed save discarded input',
   );
-  window.__telemetryTest.failSave = false;
+  window.__CLEARTIER_DEV__.mock.networks.failSave = false;
   button('仍然导入').click();
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await wait(
@@ -81,7 +81,7 @@
     'Import not persisted',
   );
   await wait(() => !document.querySelector('.configuration-transfer'), 'Import dialog not closed');
-  const imported = (await window.__TAURI_INTERNALS__.invoke('config_load')).networks[2];
+  const imported = (await window.__CLEARTIER_DEV__.platform.networks.storage.load()).networks[2];
   check(imported.client.autoConnect === false, 'Import enabled automatic connection');
   check(
     imported.config.hostname === 'migrated-node' && imported.config.ipv4Address === '10.77.0.8',
@@ -102,45 +102,52 @@
   button('保存修改').click();
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await wait(() => !document.querySelector('.network-editor'), 'Imported edit did not save');
-  const edited = (await window.__TAURI_INTERNALS__.invoke('config_load')).networks[2];
+  const edited = (await window.__CLEARTIER_DEV__.platform.networks.storage.load()).networks[2];
   check(edited.config.hostname === 'edited-node', 'Visible field edit missing');
   check(
     edited.config.officialToml === imported.config.officialToml,
     'Editing destroyed preservation base',
   );
-  check(window.__telemetryTest.operations.length === 0, 'Import/edit unexpectedly operated core');
+  check(
+    window.__CLEARTIER_DEV__.mock.networks.operations.length === 0,
+    'Import/edit unexpectedly operated core',
+  );
   document
     .querySelectorAll('.network-config-row')[2]
     .querySelector('[aria-label^="导出 "]')
     .click();
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await wait(() => button('选择保存位置'), 'Export confirmation missing');
-  window.__configurationTest.failExport = true;
+  window.__CLEARTIER_DEV__.mock.configuration.failExport = true;
   button('选择保存位置').click();
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await wait(
     () => document.querySelector('.dialog-popup [role="alert"]'),
     'Failed export feedback missing',
   );
-  window.__configurationTest.failExport = false;
-  window.__configurationTest.cancelExport = true;
+  window.__CLEARTIER_DEV__.mock.configuration.failExport = false;
+  window.__CLEARTIER_DEV__.mock.configuration.cancelExport = true;
   button('选择保存位置').click();
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await wait(() => !button('选择保存位置').disabled, 'Cancelled export stuck');
-  check(window.__configurationTest.exports.length === 0, 'Cancelled export claimed a saved file');
-  window.__configurationTest.cancelExport = false;
+  check(
+    window.__CLEARTIER_DEV__.mock.configuration.exports.length === 0,
+    'Cancelled export claimed a saved file',
+  );
+  window.__CLEARTIER_DEV__.mock.configuration.cancelExport = false;
   button('选择保存位置').click();
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await wait(() => !document.querySelector('.dialog-popup'), 'Export did not complete');
   check(
-    window.__configurationTest.exports[0].config.officialToml === imported.config.officialToml,
+    window.__CLEARTIER_DEV__.mock.configuration.exports[0].config.officialToml ===
+      imported.config.officialToml,
     'Export lost unknown fields',
   );
   check(
-    window.__configurationTest.exports[0].config.hostname === 'edited-node',
+    window.__CLEARTIER_DEV__.mock.configuration.exports[0].config.hostname === 'edited-node',
     'Export used obsolete editor parameters',
   );
-  const saved = await window.__TAURI_INTERNALS__.invoke('config_load');
+  const saved = await window.__CLEARTIER_DEV__.platform.networks.storage.load();
   check(
     saved.networks
       .slice(0, 2)

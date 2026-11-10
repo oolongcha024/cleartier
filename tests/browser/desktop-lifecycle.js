@@ -1,7 +1,7 @@
-// Run with native-telemetry.js + native-desktop.js, on a fresh dashboard.
+// Uses the shared development adapter with scene=testing.
 // This exercises UI/IPC contracts; it never changes OS startup or writes a file.
 (async () => {
-  const test = window.__desktopTest;
+  const test = window.__CLEARTIER_DEV__.mock.desktop;
   const waitFor = async (predicate, message) => {
     const deadline = performance.now() + 6000;
     while (!predicate()) {
@@ -29,7 +29,7 @@
   const settings = () => document.querySelector('a[href="#/settings"]').click();
   const dashboard = () => document.querySelector('a[href="#/"]').click();
   await waitFor(() => document.querySelector('.connection-card'), 'dashboard did not initialize');
-  const operations = window.__telemetryTest.operations.length;
+  const operations = window.__CLEARTIER_DEV__.mock.networks.operations.length;
   settings();
   await waitFor(
     () =>
@@ -101,7 +101,7 @@
     'save retry failed',
   );
   check(
-    window.__telemetryTest.operations.length === operations,
+    window.__CLEARTIER_DEV__.mock.networks.operations.length === operations,
     'desktop settings restarted a network',
   );
   test.request('close');
@@ -138,7 +138,10 @@
   );
   button('取消', dialog()).click();
   await waitFor(closeDialog, 'exit cancellation did not dismiss');
-  check(window.__telemetryTest.operations.length === operations, 'cancel exit affected network');
+  check(
+    window.__CLEARTIER_DEV__.mock.networks.operations.length === operations,
+    'cancel exit affected network',
+  );
   test.request('close');
   await waitFor(dialog, 'close request missing');
   button('退出客户端', dialog()).click();
@@ -177,7 +180,12 @@
   test.cancelExport = false;
   dashboard();
   await waitFor(() => document.querySelector('.connection-card'), 'dashboard missing');
-  test.recovery = { phase: 'waiting', attempt: 0, maxAttempts: 3, retryInSeconds: 2 };
+  window.__CLEARTIER_DEV__.mock.networks.recovery = {
+    phase: 'waiting',
+    attempt: 0,
+    maxAttempts: 3,
+    retryInSeconds: 2,
+  };
   window.dispatchEvent(new Event('focus'));
   await waitFor(
     () => document.querySelector('.connection-state h3')?.textContent === '等待恢复',
@@ -190,18 +198,23 @@
   button('断开连接', document.querySelector('.connection-card')).click();
   await waitFor(
     () =>
-      window.__telemetryTest.operations.at(-1) === 'stop' &&
+      window.__CLEARTIER_DEV__.mock.networks.operations.at(-1) === 'stop' &&
       document.querySelector('.connection-state h3')?.textContent === '网络已断开',
     'waiting recovery not cancellable',
   );
   button('连接网络', document.querySelector('.connection-card')).click();
   await waitFor(
     () =>
-      window.__telemetryTest.operations.at(-1) === 'start' &&
+      window.__CLEARTIER_DEV__.mock.networks.operations.at(-1) === 'start' &&
       document.querySelector('.connection-state h3')?.textContent !== '正在启动连接',
     'manual start failed',
   );
-  test.recovery = { phase: 'starting', attempt: 1, maxAttempts: 3, retryInSeconds: 0 };
+  window.__CLEARTIER_DEV__.mock.networks.recovery = {
+    phase: 'starting',
+    attempt: 1,
+    maxAttempts: 3,
+    retryInSeconds: 0,
+  };
   window.dispatchEvent(new Event('focus'));
   await waitFor(
     () => document.querySelector('.connection-state h3')?.textContent === '正在恢复连接',
@@ -221,7 +234,12 @@
     () => document.querySelector('.connection-state h3')?.textContent === '已连接到网络节点',
     'manual start after cancellation failed',
   );
-  test.recovery = { phase: 'authorization', attempt: 1, maxAttempts: 3, retryInSeconds: 0 };
+  window.__CLEARTIER_DEV__.mock.networks.recovery = {
+    phase: 'authorization',
+    attempt: 1,
+    maxAttempts: 3,
+    retryInSeconds: 0,
+  };
   window.dispatchEvent(new Event('focus'));
   await waitFor(
     () => document.querySelector('.connection-state-text p')?.textContent.includes('重新授权'),
@@ -234,8 +252,8 @@
   button('重新连接', document.querySelector('.quick-actions')).click();
   await waitFor(
     () =>
-      window.__telemetryTest.operations.at(-1) === 'restart' &&
-      !test.recovery &&
+      window.__CLEARTIER_DEV__.mock.networks.operations.at(-1) === 'restart' &&
+      !window.__CLEARTIER_DEV__.mock.networks.recovery &&
       document.querySelector('.connection-state h3')?.textContent === '已连接到网络节点',
     'manual recovery retry not sent',
   );

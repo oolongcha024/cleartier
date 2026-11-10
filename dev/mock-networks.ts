@@ -1,132 +1,53 @@
-import { createNetworkConfig } from './defaults.ts';
-import { createMemoryStorage, emptyDocument } from './persistence.ts';
-import { createTelemetryStore, type TelemetrySnapshot } from './telemetry.ts';
-import type { NetworkRuntime, RuntimeFrame, RuntimeSnapshot } from './runtime.ts';
-import type { NetworkConfig, Peer } from './model.ts';
+import { networkSeeds, testingSeeds } from './scenarios/networks.ts';
+import { createNetworkConfig } from '../src/features/networks/defaults.ts';
+import { createMemoryStorage, emptyDocument } from '../src/features/networks/persistence.ts';
+import {
+  createTelemetryStore,
+  type TelemetrySnapshot,
+} from '../src/features/networks/telemetry.ts';
+import type {
+  NetworkRuntime,
+  RuntimeFrame,
+  RuntimeSnapshot,
+  RecoverySnapshot,
+} from '../src/features/networks/runtime.ts';
+import type { NetworkConfig, Peer } from '../src/features/networks/model.ts';
 
-const seeds = [
-  {
-    id: 'office',
-    alias: '远程办公室',
-    icon: 'work' as const,
-    name: 'studio-work',
-    secret: 'demo-office-key',
-    server: 'tcp://office.example.com:11010',
-    ip: '10.42.0.8',
-    autoConnect: true,
-    running: true,
-    download: 2.4 * 1024 ** 2,
-    upload: 0.128 * 1024 ** 2,
-    downloadBytes: 2_000_000_000,
-    uploadBytes: 134_217_728,
-    peers: [
-      {
-        id: 'nas',
-        instanceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
-        publicServer: true,
-        name: 'Studio NAS',
-        ip: '10.42.0.1',
-        connection: 'direct',
-        latency: 12,
-        lossRate: 0,
-        protocols: ['TCP'],
-        version: '2.6.4',
-      },
-      {
-        id: 'mac',
-        instanceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
-        name: 'MacBook Pro',
-        ip: '10.42.0.3',
-        connection: 'direct',
-        latency: 18,
-        lossRate: 0.003,
-        protocols: ['UDP'],
-        version: '2.6.4',
-      },
-      {
-        id: 'pc',
-        instanceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3',
-        name: '办公室 PC',
-        ip: '10.42.0.12',
-        connection: 'relay',
-        latency: null,
-        lossRate: null,
-        nextHop: 'Studio NAS',
-        version: '2.6.4',
-      },
-    ] as Peer[],
-  },
-  {
-    id: 'gaming',
-    alias: '周末联机',
-    icon: 'sports_esports' as const,
-    name: 'weekend-party',
-    secret: 'demo-game-key',
-    server: 'udp://game.example.com:11010',
-    ip: '10.56.0.2',
-    autoConnect: false,
-    running: true,
-    download: 0.86 * 1024 ** 2,
-    upload: 0.096 * 1024 ** 2,
-    downloadBytes: 478_150_656,
-    uploadBytes: 83_886_080,
-    peers: [
-      {
-        id: 'player1',
-        instanceId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
-        name: 'Alex 的电脑',
-        ip: '10.56.0.3',
-        connection: 'direct',
-        latency: 24,
-        lossRate: 0.012,
-        protocols: ['UDP'],
-        version: '2.6.4',
-      },
-      {
-        id: 'player2',
-        instanceId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
-        name: 'Pixel Station',
-        ip: '10.56.0.5',
-        connection: 'direct',
-        latency: 28,
-        lossRate: 0,
-        protocols: ['UDP'],
-        version: '2.6.4',
-      },
-    ] as Peer[],
-  },
-  {
-    id: 'home',
-    alias: '家里的小网络',
-    icon: 'home' as const,
-    name: 'home-lab',
-    secret: '',
-    server: 'tcp://home.example.com:11010',
-    ip: '10.68.0.6',
-    autoConnect: false,
-    running: false,
-    download: 0.32 * 1024 ** 2,
-    upload: 0.064 * 1024 ** 2,
-    downloadBytes: 0,
-    uploadBytes: 0,
-    peers: [
-      {
-        id: 'home-nas',
-        instanceId: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1',
-        name: 'Home Server',
-        ip: '10.68.0.1',
-        connection: 'direct',
-        latency: 8,
-      },
-    ] as Peer[],
-  },
-];
-
-// Fixture knowledge, including historical samples, stays inside the browser
-// adapter. Callers observe the same lifecycle and telemetry as on desktop.
-export function createDemoEnvironment(
-  delay = () => new Promise<void>((resolve) => setTimeout(resolve, 900)),
+// Development and tests share one runtime simulation and the production contracts.
+export function createMockNetworks(
+  delay = () => new Promise<void>((resolve) => setTimeout(resolve, 300)),
+  preset = 'default',
 ) {
+  let disposed = false;
+  const seeds =
+    preset === 'testing' ? testingSeeds() : preset === 'empty' ? [] : structuredClone(networkSeeds);
+  const hostname = preset === 'testing' ? 'actual-test-node' : 'ClearTier-PC';
+  if (preset !== 'default' && preset !== 'testing')
+    for (const seed of seeds) {
+      seed.autoConnect = false;
+      if (preset === 'offline') seed.running = false;
+      if (preset === 'no-peers') seed.peers = [];
+    }
+  const control = {
+    fail: preset === 'stale',
+    failSave: false,
+    noStableId: false,
+    reads: 0,
+    latency: 23.5,
+    lossRate: 0.012,
+    failNewConnections: false,
+    operations: [] as string[],
+    connections: [] as { action: string; id: string; config: NetworkConfig }[],
+    recovery:
+      preset === 'recovery'
+        ? ({
+            phase: 'waiting',
+            attempt: 0,
+            maxAttempts: 3,
+            retryInSeconds: 2,
+          } as RecoverySnapshot | null)
+        : (null as RecoverySnapshot | null),
+  };
   let seedingAt: number | null = null;
   const telemetry = createTelemetryStore(() => seedingAt ?? performance.now());
   const states = new Map<string, RuntimeSnapshot>();
@@ -145,7 +66,7 @@ export function createDemoEnvironment(
     }
   >();
   const document = emptyDocument();
-  const epoch = 'browser-demo';
+  const epoch = 'mock-runtime';
   let sequence = 0;
   const stopped = (id: string, revision = 0): RuntimeSnapshot => ({
     id,
@@ -167,6 +88,10 @@ export function createDemoEnvironment(
       secret: seed.secret,
       servers: [seed.server],
     });
+    if (preset === 'testing') {
+      config.hostname = hostname;
+      config.tunName = `ct-${seed.name}`;
+    }
     document.networks.push({
       id: seed.id,
       config,
@@ -193,7 +118,7 @@ export function createDemoEnvironment(
         snapshot.telemetry = {
           session: `demo-${seed.id}`,
           elapsedMs: i * 2000,
-          hostname: 'ClearTier-PC',
+          hostname,
           peers: seed.peers,
           downloadBytes: String(rx),
           uploadBytes: String(tx),
@@ -214,8 +139,21 @@ export function createDemoEnvironment(
     states.set(seed.id, snapshot);
   }
   seedingAt = null;
-  document.selectedId = seeds[0].id;
+  document.selectedId = seeds[0]?.id ?? '';
+  if (preset === 'failed' || preset === 'starting') {
+    const state = states.get(document.selectedId);
+    if (state) {
+      state.state = preset === 'failed' ? 'failed' : 'starting';
+      state.runningConfig = null;
+      state.virtualIp = null;
+      state.telemetry = null;
+      state.peerCount = 0;
+      state.directPeerCount = 0;
+      state.error = preset === 'failed' ? { code: 'tun_failed' } : null;
+    }
+  }
   const sample = (): RuntimeFrame => {
+    if (disposed) throw { code: 'operation_cancelled' };
     for (const [id, session] of sessions) {
       const state = states.get(id)!;
       if (state.state !== 'running') continue;
@@ -224,17 +162,48 @@ export function createDemoEnvironment(
       state.telemetry = {
         session: previous?.session ?? `demo-session-${++sequence}`,
         elapsedMs: session.elapsed + elapsed,
-        hostname: state.runningConfig?.hostname || 'ClearTier-PC',
-        peers: session.peers,
+        hostname: state.runningConfig?.hostname || hostname,
+        peers: session.peers.map((peer, index) => ({
+          ...peer,
+          instanceId: control.noStableId ? null : peer.instanceId,
+          ...(preset === 'testing' && index === 0
+            ? { latency: control.latency, lossRate: control.lossRate }
+            : {}),
+        })),
         downloadBytes: String(session.rx + Math.floor((session.download * elapsed) / 1000)),
         uploadBytes: String(session.tx + Math.floor((session.upload * elapsed) / 1000)),
         incomplete: false,
       };
       state.revision++;
     }
-    return structuredClone({ epoch, health: 'ready', error: null, networks: [...states.values()] });
+    const frame: RuntimeFrame = structuredClone({
+      epoch,
+      health: 'ready',
+      error: null,
+      networks: [...states.values()],
+    });
+    if (control.recovery && frame.networks[0]) {
+      const first = frame.networks[0];
+      first.recoveryConfig = first.runningConfig;
+      first.runningConfig = null;
+      first.state = control.recovery.phase === 'starting' ? 'starting' : 'failed';
+      first.recovery = structuredClone(control.recovery);
+      first.error = { code: 'core_exited' };
+    }
+    return frame;
   };
   const start = async (id: string, config: NetworkConfig, restart: boolean) => {
+    if (disposed) throw { code: 'operation_cancelled' };
+    control.operations.push(restart ? 'restart' : 'start');
+    control.recovery = null;
+    if (control.failNewConnections && !seeds.some((seed) => seed.id === id)) {
+      control.connections.push({
+        action: restart ? 'restart' : 'start',
+        id,
+        config: structuredClone(config),
+      });
+      throw { code: 'tun_failed' };
+    }
     const before = states.get(id);
     if (candidates.has(id)) throw { code: 'operation_busy' };
     if (!restart && before?.state === 'running') throw { code: 'instance_running' };
@@ -273,7 +242,7 @@ export function createDemoEnvironment(
       }
       throw error;
     }
-    if (generations.get(id) !== generation) throw { code: 'operation_cancelled' };
+    if (disposed || generations.get(id) !== generation) throw { code: 'operation_cancelled' };
     candidates.delete(id);
     const seed = seeds.find((seed) => seed.id === id);
     const state = {
@@ -293,7 +262,7 @@ export function createDemoEnvironment(
     state.telemetry = {
       session: `demo-session-${++sequence}`,
       elapsedMs: 0,
-      hostname: config.hostname || 'ClearTier-PC',
+      hostname: config.hostname || hostname,
       peers: seed?.peers ?? [],
       downloadBytes: '0',
       uploadBytes: '0',
@@ -312,10 +281,16 @@ export function createDemoEnvironment(
     return sample();
   };
   const runtime: NetworkRuntime = {
-    snapshot: async () => sample(),
+    snapshot: async () => {
+      control.reads++;
+      if (control.fail) throw { code: 'request_timeout' };
+      return sample();
+    },
     start: (id, config) => start(id, config, false),
     restart: (id, config) => start(id, config, true),
     stop: async (id) => {
+      control.operations.push('stop');
+      control.recovery = null;
       generations.set(id, (generations.get(id) ?? 0) + 1);
       const before = states.get(id);
       states.set(id, {
@@ -324,6 +299,7 @@ export function createDemoEnvironment(
         revision: (before?.revision ?? 0) + 1,
       });
       await delay();
+      if (disposed) throw { code: 'operation_cancelled' };
       candidates.delete(id);
       const current = states.get(id);
       states.set(id, {
@@ -333,6 +309,7 @@ export function createDemoEnvironment(
       return sample();
     },
     confirmQuiescent: async (id) => {
+      control.operations.push('release');
       if (
         candidates.has(id) ||
         (states.has(id) && !['stopped', 'failed'].includes(states.get(id)!.state))
@@ -341,5 +318,23 @@ export function createDemoEnvironment(
       return sample();
     },
   };
-  return { runtime, storage: createMemoryStorage(document), telemetry };
+  const memory = createMemoryStorage(document);
+  const storage = {
+    ...memory,
+    save: async (...args: Parameters<typeof memory.save>) => {
+      if (control.failSave) throw { code: 'io' };
+      return memory.save(...args);
+    },
+  };
+  return {
+    runtime,
+    storage,
+    telemetry,
+    control,
+    dispose: () => {
+      disposed = true;
+      for (const [id, generation] of generations) generations.set(id, generation + 1);
+      candidates.clear();
+    },
+  };
 }

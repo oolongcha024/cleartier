@@ -1,11 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { productionGuard } from './scripts/production-guard.ts';
 import { devEnvironment } from './scripts/dev-environment.ts';
 
 export default defineConfig(({ command }) => {
   const development = command === 'serve' ? devEnvironment() : undefined;
   return {
-    plugins: [react()],
+    plugins: [react(), productionGuard()],
     clearScreen: false,
     server: development && {
       host: development.host,

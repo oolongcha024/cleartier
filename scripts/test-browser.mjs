@@ -2,10 +2,11 @@ import { spawn } from 'node:child_process';
 import { readFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { devEnvironment } from './dev-environment.ts';
+import { devEnvironment, parseDevArguments } from './dev-environment.ts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const url = `${devEnvironment().devUrl}/`;
+const development = devEnvironment();
+const url = `${development.devUrl}/`;
 const cli = process.env.AGENT_BROWSER_BIN ?? 'agent-browser';
 const suites = [
   ['route-transitions'],
@@ -13,18 +14,20 @@ const suites = [
   ['about-versions'],
   ['snackbar-dismissal'],
   ['network-editor-session'],
-  ['advanced-disclosure', [], true],
-  ['dashboard-telemetry', ['native-telemetry']],
-  ['telemetry-refresh', ['native-telemetry']],
-  ['peer-icons', ['native-telemetry']],
-  ['peer-disclosure', ['native-telemetry']],
-  ['official-configuration', ['native-telemetry', 'native-configuration']],
-  ['invitations', ['native-telemetry', 'native-invitations']],
-  ['desktop-lifecycle', ['native-telemetry', 'native-desktop']],
-  ['diagnostics', ['native-telemetry', 'native-desktop']],
-  ['updates', ['native-telemetry', 'native-desktop', 'native-updates']],
+  ['advanced-disclosure', 'default', true],
+  ...[
+    'dashboard-telemetry',
+    'telemetry-refresh',
+    'peer-icons',
+    'peer-disclosure',
+    'official-configuration',
+    'invitations',
+    'desktop-lifecycle',
+    'diagnostics',
+    'updates',
+  ].map((name) => [name, 'testing']),
 ];
-const requested = process.argv.slice(2);
+const requested = parseDevArguments(process.argv.slice(2)).remaining;
 const chosen = requested.length ? suites.filter(([name]) => requested.includes(name)) : suites;
 if (requested.some((name) => !suites.some(([suite]) => suite === name)))
   throw new Error('Unknown browser suite');
@@ -57,10 +60,17 @@ let server;
 await mkdir(join(root, '.cache/browser'), { recursive: true });
 try {
   if (!(await available())) {
-    server = spawn(process.execPath, [join(root, 'node_modules/vite/bin/vite.js')], {
-      cwd: root,
-      stdio: 'ignore',
-    });
+    server = spawn(
+      process.execPath,
+      [
+        join(root, 'node_modules/vite/bin/vite.js'),
+        '--host',
+        development.host,
+        '--port',
+        String(development.port),
+      ],
+      { cwd: root, stdio: 'ignore' },
+    );
     const deadline = Date.now() + 15000;
     while (!(await available())) {
       if (Date.now() > deadline || server.exitCode !== null)
@@ -68,15 +78,14 @@ try {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
-  for (const [name, fixtures = [], editor = false] of chosen) {
+  for (const [name, scene = 'default', editor = false] of chosen) {
     const session = `cleartier-check-${process.pid}-${name}`;
     const args = ['--session', session];
     try {
-      const init = fixtures.flatMap((fixture) => [
-        '--init-script',
-        join(root, `tests/browser/fixtures/${fixture}.js`),
-      ]);
-      await command([...args, ...init, 'open', url]);
+      const entry = new URL(url);
+      entry.searchParams.set('dataSource', 'mock');
+      entry.searchParams.set('scene', scene);
+      await command([...args, 'open', entry.href]);
       await command([
         ...args,
         'set',
@@ -95,6 +104,8 @@ try {
         '--fn',
         "Boolean(document.querySelector('.connection-card'))",
       ]);
+      // Establish the first composited frame before animation assertions.
+      await command([...args, 'screenshot', join(root, `.cache/browser/${name}-initial.png`)]);
       if (editor) {
         await command(
           [...args, 'eval', '--stdin'],

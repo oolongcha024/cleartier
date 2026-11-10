@@ -26,7 +26,7 @@ function readPreference(): ThemePreference {
     const value = localStorage.getItem(storageKey);
     if (value === 'light' || value === 'dark') return value;
   } catch {
-    /* Preview also works when browser storage is unavailable. */
+    /* Nonessential preference. */
   }
   return defaultThemePreference;
 }

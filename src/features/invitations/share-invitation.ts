@@ -8,7 +8,7 @@ import {
 } from './invitation.ts';
 
 // One action owns source selection, async native extraction, stale-result checks
-// and clipboard outcome. Both desktop and preview cross this same Interface.
+// and clipboard outcome. All data sources cross this same Interface.
 export async function shareInvitation(
   read: () => Network | undefined,
   adapters: {

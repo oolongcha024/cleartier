@@ -1,0 +1,48 @@
+// IDs are stable links. Add presets beside each feature's mock data.
+export const scenarios = [
+  { id: 'default', group: '综合', label: '正常运行', route: '/' },
+  ...[
+    ['empty', '没有网络'],
+    ['offline', '全部断开'],
+    ['starting', '正在连接'],
+    ['failed', '连接失败'],
+    ['recovery', '等待恢复'],
+    ['stale', '数据读取失败'],
+    ['no-peers', '没有节点'],
+  ].map(([id, label]) => ({ id: `networks.${id}`, group: '网络', label, route: '/' })),
+  ...[
+    ['idle', '尚未检查'],
+    ['checking', '检查中'],
+    ['current', '已是最新'],
+    ['available', '发现更新'],
+    ['downloading', '下载中'],
+    ['indeterminate', '下载大小未知'],
+    ['failed', '检查失败'],
+    ['rateLimited', '请求受限'],
+    ['signature', '签名验证失败'],
+    ['ready', '安装确认'],
+    ['installing', '安装中'],
+    ['portable', '免安装版'],
+    ['unsupported', '不支持更新'],
+  ].map(([id, label]) => ({
+    id: `updates.${id}`,
+    group: '软件更新',
+    label,
+    route: '/settings/about',
+  })),
+  ...[
+    ['healthy', '正常'],
+    ['checking', '检查中'],
+    ['issues', '发现问题'],
+    ['incomplete', '数据不完整'],
+    ['failed', '检查失败'],
+    ['idle', '未运行'],
+  ].map(([id, label]) => ({ id: `diagnostics.${id}`, group: '诊断', label, route: '/settings' })),
+  ...[
+    ['close', '关闭确认'],
+    ['exit', '退出确认'],
+    ['preferences-error', '设置读取失败'],
+    ['tray-unavailable', '托盘不可用'],
+    ['quitting', '正在退出'],
+  ].map(([id, label]) => ({ id: `desktop.${id}`, group: '桌面', label, route: '/settings' })),
+];

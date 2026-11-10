@@ -1,5 +1,5 @@
 // Run on a fresh dashboard preview: agent-browser eval --stdin < this file.
-// Edits demo data in memory; reload afterwards to restore the demo fixture.
+// Edits mock data in memory; reload afterwards to reset the scene.
 (async () => {
   const waitFor = async (predicate, message) => {
     const end = performance.now() + 5000;

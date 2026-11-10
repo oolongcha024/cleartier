@@ -1,6 +1,6 @@
-// Run with native-telemetry.js and native-desktop.js. All native operations are simulated.
+// Uses the shared development adapter with scene=testing.
 (async () => {
-  const test = window.__desktopTest;
+  const test = window.__CLEARTIER_DEV__.mock.desktop;
   const check = (condition, message) => {
     if (!condition) throw new Error(message);
   };
@@ -30,7 +30,7 @@
     );
   };
   await waitFor(() => document.querySelector('.connection-card'), 'Dashboard missing');
-  const operations = window.__telemetryTest.operations.length;
+  const operations = window.__CLEARTIER_DEV__.mock.networks.operations.length;
   document.querySelector('a[href="#/settings"]').click();
   await waitFor(() => state('healthy'), 'Initial report did not render');
   check(!document.querySelector('.diagnostic-checks'), 'Details should start collapsed');
@@ -83,24 +83,15 @@
     'Empty history should be omitted',
   );
 
-  const original = window.__TAURI_INTERNALS__.invoke;
-  let release;
-  const gate = new Promise((resolve) => {
-    release = resolve;
-  });
-  window.__TAURI_INTERNALS__.invoke = async (command, args) => {
-    if (command === 'diagnostics_read') await gate;
-    return original(command, args);
-  };
+  test.holdRead = true;
   button('重新检查').click();
   await waitFor(() => state('checking'), 'Check progress missing');
   check(
     button('导出诊断信息').disabled && button('重新检查').disabled,
     'Concurrent operations not disabled',
   );
-  release();
+  test.holdRead = false;
   await waitFor(() => state('healthy') && !button('重新检查').disabled, 'Check completion missing');
-  window.__TAURI_INTERNALS__.invoke = original;
 
   test.failRead = true;
   await refresh('failed');
@@ -143,7 +134,10 @@
   check(!document.querySelector('.diagnostic-timestamp'), 'Initial failure invented a check time');
   test.failRead = false;
   await refresh('idle');
-  check(window.__telemetryTest.operations.length === operations, 'Diagnosis changed network state');
+  check(
+    window.__CLEARTIER_DEV__.mock.networks.operations.length === operations,
+    'Diagnosis changed network state',
+  );
   return {
     passed: true,
     checks: [

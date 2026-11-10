@@ -1,4 +1,4 @@
-// Start a fresh session using --init-script tests/browser/fixtures/native-telemetry.js.
+// Uses the shared development adapter with scene=testing.
 // This checks UI/IPC integration; actual core counters are covered in Rust.
 (async () => {
   const assert = (condition, message) => {
@@ -11,7 +11,7 @@
       await new Promise((resolve) => setTimeout(resolve, 80));
     }
   };
-  assert(window.__telemetryTest, 'Load the native telemetry fixture first');
+  assert(window.__CLEARTIER_DEV__.mock.networks, 'Select the shared development data source first');
   await waitFor(() =>
     [...document.querySelectorAll('.metric-value')].some((node) => node.innerText.includes('/s')),
   );
@@ -30,7 +30,7 @@
     table.innerText.includes('UDP') && table.innerText.includes('2.6.4-test'),
     'Connection details missing',
   );
-  window.__telemetryTest.fail = true;
+  window.__CLEARTIER_DEV__.mock.networks.fail = true;
   await waitFor(() => document.querySelector('.devices-card .data-status'));
   const totals = [...document.querySelectorAll('.traffic-total dd')].map((node) => node.innerText);
   assert(
@@ -46,7 +46,7 @@
     totals.every((value) => value !== '—'),
     'Query failure erased totals',
   );
-  window.__telemetryTest.fail = false;
+  window.__CLEARTIER_DEV__.mock.networks.fail = false;
   await waitFor(() => !document.querySelector('.devices-card .data-status'));
   await waitFor(() =>
     [...document.querySelectorAll('.metric-value')].some((node) => node.innerText.includes('/s')),

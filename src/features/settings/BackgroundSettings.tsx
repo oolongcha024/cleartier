@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next';
 import { Button, Select, Switch } from '../../components/ui';
 import { useDesktopStore } from '../desktop/desktop-store';
 import type { DesktopUpdate } from '../../platform/desktop';
-import { isDesktop } from '../../platform/client';
 
 export function BackgroundSettings() {
   const { t } = useTranslation();
@@ -46,7 +45,6 @@ export function BackgroundSettings() {
           {t('desktop.autostartUnavailable')}
         </p>
       )}
-      {!isDesktop() && <p className="settings-preview-note">{t('desktop.preview')}</p>}
       <div className="settings-row">
         <span>{t('desktop.closeBehavior')}</span>
         <Select

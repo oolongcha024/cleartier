@@ -48,12 +48,6 @@
   margin-top: 24px;
 }
 .settings-footnote,
-.settings-preview-note {
-  margin-top: 12px;
-  color: var(--md-sys-color-on-surface-variant);
-  font-size: 12px;
-  line-height: 20px;
-}
 .settings-notice {
   display: flex;
   align-items: center;

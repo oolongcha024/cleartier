@@ -8,20 +8,15 @@ import { UpdateCard } from '../updates/UpdateCard';
 
 export function AboutPage() {
   const { t } = useTranslation();
-  const { clientVersion, versionUnavailable, coreVersion, coreVersionUnavailable, desktop } =
-    useAboutInfo();
+  const { clientVersion, versionUnavailable, coreVersion, coreVersionUnavailable } = useAboutInfo();
   const [manualCopy, setManualCopy] = useState('');
   const copyInput = useRef<HTMLTextAreaElement>(null);
   const notify = useSnackbar();
   const clientValue = clientVersion ?? t(versionUnavailable ? 'about.unavailable' : 'app.loading');
-  const coreValue =
-    coreVersion ??
-    t(
-      !desktop ? 'about.corePreview' : coreVersionUnavailable ? 'about.unavailable' : 'app.loading',
-    );
+  const coreValue = coreVersion ?? t(coreVersionUnavailable ? 'about.unavailable' : 'app.loading');
   const versionsPending =
-    (!clientVersion && !versionUnavailable) || (desktop && !coreVersion && !coreVersionUnavailable);
-  const environment = t(desktop ? 'about.desktop' : 'about.browser');
+    (!clientVersion && !versionUnavailable) || (!coreVersion && !coreVersionUnavailable);
+  const environment = t('about.desktop');
   const handleCopy = async () => {
     const text = [
       `${t('app.name')} ${clientValue}`,

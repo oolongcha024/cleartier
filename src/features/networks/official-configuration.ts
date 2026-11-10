@@ -11,14 +11,12 @@ export interface ConfigurationPreview {
   preservedFields: string[];
 }
 // The file chooser, pinned-core conversion and credential-safe errors are hidden
-// behind this Interface. A browser never falls back after a native error.
+// behind this Interface. Adapter errors propagate to the caller.
 export interface OfficialConfiguration {
   pick: () => Promise<ConfigurationPreview | null>;
   inspect: (id: string, config: NetworkConfig) => Promise<ConfigurationPreview>;
   export: (id: string, config: NetworkConfig) => Promise<boolean>;
 }
 export function transferError(error: unknown): string {
-  return typeof error === 'string' && ['invalid', 'io', 'tooLarge', 'desktopOnly'].includes(error)
-    ? error
-    : 'io';
+  return typeof error === 'string' && ['invalid', 'io', 'tooLarge'].includes(error) ? error : 'io';
 }

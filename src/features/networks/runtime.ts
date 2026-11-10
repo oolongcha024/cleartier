@@ -30,7 +30,7 @@ export interface RuntimeFrame {
   error: RuntimeFailure | null;
   networks: RuntimeSnapshot[];
 }
-// Every adapter reports observations, including the in-memory browser runtime.
+// Every adapter reports observations using the same lifecycle contract.
 // Successful commands acknowledge readiness/cleanup, never mere acceptance.
 export interface NetworkRuntime {
   snapshot(): Promise<RuntimeFrame>;

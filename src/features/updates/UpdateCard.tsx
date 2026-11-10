@@ -9,7 +9,6 @@ export function UpdateCard() {
   const phase = snapshot?.phase ?? 'idle';
   const busy = ['checking', 'downloading', 'installing'].includes(phase);
   const supported = snapshot?.distribution === 'installed' || snapshot?.distribution === 'portable';
-  const preview = snapshot?.distribution === 'preview';
   const candidate = snapshot?.candidate;
   const code = error ?? snapshot?.error;
   const percentage = snapshot?.total
@@ -17,15 +16,12 @@ export function UpdateCard() {
     : null;
   const status = !snapshot
     ? 'loading'
-    : preview
-      ? 'preview'
-      : !supported
-        ? 'unsupported'
-        : code && !busy && !candidate
-          ? 'failed'
-          : phase;
-  const preferencesDisabled =
-    !snapshot || (!supported && !preview) || busy || pending || phase === 'ready';
+    : !supported
+      ? 'unsupported'
+      : code && !busy && !candidate
+        ? 'failed'
+        : phase;
+  const preferencesDisabled = !snapshot || !supported || busy || pending || phase === 'ready';
   const statusIcon =
     status === 'failed'
       ? 'error_outline'

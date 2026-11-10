@@ -3,14 +3,14 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { devEnvironment } from '../scripts/dev-environment.ts';
+import { devEnvironment, parseDevArguments } from '../scripts/dev-environment.ts';
 import { tauriArguments } from '../scripts/tauri.mjs';
 
 function fixture(t, contents) {
   const root = mkdtempSync(join(tmpdir(), 'cleartier-dev-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   if (contents !== undefined) writeFileSync(join(root, '.env.local'), contents);
-  return { root, env: {} };
+  return { root, env: {}, args: [] };
 }
 
 test('a fresh checkout uses localhost and matches the static desktop configuration', (t) => {
@@ -84,7 +84,12 @@ test('desktop development merges the address after user config and preserves run
   const actual = tauriArguments(args, options);
   assert.deepEqual(actual.slice(0, 4), args.slice(0, 4));
   assert.equal(actual[4], '--config');
-  assert.deepEqual(JSON.parse(actual[5]), { build: { devUrl: devEnvironment(options).devUrl } });
+  assert.deepEqual(JSON.parse(actual[5]), {
+    build: {
+      devUrl: devEnvironment(options).devUrl,
+      beforeDevCommand: 'pnpm dev --host 192.0.2.10 --port 5173',
+    },
+  });
   assert.deepEqual(actual.slice(6), args.slice(4));
   assert.deepEqual(args, [
     '-vv',
@@ -98,6 +103,84 @@ test('desktop development merges the address after user config and preserves run
   ]);
   const simple = tauriArguments(['dev'], options);
   assert.deepEqual(simple, ['dev', '--config', actual[5]]);
+});
+
+test('CLI address overrides legacy configuration without reading it or mutating the environment', (t) => {
+  const options = fixture(t);
+  mkdirSync(join(options.root, '.env.local'));
+  options.env.CLEARTIER_DEV_HOST = 'invalid/path';
+  const args = ['--host', '192.0.2.20', '--port=5188'];
+  const development = devEnvironment({ ...options, args });
+  assert.equal(development.host, '192.0.2.20');
+  assert.equal(development.port, 5188);
+  assert.equal(development.devUrl, 'http://192.0.2.20:5188');
+  assert.equal(development.previewUrl, 'http://192.0.2.20:5188');
+  assert.equal(options.env.CLEARTIER_DEV_HOST, 'invalid/path');
+  assert.deepEqual(args, ['--host', '192.0.2.20', '--port=5188']);
+});
+
+test('address flags preserve command arguments, and stop at the runner separator', () => {
+  const args = [
+    'updates',
+    '--host=dev.example.test',
+    '--port',
+    '5190',
+    '--open',
+    '--',
+    '--host',
+    'app',
+  ];
+  assert.deepEqual(parseDevArguments(args), {
+    host: 'dev.example.test',
+    port: 5190,
+    remaining: ['updates', '--open', '--', '--host', 'app'],
+  });
+});
+
+test('desktop CLI passes the same explicit address to the frontend and WebView', (t) => {
+  const options = fixture(t, 'CLEARTIER_DEV_HOST=invalid/path');
+  const args = [
+    'dev',
+    '--host=192.0.2.20',
+    '--port',
+    '5188',
+    '--config',
+    'custom.json',
+    '--',
+    '--port',
+    '9000',
+  ];
+  const actual = tauriArguments(args, options);
+  assert.deepEqual(actual.slice(0, 3), ['dev', '--config', 'custom.json']);
+  assert.deepEqual(JSON.parse(actual[4]), {
+    build: {
+      devUrl: 'http://192.0.2.20:5188',
+      beforeDevCommand: 'pnpm dev --host 192.0.2.20 --port 5188',
+    },
+  });
+  assert.deepEqual(actual.slice(5), ['--', '--port', '9000']);
+});
+
+test('CLI supports IPv6 and validates missing values, unsafe hosts and invalid ports', (t) => {
+  const options = fixture(t);
+  const development = devEnvironment({ ...options, args: ['--host=[::1]', '--port=5190'] });
+  assert.equal(development.host, '::1');
+  assert.equal(development.devUrl, 'http://[::1]:5190');
+  for (const args of [
+    ['--host'],
+    ['--host='],
+    ['--host', '--port', '5188'],
+    ['--port'],
+    ['--port=0'],
+    ['--port=65536'],
+    ['--port=1.5'],
+    ['--port=1e3'],
+    ['--port=abc'],
+    ['--host=localhost;echo'],
+    ['--host=localhost:5188'],
+    ['--host=0.0.0.0'],
+  ])
+    assert.throws(() => devEnvironment({ ...options, args }), /--host|--port/);
 });
 
 test('builds, other commands and CLI help bypass local host configuration', (t) => {

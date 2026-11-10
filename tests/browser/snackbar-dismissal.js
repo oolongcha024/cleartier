@@ -29,7 +29,11 @@
       frames++;
       await frame();
     }
-    assert(!document.querySelector('.snackbar'), 'Closed snackbar left an empty container');
+    const remaining = document.querySelector('.snackbar');
+    assert(
+      !remaining,
+      `Closed snackbar remained: ${remaining?.className}, animation=${remaining && getComputedStyle(remaining).animationName}`,
+    );
     return frames;
   };
   const region = document.querySelector('.snackbar-region');

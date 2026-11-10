@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '@tauri-apps/cli';
-import { devEnvironment } from './dev-environment.ts';
+import { devEnvironment, parseDevArguments } from './dev-environment.ts';
 
 export function tauriArguments(args, options) {
   const separator = args.indexOf('--');
@@ -14,9 +14,17 @@ export function tauriArguments(args, options) {
   ) {
     return args;
   }
-  const { devUrl } = devEnvironment(options);
+  const { host, port, devUrl } = devEnvironment({ ...options, args: cliArgs });
+  const { remaining } = parseDevArguments(cliArgs);
+  // Host is validated as an IP/hostname and port as an integer before shell interpolation.
+  const beforeDevCommand = `pnpm dev --host ${host} --port ${port}`;
   // Merge after custom config, before any runner/application arguments.
-  return [...cliArgs, '--config', JSON.stringify({ build: { devUrl } }), ...args.slice(boundary)];
+  return [
+    ...remaining,
+    '--config',
+    JSON.stringify({ build: { devUrl, beforeDevCommand } }),
+    ...args.slice(boundary),
+  ];
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

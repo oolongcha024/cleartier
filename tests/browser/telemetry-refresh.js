@@ -1,6 +1,7 @@
 // Native telemetry stays active while the visible read models have separate cadences.
 (async () => {
-  const control = window.__telemetryTest;
+  const control = window.__CLEARTIER_DEV__.mock.networks;
+  const visibility = window.__CLEARTIER_DEV__.mock.visibility;
   const check = (condition, message) => {
     if (!condition) throw new Error(message);
   };
@@ -45,13 +46,13 @@
   );
   check(document.activeElement === peer, 'Metric refresh lost keyboard focus');
 
-  control.emitWindow('tauri://blur');
+  visibility.emit();
   await settle();
   const unfocused = totals();
   await waitFor(() => totals() !== unfocused, 'An unfocused visible window stopped publishing');
 
-  control.visible = false;
-  control.emitWindow('tauri://blur');
+  visibility.visible = false;
+  visibility.emit();
   await settle();
   const frozen = totals();
   const reads = control.reads;
@@ -62,8 +63,8 @@
   check(!table().textContent.includes('88.8'), 'Hidden window kept publishing device metrics');
   check(control.operations.length === 0, 'Hiding changed a connection');
   const beforeRestore = control.reads;
-  control.visible = true;
-  control.emitWindow('tauri://focus');
+  visibility.visible = true;
+  visibility.emit();
   await waitFor(
     () => totals() !== frozen && table().textContent.includes('88.8'),
     'Visible window failed to catch up',
@@ -78,34 +79,29 @@
     peer.getAttribute('aria-expanded') === 'true' && document.activeElement === peer,
     'Restore lost disclosure or focus',
   );
-  control.minimized = true;
-  control.emitWindow('tauri://resize', { width: 0, height: 0 });
+  visibility.minimized = true;
+  visibility.emit();
   await settle();
   const minimized = totals();
   const minimizedReads = control.reads;
   await waitFor(() => control.reads >= minimizedReads + 2, 'Minimized state sync stopped');
   await settle();
   check(totals() === minimized, 'Minimized window kept publishing');
-  control.minimized = false;
-  control.emitWindow('tauri://resize', { width: 1200, height: 800 });
+  visibility.minimized = false;
+  visibility.emit();
   await waitFor(() => totals() !== minimized, 'Unminimized view did not recover');
 
-  // Browser document visibility follows the same publication seam, without IPC.
-  const visibility = await import('/src/platform/window-visibility.ts');
-  const previousNative = window.isTauri;
-  window.isTauri = false;
+  // Both application and tests exercise the selected visibility adapter.
   const states = [];
-  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
-  const stop = visibility.watchWindowVisibility((value) => states.push(value));
-  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
-  document.dispatchEvent(new Event('visibilitychange'));
-  stop();
-  delete document.visibilityState;
-  window.isTauri = previousNative;
-  check(
-    JSON.stringify(states) === '[false,true]',
-    'Browser preview visibility does not follow document state',
+  const stop = window.__CLEARTIER_DEV__.platform.watchWindowVisibility((value) =>
+    states.push(value),
   );
+  visibility.visible = false;
+  visibility.emit();
+  stop();
+  visibility.visible = true;
+  visibility.emit();
+  check(JSON.stringify(states) === '[true,false]', 'Visibility subscription leaked after cleanup');
   return {
     passed: true,
     checks: [
@@ -118,7 +114,7 @@
       'continuous-background-sampling',
       'restore-refresh',
       'minimize-restore',
-      'browser-visibility',
+      'visibility-subscription-cleanup',
     ],
   };
 })();

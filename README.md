@@ -37,10 +37,10 @@ ClearTier 面向异地组网、远程办公和游戏联机，将多网络连接�
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm dev
+pnpm dev --host 10.126.179.2 --port 5173
 ```
 
-默认访问 `http://localhost:5173`，支持热更新。远程开发时，将 [.env.example](.env.example) 复制为 `.env.local`，设置 `CLEARTIER_DEV_HOST` 为开发机地址；此文件不提交。浏览器预览使用演示数据，真实组网需运行桌面客户端。Tauri 调试、系统依赖和检查命令见[开发指南](docs/development.md)。
+上述命令访问 `http://10.126.179.2:5173`，支持热更新。开发地址可直接通过 `--host` 和 `--port` 指定，无需设置环境变量。浏览器仅用于开发，通过右下角开发面板选择模拟场景；页面和状态管理与桌面客户端共用，真实组网需运行 Tauri。Tauri 调试、系统依赖和检查命令见[开发指南](docs/development.md)。
 
 ## 文档
 

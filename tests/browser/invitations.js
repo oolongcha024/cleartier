@@ -1,5 +1,6 @@
-// Use native-telemetry.js + native-invitations.js; start on a fresh dashboard.
+// Uses the shared development adapter with scene=testing.
 (async () => {
+  window.__CLEARTIER_DEV__.mock.networks.failNewConnections = true;
   const check = (value, message) => {
     if (!value) throw new Error(message);
   };
@@ -51,14 +52,17 @@
   };
   await wait(() => inviteButton(), 'Start on a fresh dashboard');
   inviteButton().click();
-  await wait(() => window.__invitationTest.writes.length === 1, 'Single click did not copy');
+  await wait(
+    () => window.__CLEARTIER_DEV__.mock.invitations.writes.length === 1,
+    'Single click did not copy',
+  );
   check(!document.querySelector('.dialog-popup'), 'Normal invitation opened a dialog');
-  const original = decode(window.__invitationTest.writes[0]);
+  const original = decode(window.__CLEARTIER_DEV__.mock.invitations.writes[0]);
   check(
     Object.keys(original).sort().join(',') === 'displayName,name,secret,servers',
     'Invitation carried local settings',
   );
-  const existing = await window.__TAURI_INTERNALS__.invoke('config_load');
+  const existing = await window.__CLEARTIER_DEV__.platform.networks.storage.load();
   check(original.name === existing.networks[0].config.name, 'Wrong invitation target');
 
   await openJoin();
@@ -180,7 +184,7 @@
     'Replacement did not apply once',
   );
   check(field('alias').value === '我的备注', 'Replacement erased manual alias');
-  window.__telemetryTest.failSave = true;
+  window.__CLEARTIER_DEV__.mock.networks.failSave = true;
   button('添加网络').click();
   await wait(
     () => document.querySelector('.network-editor-actions [role="alert"]'),
@@ -192,24 +196,30 @@
       field('secret').value === newcomer.secret,
     'Failed save erased applied state or draft',
   );
-  window.__telemetryTest.failSave = false;
+  window.__CLEARTIER_DEV__.mock.networks.failSave = false;
   button('添加网络').click();
   await wait(() => !document.querySelector('.network-editor'), 'Retry did not add network');
-  const saved = await window.__TAURI_INTERNALS__.invoke('config_load');
+  const saved = await window.__CLEARTIER_DEV__.platform.networks.storage.load();
   const added = saved.networks.find((record) => record.config.name === newcomer.name);
   check(added && added.id !== existing.networks[0].id, 'New local identity missing');
   check(
     !added.client.autoConnect && added.config.ipv4Mode === 'auto' && added.config.hostname === null,
     'Receiver defaults wrong',
   );
-  check(window.__telemetryTest.operations.length === 0, 'Pasting/saving auto-connected a network');
+  check(
+    window.__CLEARTIER_DEV__.mock.networks.operations.length === 0,
+    'Pasting/saving auto-connected a network',
+  );
 
   // The new network is selected and stopped: sharing must use saved parameters.
-  const writes = window.__invitationTest.writes.length;
+  const writes = window.__CLEARTIER_DEV__.mock.invitations.writes.length;
   inviteButton().click();
-  await wait(() => window.__invitationTest.writes.length > writes, 'Offline share failed');
+  await wait(
+    () => window.__CLEARTIER_DEV__.mock.invitations.writes.length > writes,
+    'Offline share failed',
+  );
   check(
-    decode(window.__invitationTest.writes.at(-1)).secret === newcomer.secret,
+    decode(window.__CLEARTIER_DEV__.mock.invitations.writes.at(-1)).secret === newcomer.secret,
     'Offline share ignored saved parameters',
   );
   document.querySelector('.connection-state > button').click();
@@ -218,11 +228,11 @@
     'Real runtime error path not reached',
   );
   check(
-    window.__invitationTest.connections[0].config.secret === newcomer.secret,
+    window.__CLEARTIER_DEV__.mock.invitations.connections[0].config.secret === newcomer.secret,
     'Connection used wrong invitation credentials',
   );
   check(
-    (await window.__TAURI_INTERNALS__.invoke('config_load')).networks.some(
+    (await window.__CLEARTIER_DEV__.platform.networks.storage.load()).networks.some(
       (record) => record.id === added.id,
     ),
     'Failed connection deleted saved invite',
@@ -259,7 +269,7 @@
     'Existing profile did not open',
   );
   check(
-    (await window.__TAURI_INTERNALS__.invoke('config_load')).networks.length === 3,
+    (await window.__CLEARTIER_DEV__.platform.networks.storage.load()).networks.length === 3,
     'Duplicate invite created a record',
   );
 
@@ -272,11 +282,14 @@
   await wait(() => button('稍后应用'), 'Pending-config confirmation missing');
   button('稍后应用').click();
   await wait(() => !document.querySelector('.network-editor'), 'Save later did not close');
-  const beforePending = window.__invitationTest.writes.length;
+  const beforePending = window.__CLEARTIER_DEV__.mock.invitations.writes.length;
   inviteButton().click();
-  await wait(() => window.__invitationTest.writes.length > beforePending, 'Pending share failed');
+  await wait(
+    () => window.__CLEARTIER_DEV__.mock.invitations.writes.length > beforePending,
+    'Pending share failed',
+  );
   check(
-    decode(window.__invitationTest.writes.at(-1)).name === original.name,
+    decode(window.__CLEARTIER_DEV__.mock.invitations.writes.at(-1)).name === original.name,
     'Shared unapplied identity',
   );
   await wait(
@@ -284,7 +297,7 @@
     'Pending reminder missing',
   );
 
-  window.__invitationTest.failCopy = true;
+  window.__CLEARTIER_DEV__.mock.invitations.failCopy = true;
   inviteButton().click();
   await wait(
     () => document.querySelector('.invitation-manual-copy'),
@@ -296,13 +309,13 @@
   );
   document.querySelector('.dialog-popup button[aria-label="关闭"]').click();
   await wait(() => !document.querySelector('.dialog-popup'), 'Fallback did not close');
-  window.__invitationTest.failCopy = false;
-  window.__telemetryTest.fail = true;
+  window.__CLEARTIER_DEV__.mock.invitations.failCopy = false;
+  window.__CLEARTIER_DEV__.mock.networks.fail = true;
   await wait(
     () => document.querySelector('.connection-state h3')?.textContent === '状态未知',
     'Stale state not shown',
   );
-  const beforeUnknown = window.__invitationTest.writes.length;
+  const beforeUnknown = window.__CLEARTIER_DEV__.mock.invitations.writes.length;
   inviteButton().click();
   await frame();
   await wait(
@@ -310,10 +323,10 @@
     'Unknown source not explained',
   );
   check(
-    window.__invitationTest.writes.length === beforeUnknown,
+    window.__CLEARTIER_DEV__.mock.invitations.writes.length === beforeUnknown,
     'Unknown state silently shared saved data',
   );
-  window.__telemetryTest.fail = false;
+  window.__CLEARTIER_DEV__.mock.networks.fail = false;
   await openJoin();
   fill('invitation', '这不是一份邀请');
   await frame();
@@ -326,7 +339,7 @@
     () => !document.querySelector('.network-editor'),
     'Failed invitation prevented manual add',
   );
-  const manual = (await window.__TAURI_INTERNALS__.invoke('config_load')).networks.find(
+  const manual = (await window.__CLEARTIER_DEV__.platform.networks.storage.load()).networks.find(
     (record) => record.config.name === 'manual-after-failed-paste',
   );
   check(

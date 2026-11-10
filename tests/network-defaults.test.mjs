@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { defaultTunName } from '../src/features/networks/defaults.ts';
 import { activeVirtualIp } from '../src/features/networks/model.ts';
-import { createDemoEnvironment } from '../src/features/networks/demo.ts';
-const demo = createDemoEnvironment(async () => {});
-const demoNetworks = (await demo.storage.load()).networks;
+import { createMockNetworks } from '../dev/mock-networks.ts';
+const mock = createMockNetworks(async () => {});
+const mockNetworks = (await mock.storage.load()).networks;
 
-test('generated TUN names are stable, short, unique between demo networks and case-insensitive collision aware', () => {
-  const names = demoNetworks.map((network) => defaultTunName(network.id));
-  assert.equal(new Set(names).size, demoNetworks.length);
-  for (const network of demoNetworks) {
+test('generated TUN names are stable, short, unique between mock networks and case-insensitive collision aware', () => {
+  const names = mockNetworks.map((network) => defaultTunName(network.id));
+  assert.equal(new Set(names).size, mockNetworks.length);
+  for (const network of mockNetworks) {
     const name = defaultTunName(network.id);
     assert.match(name, /^[a-z\d-]{1,15}$/);
     assert.equal(defaultTunName(network.id), name);

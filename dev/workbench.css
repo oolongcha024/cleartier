@@ -1,0 +1,49 @@
+.dev-workbench {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 45;
+  width: 176px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 16px;
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-sys-color-surface-container-high);
+  box-shadow: 0 4px 20px #0002;
+  font-size: 12px;
+}
+.dev-workbench[open] {
+  width: 300px;
+}
+.dev-workbench summary {
+  padding: 14px 16px;
+  cursor: pointer;
+}
+.dev-workbench-fields {
+  display: grid;
+  gap: 16px;
+  padding: 0 16px 16px;
+}
+.dev-workbench label {
+  display: grid;
+  gap: 6px;
+}
+.dev-workbench select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--md-sys-color-surface-container);
+  color: var(--md-sys-color-on-surface);
+}
+.dev-workbench input {
+  width: 100%;
+  accent-color: var(--md-sys-color-primary);
+}
+.dev-workbench p {
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.6;
+}
+.dev-workbench [hidden] {
+  display: none;
+}

@@ -1,6 +1,6 @@
 import type { NetworkConfig } from './model';
 
-// getRandomValues works for the remote HTTP browser preview as well as Tauri.
+// Random identity generation is shared by all platforms.
 export function newNetworkId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   bytes[6] = (bytes[6] & 0x0f) | 0x40;

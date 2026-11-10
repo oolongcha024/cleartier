@@ -1,15 +1,16 @@
 # 架构说明
 
-界面通过 Tauri 调用普通权限的 Rust 应用，Rust 按需管理独立 EasyTier 核心进程。一个核心进程承载多个网络；浏览器使用同一运行 Interface 的内存 Adapter，原生失败不会伪装成演示成功。
+界面通过 Tauri 调用普通权限的 Rust 应用，Rust 按需管理独立 EasyTier 核心进程。一个核心进程承载多个网络。前端在 Store 创建前统一选择平台 Adapter；正式构建使用真实 Tauri 实现，开发可选内存模拟实现，原生错误原样传播。
 
 ## 模块职责
 
 | 入口                                                            | 职责                                                           |
 | --------------------------------------------------------------- | -------------------------------------------------------------- |
 | [src/app](../src/app/)                                          | Provider、路由与外壳，常用页面静态导入                         |
-| [features/networks](../src/features/networks/)                  | 编辑会话、工作流、持久化协调、运行观察及演示 Adapter           |
-| [src/platform](../src/platform/)                                | Tauri 调用与浏览器能力隔离                                     |
+| [features/networks](../src/features/networks/)                  | 编辑会话、工作流、持久化协调与运行观察                         |
+| [src/platform](../src/platform/)                                | 统一平台合同、真实 Tauri 实现与数据来源选择                    |
 | [features/dashboard](../src/features/dashboard/)                | 设备、流量及图表；共享控件、主题分别归 `components/`、`theme/` |
+| [dev](../dev/)                                                  | 开发面板、可复现场景及开发与测试共享的模拟 Adapter             |
 | [src-tauri/src](../src-tauri/src/)                              | Tauri 命令、应用路径和桌面生命周期组装                         |
 | [cleartier-updates](../src-tauri/crates/cleartier-updates/src/) | 更新策略、持久检查间隔、渠道筛选及下载／安装状态               |
 | [cleartier-config](../src-tauri/crates/cleartier-config/src/)   | 独立配置存储与后台偏好，不依赖 Tauri 或 EasyTier               |
@@ -79,7 +80,7 @@ Unix 使用私有目录和本地套接字，校验对端身份；非 Windows 自
 
 ## 软件更新
 
-`cleartier-updates` 通过快照与操作 Interface 集中管理 24 小时自动检查、SemVer 渠道、持久化、取消与安装顺序。Tauri／静态更新源 Adapter 和测试 Adapter 共用该 Interface；React 只展示版本化快照并提交意图，浏览器预览不调用原生更新能力。计时位于 Rust，窗口隐藏不影响检查，失败尝试也计入间隔；手动检查绕过自动间隔，复用 60 秒内的成功结果，仍遵守服务端限流并展示重试时间。
+`cleartier-updates` 通过快照与操作 Interface 集中管理 24 小时自动检查、SemVer 渠道、持久化、取消与安装顺序。Tauri／静态更新源 Adapter 和测试 Adapter 共用该 Interface；React 只展示版本化快照并提交意图，开发模拟 Adapter 实现相同前端合同，不调用原生更新能力。计时位于 Rust，窗口隐藏不影响检查，失败尝试也计入间隔；手动检查绕过自动间隔，复用 60 秒内的成功结果，仍遵守服务端限流并展示重试时间。
 
 客户端读取 GitHub Pages 的 `updates/updates.json`，不查询 Release API。索引 v1 包含 `schemaVersion / stable / preview`；稳定渠道可为空，预发布渠道包含正式版与预发布版中的最高 SemVer 版本。发布端只接纳已发布且附件完整的 Windows x64 版本，串行重建并部署整个索引。客户端拒绝不兼容或矛盾的索引，失败保留已知候选并明确提示错误；切换更新源时保留偏好，清除旧源的冷却与自动检查时间。
 

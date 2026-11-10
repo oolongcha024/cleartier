@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router';
 import { Button, Dialog, Icon, IconButton, TextField } from '../../components/ui';
 import { useHostEnvironment } from '../../platform/use-host-environment';
 import { draftConfig, type NetworkDraft } from './configuration';
-import { isDesktop } from '../../platform/client';
 import { ConfigurationCompatibility, useCompatibility } from './ConfigurationCompatibility';
 import { networkIcons, type Network } from './model';
 import { useNetworkStore } from './store';
@@ -77,7 +76,7 @@ export function NetworkEditor({
     () => draftConfig(draft, network.savedConfig),
     [draft, network.savedConfig],
   );
-  const compatibility = useCompatibility(network.id, proposedConfig, imported && isDesktop());
+  const compatibility = useCompatibility(network.id, proposedConfig, imported);
   const requestExit = () => {
     if (saving) return;
     if (creating && invitation.dirty) setDiscarding(true);
@@ -275,11 +274,9 @@ export function NetworkEditor({
               error={errorText('hostname')}
               placeholder={t(environment ? 'networkConfig.hostnamePlaceholder' : 'app.loading')}
               hint={t(
-                environment?.preview
-                  ? 'networkConfig.hostnamePreviewHint'
-                  : environment?.unavailable
-                    ? 'networkConfig.hostnameUnavailable'
-                    : 'networkConfig.hostnameHint',
+                environment?.unavailable
+                  ? 'networkConfig.hostnameUnavailable'
+                  : 'networkConfig.hostnameHint',
               )}
               trailing={
                 <IconButton
