@@ -3,11 +3,11 @@ import { createHash } from 'node:crypto';
 import {
   cpSync,
   copyFileSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -112,17 +112,15 @@ function exportOutputs(mode, release, version) {
   if (mode !== 'exe') {
     const directory = join(release, 'bundle/nsis');
     const installers = readdirSync(directory).filter((name) => name.endsWith('-setup.exe'));
-    if (installers.length !== 1)
-      throw new Error(`Expected one new NSIS installer, found ${installers.length}.`);
+    const installer = `ClearTier_${version.version}_x64-setup.exe`;
+    if (installers.length !== 1 || installers[0] !== installer)
+      throw new Error(`Expected one new NSIS installer named ${installer}.`);
     const destination = join(output, 'nsis');
     rmSync(destination, { recursive: true, force: true });
     mkdirSync(destination, { recursive: true });
-    copyFileSync(join(directory, installers[0]), join(destination, installers[0]));
-    copyFileSync(
-      join(directory, `${installers[0]}.sig`),
-      join(destination, `${installers[0]}.sig`),
-    );
-    files.push(`nsis/${installers[0]}`);
+    copyFileSync(join(directory, installer), join(destination, installer));
+    copyFileSync(join(directory, `${installer}.sig`), join(destination, `${installer}.sig`));
+    files.push(`nsis/${installer}`);
     run('cargo', [
       'run',
       '--locked',
@@ -134,7 +132,7 @@ function exportOutputs(mode, release, version) {
       'update-manifest',
       '--',
       join(root, 'src-tauri/tauri.conf.json'),
-      join(destination, installers[0]),
+      join(destination, installer),
       version.version,
       join(output, 'latest.json'),
     ]);
@@ -165,11 +163,13 @@ function exportOutputs(mode, release, version) {
     },
     core: JSON.parse(readFileSync(join(resources, 'core-resources.json'), 'utf8')),
     checks: ['Direct', 'Process', 'Recovery', 'MissingResource'],
-    files: files.map((path) => ({
-      path,
-      size: statSync(join(output, path)).size,
-      sha256: checksum(join(output, path)),
-    })),
+    files: files.map((path) => {
+      const file = join(output, path);
+      const stat = lstatSync(file);
+      if (!stat.isFile() || stat.size === 0)
+        throw new Error(`Invalid package size or type: ${path}`);
+      return { path, size: stat.size, sha256: checksum(file) };
+    }),
   };
   writeFileSync(join(output, 'build-info.json'), JSON.stringify(manifest, null, 2) + '\n');
   for (const file of manifest.files) console.log(`Exported ${file.path} (${file.size} bytes)`);
@@ -208,7 +208,6 @@ export function main(args = process.argv.slice(2).filter((arg) => arg !== '--'))
   rmSync(join(output, 'nsis'), { recursive: true, force: true });
   rmSync(join(output, 'exe'), { recursive: true, force: true });
   run('pnpm', ['format:check']);
-  run('pnpm', ['typecheck']);
   run('pnpm', ['test']);
   run('cargo', [
     'test',

@@ -6,7 +6,11 @@ import { fileURLToPath } from 'node:url';
 // build-info.json is internal build evidence, never a Release attachment.
 async function readPackages(root, directory, tag, commit, repository) {
   const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  if (typeof version !== 'string' || tag !== `v${version}`)
+  if (
+    typeof version !== 'string' ||
+    !/^\d+\.\d+\.\d+(?:-(?:alpha|beta|rc)\.[1-9]\d*)?$/.test(version) ||
+    tag !== `v${version}`
+  )
     throw new Error('Release tag must match package.json version.');
   const info = JSON.parse(readFileSync(join(directory, 'build-info.json'), 'utf8'));
   if (
@@ -19,14 +23,12 @@ async function readPackages(root, directory, tag, commit, repository) {
     throw new Error('Build evidence must match this tag, commit and complete Windows x64 build.');
   }
   const entries = info.files;
+  const installerName = `ClearTier_${version}_x64-setup.exe`;
+  const expectedPaths = ['latest.json', 'cleartier-windows-x64.zip', `nsis/${installerName}`];
   if (
     !Array.isArray(entries) ||
-    entries.length !== 3 ||
-    entries.filter((file) => file.path === 'latest.json').length !== 1 ||
-    entries.filter((file) => file.path === 'cleartier-windows-x64.zip').length !== 1 ||
-    entries.filter(
-      (file) => typeof file.path === 'string' && /^nsis\/[^/\\]+-setup\.exe$/.test(file.path),
-    ).length !== 1
+    entries.length !== expectedPaths.length ||
+    !expectedPaths.every((path) => entries.some((file) => file?.path === path))
   ) {
     throw new Error(
       'Expected exactly one portable ZIP, one NSIS installer and latest.json in build evidence.',
@@ -46,9 +48,8 @@ async function readPackages(root, directory, tag, commit, repository) {
     files.push({ path, name: basename(path), size: stat.size, digest });
   }
   const manifest = JSON.parse(readFileSync(join(directory, 'latest.json'), 'utf8'));
-  const installer = files.find((file) => file.name.endsWith('-setup.exe'));
   const update = manifest.platforms?.['windows-x86_64'];
-  const expectedUrl = `https://github.com/${repository}/releases/download/${tag}/${installer.name}`;
+  const expectedUrl = `https://github.com/${repository}/releases/download/${tag}/${installerName}`;
   if (
     manifest.version !== version ||
     update?.url !== expectedUrl ||

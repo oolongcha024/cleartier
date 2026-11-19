@@ -240,11 +240,13 @@ for (const field of ['version', 'url', 'signature']) {
   });
 }
 
-for (const change of ['commit', 'ref', 'mode', 'target', 'version', 'files']) {
+for (const change of ['commit', 'ref', 'mode', 'target', 'version', 'files', 'installer name']) {
   test(`incorrect build evidence (${change}) cannot create a release`, async (t) => {
     const { options, manifest, saveManifest, state } = await fixture(t);
     if (change === 'commit' || change === 'ref') manifest.source[change] = 'wrong';
     else if (change === 'files') manifest.files.push({ path: 'build-info.json' });
+    else if (change === 'installer name')
+      manifest.files.find((file) => file.path.startsWith('nsis/')).path = 'nsis/other-setup.exe';
     else manifest[change] = 'wrong';
     saveManifest();
     await assert.rejects(publishRelease(options), /Build evidence|Expected exactly/);
