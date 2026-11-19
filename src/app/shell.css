@@ -21,6 +21,7 @@
   grid-template-rows: minmax(0, 1fr);
   height: 100dvh;
   min-height: 600px;
+  background-color: var(--md-sys-color-surface);
   transition: grid-template-columns var(--motion-medium);
 }
 .sidebar {

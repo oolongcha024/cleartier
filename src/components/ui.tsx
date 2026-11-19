@@ -48,7 +48,7 @@ export function Hint({ label, children }: { label: string; children: ReactNode }
     <Tooltip.Root>
       <Tooltip.Trigger render={<span className="hint-anchor" />}>{children}</Tooltip.Trigger>
       <Tooltip.Portal>
-        <Tooltip.Positioner sideOffset={8} className="tooltip-positioner">
+        <Tooltip.Positioner sideOffset={8} className="tooltip-positioner" data-theme-snapshot="">
           <Tooltip.Popup className="tooltip">{label}</Tooltip.Popup>
         </Tooltip.Positioner>
       </Tooltip.Portal>
@@ -176,6 +176,7 @@ export function Select({
           align="start"
           alignItemWithTrigger={false}
           className="select-positioner"
+          data-theme-snapshot=""
         >
           <BaseSelect.Popup className={`select-popup ${popupClassName}`}>
             <BaseSelect.List>
@@ -300,8 +301,12 @@ export function Dialog({
   return (
     <BaseDialog.Root open={open} onOpenChange={onOpenChange}>
       <BaseDialog.Portal>
-        <BaseDialog.Backdrop className="dialog-backdrop" />
-        <BaseDialog.Popup className={`dialog-popup ${className}`} initialFocus={initialFocus}>
+        <BaseDialog.Backdrop className="dialog-backdrop" data-theme-snapshot="backdrop" />
+        <BaseDialog.Popup
+          className={`dialog-popup ${className}`}
+          data-theme-snapshot=""
+          initialFocus={initialFocus}
+        >
           <div className="dialog-heading">
             <BaseDialog.Title>{title}</BaseDialog.Title>
             <IconButton icon="close" label={t('app.close')} onClick={() => onOpenChange(false)} />
@@ -350,6 +355,7 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
           <div
             key={notice.id}
             className={`snackbar ${notice.closing ? 'snackbar--closing' : 'snackbar--visible'}`}
+            data-theme-snapshot=""
             onAnimationEnd={(event) => {
               if (event.target !== event.currentTarget || event.animationName !== 'snackbar-exit')
                 return;

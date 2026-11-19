@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { ViewTransition, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Icon, IconButton, useSnackbar } from '../components/ui';
@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const notify = useSnackbar();
   const { pathname } = useLocation();
-  const { dark, setPreference } = useTheme();
+  const { color, dark, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const quitting = useDesktopStore((state) => state.status?.quitting ?? false);
   const networkCount = useNetworkStore((state) => state.networks.length);
@@ -25,104 +25,111 @@ export function AppShell({ children }: { children: ReactNode }) {
   const currentPage = pageId(pathname);
 
   return (
-    <div inert={quitting} className={`app-shell ${collapsed ? 'app-shell--collapsed' : ''}`}>
-      <a
-        href="#main-content"
-        className="skip-link"
-        onClick={(event) => {
-          event.preventDefault();
-          document.getElementById('main-content')?.focus();
-        }}
+    <ViewTransition default="none" update={{ default: 'none', theme: 'auto' }}>
+      {/* Keep palette-only changes visible to the app shell's ViewTransition. */}
+      <div
+        inert={quitting}
+        className={`app-shell ${collapsed ? 'app-shell--collapsed' : ''}`}
+        data-theme-color={color}
       >
-        {t('app.skip')}
-      </a>
-      <aside className="sidebar">
-        <NavLink to="/" className="brand" aria-label={t('app.name')}>
-          <span className="brand-mark">
-            <span className="brand-logo" aria-hidden="true" />
-          </span>
-          <span className="brand-name">
-            ClearTier<span className="brand-period">.</span>
-          </span>
-        </NavLink>
-        <div className="sidebar-navigation" id="sidebar-navigation">
-          <nav aria-label={t('app.navigation')}>
-            {navigation.map((item) => (
-              <NavLink
-                key={item.id}
-                to={item.path}
-                end={item.path === '/'}
-                aria-label={t(`nav.${item.id}`)}
-                title={collapsed ? t(`nav.${item.id}`) : undefined}
-                className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}
-              >
-                <Icon name={item.icon} />
-                <span className="nav-item-label">{t(`nav.${item.id}`)}</span>
-                {item.id === 'networks' && <span className="nav-badge">{networkCount}</span>}
-              </NavLink>
-            ))}
-          </nav>
-        </div>
-        <div className="sidebar-bottom">
-          <div className="sidebar-status">
-            <span className={`status-dot ${connected ? 'status-dot--success' : ''}`} />
-            <span>{t(`dashboard.${summary}`, { count: connected })}</span>
-          </div>
-          <NavLink
-            to="/settings"
-            aria-label={t('nav.settings')}
-            className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}
-            title={collapsed ? t('nav.settings') : undefined}
-          >
-            <Icon name="settings" />
-            <span className="nav-item-label">{t('nav.settings')}</span>
-          </NavLink>
-          <button
-            type="button"
-            className="nav-item sidebar-exit"
-            aria-label={t('desktop.exitApp')}
-            title={collapsed ? t('desktop.exitApp') : undefined}
-            disabled={quitting}
-            onClick={() => {
-              void exitDesktop().catch(() => notify(t('desktop.actionFailed')));
-            }}
-          >
-            <Icon name="power_settings_new" />
-            <span className="nav-item-label">{t('desktop.exitApp')}</span>
-          </button>
-          <div className="sidebar-footer">
-            <IconButton
-              icon={collapsed ? 'left_panel_open' : 'left_panel_close'}
-              label={t(collapsed ? 'app.expand' : 'app.collapse')}
-              aria-expanded={!collapsed}
-              aria-controls="sidebar-navigation"
-              onClick={() => setCollapsed(!collapsed)}
-            />
-            <span>
-              ClearTier <span className="version">{version}</span>
+        <a
+          href="#main-content"
+          className="skip-link"
+          onClick={(event) => {
+            event.preventDefault();
+            document.getElementById('main-content')?.focus();
+          }}
+        >
+          {t('app.skip')}
+        </a>
+        <aside className="sidebar">
+          <NavLink to="/" className="brand" aria-label={t('app.name')}>
+            <span className="brand-mark">
+              <span className="brand-logo" aria-hidden="true" />
             </span>
+            <span className="brand-name">
+              ClearTier<span className="brand-period">.</span>
+            </span>
+          </NavLink>
+          <div className="sidebar-navigation" id="sidebar-navigation">
+            <nav aria-label={t('app.navigation')}>
+              {navigation.map((item) => (
+                <NavLink
+                  key={item.id}
+                  to={item.path}
+                  end={item.path === '/'}
+                  aria-label={t(`nav.${item.id}`)}
+                  title={collapsed ? t(`nav.${item.id}`) : undefined}
+                  className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}
+                >
+                  <Icon name={item.icon} />
+                  <span className="nav-item-label">{t(`nav.${item.id}`)}</span>
+                  {item.id === 'networks' && <span className="nav-badge">{networkCount}</span>}
+                </NavLink>
+              ))}
+            </nav>
           </div>
-        </div>
-      </aside>
-      <main className="main-content" id="main-content" tabIndex={-1}>
-        <header className="page-header">
-          <h1 key={currentPage} className="page-title">
-            {t(`nav.${currentPage}`)}
-          </h1>
-          <div className="header-actions">
-            <IconButton
-              icon={dark ? 'light_mode' : 'dark_mode'}
-              label={t('app.theme')}
-              onClick={() => setPreference(dark ? 'light' : 'dark')}
-            />
+          <div className="sidebar-bottom">
+            <div className="sidebar-status">
+              <span className={`status-dot ${connected ? 'status-dot--success' : ''}`} />
+              <span>{t(`dashboard.${summary}`, { count: connected })}</span>
+            </div>
+            <NavLink
+              to="/settings"
+              aria-label={t('nav.settings')}
+              className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}
+              title={collapsed ? t('nav.settings') : undefined}
+            >
+              <Icon name="settings" />
+              <span className="nav-item-label">{t('nav.settings')}</span>
+            </NavLink>
+            <button
+              type="button"
+              className="nav-item sidebar-exit"
+              aria-label={t('desktop.exitApp')}
+              title={collapsed ? t('desktop.exitApp') : undefined}
+              disabled={quitting}
+              onClick={() => {
+                void exitDesktop().catch(() => notify(t('desktop.actionFailed')));
+              }}
+            >
+              <Icon name="power_settings_new" />
+              <span className="nav-item-label">{t('desktop.exitApp')}</span>
+            </button>
+            <div className="sidebar-footer">
+              <IconButton
+                icon={collapsed ? 'left_panel_open' : 'left_panel_close'}
+                label={t(collapsed ? 'app.expand' : 'app.collapse')}
+                aria-expanded={!collapsed}
+                aria-controls="sidebar-navigation"
+                onClick={() => setCollapsed(!collapsed)}
+              />
+              <span>
+                ClearTier <span className="version">{version}</span>
+              </span>
+            </div>
           </div>
-        </header>
-        <ConfigurationNotice />
-        <ConnectionNotice />
-        <div key={pathname} className="page-view">
-          {children}
-        </div>
-      </main>
-    </div>
+        </aside>
+        <main className="main-content" id="main-content" tabIndex={-1}>
+          <header className="page-header">
+            <h1 key={currentPage} className="page-title">
+              {t(`nav.${currentPage}`)}
+            </h1>
+            <div className="header-actions">
+              <IconButton
+                icon={dark ? 'light_mode' : 'dark_mode'}
+                label={t('app.theme')}
+                onClick={toggleTheme}
+              />
+            </div>
+          </header>
+          <ConfigurationNotice />
+          <ConnectionNotice />
+          <div key={pathname} className="page-view">
+            {children}
+          </div>
+        </main>
+      </div>
+    </ViewTransition>
   );
 }

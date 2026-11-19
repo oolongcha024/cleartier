@@ -36,6 +36,54 @@
   }
 }
 
+:root[data-theme-committing],
+:root[data-theme-committing] *,
+:root[data-theme-committing] *::before,
+:root[data-theme-committing] *::after {
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+:root:active-view-transition-type(theme)::view-transition {
+  pointer-events: none;
+}
+
+:root:active-view-transition-type(theme) [data-theme-snapshot] {
+  view-transition-name: match-element;
+}
+
+:root:active-view-transition-type(theme)::view-transition-group(*),
+:root:active-view-transition-type(theme)::view-transition-new(*) {
+  animation: none;
+}
+
+:root:active-view-transition-type(theme)::view-transition-old(*),
+:root:active-view-transition-type(theme)::view-transition-new(*) {
+  mix-blend-mode: normal;
+}
+
+:root:active-view-transition-type(theme)::view-transition-old(*) {
+  z-index: 1;
+  animation: theme-fade-out var(--md-sys-motion-duration-short-4)
+    var(--md-sys-motion-easing-standard) both;
+}
+
+:root:active-view-transition-type(theme) [data-theme-snapshot='backdrop'] {
+  view-transition-class: theme-backdrop;
+}
+
+:root:active-view-transition-type(theme)::view-transition-old(.theme-backdrop) {
+  /* The backdrop tint is shared by both palettes. Show it only once. */
+  opacity: 0;
+  animation: none;
+}
+
+@keyframes theme-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

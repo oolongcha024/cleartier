@@ -55,6 +55,7 @@ export function PeerIconPicker({
           align="start"
           sideOffset={4}
           className="peer-icon-positioner"
+          data-theme-snapshot=""
         >
           <Menu.Popup className="peer-icon-menu" aria-label={label}>
             <Menu.RadioGroup
