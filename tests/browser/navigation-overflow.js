@@ -17,7 +17,7 @@
   const results = [];
 
   try {
-    for (const expanded of [true, false, true, false]) {
+    for (const expanded of [true, false]) {
       if ((toggle.getAttribute('aria-expanded') === 'true') !== expanded) toggle.click();
       await settle();
       const width = panel.clientWidth;

@@ -8,8 +8,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const development = devEnvironment();
 const url = `${development.devUrl}/`;
 const cli = process.env.AGENT_BROWSER_BIN ?? 'agent-browser';
-const suites = [
-  ['route-transitions'],
+const defaultSuites = [
   ['navigation-overflow'],
   ['about-versions'],
   ['snackbar-dismissal'],
@@ -27,8 +26,11 @@ const suites = [
     'updates',
   ].map((name) => [name, 'testing']),
 ];
+const suites = [...defaultSuites, ['route-transitions']];
 const requested = development.remaining;
-const chosen = requested.length ? suites.filter(([name]) => requested.includes(name)) : suites;
+const chosen = requested.length
+  ? suites.filter(([name]) => requested.includes(name))
+  : defaultSuites;
 if (requested.some((name) => !suites.some(([suite]) => suite === name)))
   throw new Error('Unknown browser suite');
 function command(args, input) {

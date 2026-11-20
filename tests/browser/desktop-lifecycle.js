@@ -309,19 +309,5 @@
   test.status.quitting = false;
   test.emit();
   await waitFor(() => !document.querySelector('.desktop-exit-status'), 'shutdown overlay stuck');
-  return {
-    passed: true,
-    checks: [
-      'settings-save-failure-retry',
-      'close-dialog-spacing',
-      'close-error-retry',
-      'background-explanation',
-      'exit-confirmation-cancel',
-      'diagnostic-export-failure-cancel',
-      'recovery-cancel-authorization-retry',
-      'background-draft-preserved',
-      'preferences-read-error',
-      'shutdown-inert',
-    ],
-  };
+  return { passed: true };
 })();

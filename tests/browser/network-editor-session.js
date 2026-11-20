@@ -140,16 +140,5 @@
     document.querySelectorAll('.network-config-row')[0].textContent.includes('测试办公室'),
     'Dashboard edits did not reach network configuration',
   );
-  return {
-    passed: true,
-    scenarios: [
-      'fresh sessions in both entry points',
-      'local save',
-      'confirmation',
-      'save for later',
-      'apply',
-      'basic and advanced validation focus',
-      'target isolation',
-    ],
-  };
+  return { passed: true };
 })();

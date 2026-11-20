@@ -138,19 +138,5 @@
     window.__CLEARTIER_DEV__.mock.networks.operations.length === operations,
     'Diagnosis changed network state',
   );
-  return {
-    passed: true,
-    checks: [
-      'collapsed-details-and-history',
-      'history-independent',
-      'specific-action-errors',
-      'unknown-and-missing-interface',
-      'problem-guidance',
-      'progress-and-retry',
-      'stale-results',
-      'cancel-export',
-      'idle-without-errors',
-      'read-only-diagnostics',
-    ],
-  };
+  return { passed: true };
 })();

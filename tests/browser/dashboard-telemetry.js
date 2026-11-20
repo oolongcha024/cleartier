@@ -72,18 +72,5 @@
     'New session kept old totals',
   );
   assert(document.documentElement.scrollWidth <= innerWidth, 'Dashboard overflowed the viewport');
-  return {
-    passed: true,
-    checked: [
-      'hostname',
-      'loss-column',
-      'unknown-relay-quality',
-      'inline-details',
-      'stale-preservation',
-      'resync',
-      'stop-retention',
-      'restart-reset',
-      'no-overflow',
-    ],
-  };
+  return { passed: true };
 })();

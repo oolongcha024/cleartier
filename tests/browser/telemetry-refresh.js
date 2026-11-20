@@ -102,19 +102,5 @@
   visibility.visible = true;
   visibility.emit();
   check(JSON.stringify(states) === '[true,false]', 'Visibility subscription leaked after cleanup');
-  return {
-    passed: true,
-    checks: [
-      'independent-subscriptions',
-      'latest-quality',
-      'stable-disclosure-and-focus',
-      'visible-blur',
-      'hidden-publication-paused',
-      'background-state-sync',
-      'continuous-background-sampling',
-      'restore-refresh',
-      'minimize-restore',
-      'visibility-subscription-cleanup',
-    ],
-  };
+  return { passed: true };
 })();

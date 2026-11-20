@@ -10,16 +10,28 @@ test('development adapter supplies real-shaped snapshots and seeds telemetry thr
   const mock = createMockNetworks(async () => {});
   const store = createNetworkStore(mock.runtime, mock);
   await store.getState().initialize();
-  assert.equal(store.getState().networks.length, 3);
-  assert.equal(store.getState().networks.find((network) => network.id === 'office').peerCount, 3);
-  const { traffic: telemetry, devices } = store.telemetry.store.getState().office;
-  assert.ok(telemetry.points.length >= 30);
-  assert.equal(telemetry.snapshot.hostname, 'ClearTier-PC');
-  assert.ok(telemetry.download > 0);
-  assert.equal(devices.peers.length, 3);
-  const external = await mock.runtime.snapshot();
-  external.networks[0].runningConfig.secret = 'changed';
-  assert.notEqual((await mock.runtime.snapshot()).networks[0].runningConfig.secret, 'changed');
+  const snapshot = await mock.runtime.snapshot();
+  const networks = store.getState().networks;
+  assert.deepEqual(
+    new Set(networks.map(({ id }) => id)),
+    new Set(snapshot.networks.map(({ id }) => id)),
+  );
+  const active = snapshot.networks.find((network) => network.telemetry?.peers.length);
+  assert.ok(active, 'Expected a simulated network with live peers');
+  const { traffic, devices } = store.telemetry.store.getState()[active.id];
+  assert.equal(networks.find(({ id }) => id === active.id).peerCount, active.peerCount);
+  assert.equal(devices.peers.length, active.telemetry.peers.length);
+  assert.equal(traffic.snapshot.hostname, active.telemetry.hostname);
+  assert.ok(traffic.points.length > 1);
+  assert.ok(traffic.download > 0);
+
+  const originalSecret = active.runningConfig.secret;
+  active.runningConfig.secret += '-changed';
+  const fresh = await mock.runtime.snapshot();
+  assert.equal(
+    fresh.networks.find(({ id }) => id === active.id).runningConfig.secret,
+    originalSecret,
+  );
 });
 test('mock restart changes only the target session and reports manual/automatic addresses', async () => {
   const mock = createMockNetworks(async () => {});

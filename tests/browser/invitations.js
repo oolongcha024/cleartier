@@ -346,25 +346,5 @@
     manual?.config.secret === 'manual-test-only',
     'Manual fields were not saved after invitation failure',
   );
-  return {
-    passed: true,
-    checked: [
-      'one-click-copy',
-      'minimal-fields',
-      'one-time-fill',
-      'stable-layout-and-focus',
-      'replace-preserves-edits',
-      'failed-paste-allows-manual-add',
-      'receiver-settings',
-      'invalid-input',
-      'save-retry',
-      'manual-connection',
-      'offline-source',
-      'duplicate-preserves-applied-state',
-      'open-existing',
-      'pending-running-source',
-      'manual-copy-fallback',
-      'unknown-state',
-    ],
-  };
+  return { passed: true };
 })();

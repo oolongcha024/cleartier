@@ -73,13 +73,5 @@
   return {
     passed: true,
     exitFrames,
-    checked: [
-      'no-empty-frame',
-      'container-removed',
-      'replacement-survives-old-exit',
-      'auto-dismissal',
-      'reduced-motion',
-      'persistent-live-region',
-    ],
   };
 })();

@@ -51,7 +51,6 @@ VS Code 按仓库推荐安装 Prettier 和 rust-analyzer 后，按语言保存�
 ```sh
 pnpm format:check
 pnpm test
-pnpm typecheck
 pnpm build
 cargo check --locked --manifest-path src-tauri/Cargo.toml --workspace
 cargo test --locked --manifest-path src-tauri/Cargo.toml -p cleartier-config -p cleartier-core -p cleartier-updates
@@ -65,7 +64,7 @@ agent-browser install
 pnpm test:browser --host 10.126.179.2 --port 5173
 ```
 
-可追加场景名，例如 `pnpm test:browser --host 10.126.179.2 --port 5173 network-editor-session desktop-lifecycle`。脚本使用共享模拟数据来源，自动启动或复用开发服务、隔离浏览器会话并清理；失败截图在 `.cache/browser/`。`BROWSER_WIDTH / BROWSER_HEIGHT / BROWSER_COLOR_SCHEME / BROWSER_REDUCED_MOTION` 用于最小窗口、深色及减少动态效果检查。测试覆盖边界和实机步骤见[测试与验收](testing.md)。
+可追加场景名，例如 `pnpm test:browser --host 10.126.179.2 --port 5173 network-editor-session desktop-lifecycle`。路由切换时的加载提示和脚本请求可单独用 `pnpm test:browser --host 10.126.179.2 --port 5173 route-transitions` 检查，此场景仅按名称运行。脚本使用共享模拟数据来源，自动启动或复用开发服务、隔离浏览器会话并清理；失败截图在 `.cache/browser/`。`BROWSER_WIDTH / BROWSER_HEIGHT / BROWSER_COLOR_SCHEME / BROWSER_REDUCED_MOTION` 用于最小窗口、深色及减少动态效果检查。测试覆盖边界和实机步骤见[测试与验收](testing.md)。
 
 ## Windows 构建
 

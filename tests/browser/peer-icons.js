@@ -71,17 +71,6 @@
   assert(document.documentElement.scrollWidth <= innerWidth, 'Icon menu caused page overflow');
   return {
     passed: true,
-    checked: [
-      'role-defaults',
-      'direct-icon-picker',
-      'independent-expansion',
-      'manual-choice',
-      'client-only-save',
-      'failed-save',
-      'restore-auto',
-      'no-reconnect',
-      'no-overflow',
-    ],
     savedIcon: 'smartphone',
   };
 })();

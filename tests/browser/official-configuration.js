@@ -159,19 +159,5 @@
       ),
     'Migration changed existing networks',
   );
-  return {
-    passed: true,
-    checked: [
-      'chooser-cancel',
-      'invalid-file',
-      'masked-preview',
-      'tun-conflict',
-      'failed-save-retry',
-      'new-manual-profile',
-      'unknown-fields-retained',
-      'edit-report',
-      'export-failure-cancel-retry',
-      'other-networks-unchanged',
-    ],
-  };
+  return { passed: true };
 })();
