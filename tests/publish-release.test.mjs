@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { publishRelease } from '../scripts/publish-release.mjs';
+import { publishRelease } from '../scripts/release/publish-release.mjs';
 
 const commit = 'a'.repeat(40);
 const digest = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
@@ -349,7 +349,7 @@ test('API permission failures are not mistaken for missing releases', async (t) 
 test('CLI refuses manual or branch workflows before accessing GitHub', () => {
   const result = spawnSync(
     process.execPath,
-    [fileURLToPath(new URL('../scripts/publish-release.mjs', import.meta.url)), '.'],
+    [fileURLToPath(new URL('../scripts/release/publish-release.mjs', import.meta.url)), '.'],
     {
       encoding: 'utf8',
       env: {

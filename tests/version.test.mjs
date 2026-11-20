@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { changeProjectVersion, checkProjectVersion, main } from '../scripts/version.mjs';
+import { changeProjectVersion, checkProjectVersion, main } from '../scripts/release/version.mjs';
 
-const script = fileURLToPath(new URL('../scripts/version.mjs', import.meta.url));
+const script = fileURLToPath(new URL('../scripts/release/version.mjs', import.meta.url));
 const tracked = [
   'package.json',
   'src-tauri/Cargo.toml',
@@ -256,7 +256,7 @@ test('initial adoption permits an unpublished placeholder to become a prerelease
 
   const managed = fixture(t);
   const pkg = JSON.parse(readFileSync(join(managed, 'package.json'), 'utf8'));
-  pkg.scripts = { 'version:check': 'node scripts/version.mjs check' };
+  pkg.scripts = { 'version:check': 'node scripts/release/version.mjs check' };
   writeFileSync(join(managed, 'package.json'), JSON.stringify(pkg));
   commit(managed);
   const managedBase = git(managed, 'rev-parse', 'HEAD');

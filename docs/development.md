@@ -73,7 +73,7 @@ Windows x64 本机需要 MSVC、Windows SDK、Rust MSVC target、Git 和 protoc 
 
 CI 使用 PowerShell 7 运行 [setup-build-tools.ps1](../scripts/windows/setup-build-tools.ps1)：调用 Visual Studio 官方开发环境入口启用 x64 工具链，校验固定 SHA-256 后解压 protoc 21.12，并验证编译、链接与标准 protobuf 导入。环境增量传递给后续步骤；签名凭据不写入日志。Action 使用原生 Node 24 版本并固定完整提交 SHA，项目 Node.js 版本单独固定。
 
-直接执行 Windows 核心测试前，先运行 `node scripts/prepare-core-resources.mjs` 准备运行资源与链接库；下面的标准构建命令会自动准备：
+直接执行 Windows 核心测试前，先运行 `node scripts/windows/prepare-core-resources.mjs` 准备运行资源与链接库；下面的标准构建命令会自动准备：
 
 ```sh
 pnpm build:windows all
@@ -100,7 +100,7 @@ gh run list --workflow windows-build.yml
 
 ## 版本管理
 
-应用版本以 `package.json.version` 为准，由 [版本脚本](../scripts/version.mjs)同步 Rust 应用包及其锁文件；内部 crate 和 EasyTier 核心版本独立。开发与构建只校验，不自动升版。
+应用版本以 `package.json.version` 为准，由 [版本脚本](../scripts/release/version.mjs)同步 Rust 应用包及其锁文件；内部 crate 和 EasyTier 核心版本独立。开发与构建只校验，不自动升版。
 
 | 命令                                       | 作用                                                                     |
 | ------------------------------------------ | ------------------------------------------------------------------------ |

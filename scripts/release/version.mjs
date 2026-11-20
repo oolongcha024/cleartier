@@ -247,7 +247,7 @@ export function changeProjectVersion(root, command, args = [], { dryRun = false 
 
 export function main(
   argv = process.argv.slice(2).filter((arg) => arg !== '--'),
-  root = fileURLToPath(new URL('../', import.meta.url)),
+  root = fileURLToPath(new URL('../../', import.meta.url)),
 ) {
   if (argv.length === 1 && ['--help', '-h'].includes(argv[0])) {
     console.log(usage);

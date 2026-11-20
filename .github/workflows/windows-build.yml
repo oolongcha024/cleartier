@@ -141,7 +141,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_DIRECTORY: ${{ runner.temp }}/windows-release
-        run: node scripts/publish-release.mjs "$RELEASE_DIRECTORY"
+        run: node scripts/release/publish-release.mjs "$RELEASE_DIRECTORY"
 
   update-index:
     name: Publish update index

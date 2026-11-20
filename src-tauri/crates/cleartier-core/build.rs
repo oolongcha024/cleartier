@@ -10,7 +10,7 @@ fn main() {
     println!("cargo:rerun-if-changed={}", packet.display());
     assert!(
         packet.is_file(),
-        "Missing Packet.lib; run node scripts/prepare-core-resources.mjs before building the Windows core"
+        "Missing Packet.lib; run node scripts/windows/prepare-core-resources.mjs before building the Windows core"
     );
     println!("cargo:rustc-link-search=native={}", resources.display());
 }

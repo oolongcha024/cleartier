@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { verifyWindowsIcon } from '../scripts/verify-windows-icon.mjs';
+import { verifyWindowsIcon } from '../scripts/windows/verify-windows-icon.mjs';
 
 // A minimal PE resource tree follows the same type/name/language structure and
 // application group ID as Tauri's real Windows output. Image bytes stay opaque.

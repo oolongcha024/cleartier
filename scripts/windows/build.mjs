@@ -12,8 +12,8 @@ import {
 } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { verifyWindowsIcon } from '../verify-windows-icon.mjs';
-import { checkProjectVersion } from '../version.mjs';
+import { verifyWindowsIcon } from './verify-windows-icon.mjs';
+import { checkProjectVersion } from '../release/version.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const target = 'x86_64-pc-windows-msvc';
@@ -74,7 +74,7 @@ function verifyProgram() {
       '-ExecutionPolicy',
       'Bypass',
       '-File',
-      join(root, 'scripts/check-core.ps1'),
+      join(root, 'scripts/windows/check-core.ps1'),
       '-AppDirectory',
       stage,
       '-Mode',
@@ -95,18 +95,18 @@ function exportOutputs(mode, release, version) {
   if (mode !== 'nsis') {
     rmSync(portable, { recursive: true, force: true });
     cpSync(stage, portable, { recursive: true });
-    run('powershell.exe', [
-      '-NoProfile',
-      '-NonInteractive',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-File',
-      join(root, 'scripts/windows/zip.ps1'),
-      '-Source',
-      stage,
-      '-Destination',
-      zip,
-    ]);
+    run(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        "$ErrorActionPreference = 'Stop'; " +
+          'Compress-Archive -LiteralPath $env:CLEARTIER_ZIP_SOURCE ' +
+          '-DestinationPath $env:CLEARTIER_ZIP_DESTINATION -CompressionLevel Optimal -Force',
+      ],
+      { ...process.env, CLEARTIER_ZIP_SOURCE: stage, CLEARTIER_ZIP_DESTINATION: zip },
+    );
     files.push('cleartier-windows-x64.zip');
   }
   if (mode !== 'exe') {
@@ -225,7 +225,7 @@ export function main(args = process.argv.slice(2).filter((arg) => arg !== '--'))
     '-p',
     'cleartier-updates',
   ]);
-  run(process.execPath, [join(root, 'scripts/prepare-core-resources.mjs')]);
+  run(process.execPath, [join(root, 'scripts/windows/prepare-core-resources.mjs')]);
   // Native test executables also link the upstream runtime DLLs. Scope their
   // search path to this one command; the packaged application uses its own files.
   const testEnvironment = Object.fromEntries(
@@ -275,7 +275,7 @@ export function main(args = process.argv.slice(2).filter((arg) => arg !== '--'))
   exportOutputs(mode, release, version);
 }
 
-export function runCli() {
+function runCli() {
   try {
     main();
   } catch (error) {

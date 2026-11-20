@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { devEnvironment, parseDevArguments } from '../scripts/dev-environment.ts';
+import { devEnvironment } from '../scripts/dev-environment.ts';
 import { tauriArguments } from '../scripts/tauri.mjs';
 
 function fixture(t, contents) {
@@ -20,7 +20,7 @@ test('a fresh checkout uses localhost and matches the static desktop configurati
     port: 5173,
     previewPort: 4174,
     devUrl: 'http://localhost:5173',
-    previewUrl: 'http://localhost:4174',
+    remaining: [],
   });
   const config = JSON.parse(readFileSync(new URL('../src-tauri/tauri.conf.json', import.meta.url)));
   assert.equal(config.build.devUrl, development.devUrl);
@@ -50,7 +50,6 @@ test('IPv6 addresses are unbracketed for listening and bracketed in URLs', (t) =
     const development = devEnvironment({ ...options, env: { CLEARTIER_DEV_HOST: host } });
     assert.equal(development.host, '::1');
     assert.equal(development.devUrl, 'http://[::1]:5173');
-    assert.equal(development.previewUrl, 'http://[::1]:4174');
   }
 });
 
@@ -114,7 +113,7 @@ test('CLI address overrides legacy configuration without reading it or mutating 
   assert.equal(development.host, '192.0.2.20');
   assert.equal(development.port, 5188);
   assert.equal(development.devUrl, 'http://192.0.2.20:5188');
-  assert.equal(development.previewUrl, 'http://192.0.2.20:5188');
+  assert.equal(development.previewPort, 5188);
   assert.equal(options.env.CLEARTIER_DEV_HOST, 'invalid/path');
   assert.deepEqual(args, ['--host', '192.0.2.20', '--port=5188']);
 });
@@ -130,7 +129,9 @@ test('address flags preserve command arguments, and stop at the runner separator
     '--host',
     'app',
   ];
-  assert.deepEqual(parseDevArguments(args), {
+  assert.deepEqual(devEnvironment({ args }), {
+    previewPort: 5190,
+    devUrl: 'http://dev.example.test:5190',
     host: 'dev.example.test',
     port: 5190,
     remaining: ['updates', '--open', '--', '--host', 'app'],

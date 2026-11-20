@@ -1,7 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 // Check the actual Windows application resource, not a PNG embedded elsewhere
 // in the executable. Keep this independent of host-specific inspection tools.
 export function verifyWindowsIcon(executable, ico) {
@@ -95,17 +91,4 @@ export function verifyWindowsIcon(executable, ico) {
     }
   }
   return { images: count, groups: groups.length };
-}
-
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try {
-    const [executablePath, iconPath, ...extra] = process.argv.slice(2);
-    if (!executablePath || !iconPath || extra.length)
-      throw new Error('Usage: node scripts/verify-windows-icon.mjs <exe> <ico>');
-    const result = verifyWindowsIcon(readFileSync(executablePath), readFileSync(iconPath));
-    console.log(`Verified Windows application icon: ${result.images} images match ${iconPath}`);
-  } catch (error) {
-    console.error(error.message);
-    process.exitCode = 1;
-  }
 }

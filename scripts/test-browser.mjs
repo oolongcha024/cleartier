@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { readFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { devEnvironment, parseDevArguments } from './dev-environment.ts';
+import { devEnvironment } from './dev-environment.ts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const development = devEnvironment();
@@ -27,7 +27,7 @@ const suites = [
     'updates',
   ].map((name) => [name, 'testing']),
 ];
-const requested = parseDevArguments(process.argv.slice(2)).remaining;
+const requested = development.remaining;
 const chosen = requested.length ? suites.filter(([name]) => requested.includes(name)) : suites;
 if (requested.some((name) => !suites.some(([suite]) => suite === name)))
   throw new Error('Unknown browser suite');

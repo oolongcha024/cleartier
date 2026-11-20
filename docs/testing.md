@@ -69,11 +69,11 @@
 
 ```powershell
 $packageDirectory = (Resolve-Path .\artifacts\windows-x64\exe).Path
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-core.ps1 -AppDirectory $packageDirectory -Mode Process
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-core.ps1 -AppDirectory $packageDirectory -Mode Cancel
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-core.ps1 -AppDirectory $packageDirectory -Mode Tun
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-core.ps1 -AppDirectory $packageDirectory -Mode Recovery
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-core.ps1 -AppDirectory $packageDirectory -Mode MissingResource
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\check-core.ps1 -AppDirectory $packageDirectory -Mode Process
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\check-core.ps1 -AppDirectory $packageDirectory -Mode Cancel
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\check-core.ps1 -AppDirectory $packageDirectory -Mode Tun
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\check-core.ps1 -AppDirectory $packageDirectory -Mode Recovery
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\check-core.ps1 -AppDirectory $packageDirectory -Mode MissingResource
 ```
 
 `Direct` 为进程内基础检查。成功报告要求 `passed: true`、错误及清理错误为空；`Process` 验证不同控制端／核心 PID，`Tun` 验证双网卡创建及独立清理。`Recovery` 仅验证普通权限无 TUN 的独立进程恢复，不代替 GUI 自动恢复验收。检查不使用日常配置，`Tun` 使用临时测试网卡；报告及关联日志应一并保留。

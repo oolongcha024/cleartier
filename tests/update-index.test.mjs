@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { generateUpdateIndex } from '../scripts/generate-update-index.mjs';
+import { generateUpdateIndex } from '../scripts/release/generate-update-index.mjs';
 
 const repository = 'owner/cleartier';
 function release(version, notes = 'Release notes') {

@@ -230,7 +230,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       );
     }
     const result = await publishRelease({
-      root: fileURLToPath(new URL('../', import.meta.url)),
+      root: fileURLToPath(new URL('../../', import.meta.url)),
       directory: resolve(process.argv[2]),
       tag: process.env.GITHUB_REF.slice(10),
       commit: process.env.GITHUB_SHA,

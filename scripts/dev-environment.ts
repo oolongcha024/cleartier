@@ -6,14 +6,14 @@ import { parseEnv } from 'node:util';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 
-export interface DevEnvironmentOptions {
+interface DevEnvironmentOptions {
   root?: string;
   env?: NodeJS.ProcessEnv;
   args?: string[];
 }
 
 /** Consume only our address flags, leaving command-specific flags and positionals intact. */
-export function parseDevArguments(args: string[]) {
+function parseDevArguments(args: string[]) {
   let host: string | undefined;
   let port: number | undefined;
   const remaining: string[] = [];
@@ -80,6 +80,6 @@ export function devEnvironment({
     port,
     previewPort,
     devUrl: `http://${urlHost}:${port}`,
-    previewUrl: `http://${urlHost}:${previewPort}`,
+    remaining: cli.remaining,
   };
 }
